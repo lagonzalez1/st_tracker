@@ -39,22 +39,49 @@ func (s *AuthService) RegisterRootUser(req models.RegisterRequestAdminRoot) (*mo
 	if !isValidEmail(req.Email) {
 		return nil, fmt.Errorf("invalid email format")
 	}
+
+	// Query to insert into Admin_root
 	query := `INSERT INTO 
-			  stu_tracker.Admin_root(email, password_hash, organization_name) 
-			  VALUES ($1, $2, $3) RETURNING id, email`
-	// Convert password to byte. Do i need to check for empty password.
-	unhashed_password := []byte(req.Password)
-	hash_password, err := bcrypt.GenerateFromPassword(unhashed_password, bcrypt.DefaultCost)
+			  stu_tracker.Admin_root(email, password_hash, organization_name, organization_id) 
+			  VALUES ($1, $2, $3, $4) RETURNING id, email, organization_id`
+
+	// Query to insert into Organization
+	query2 := `INSERT INTO
+				stu_tracker.Organization(title, address, city, zip_code, state)
+				VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
+
+	// Hash the password
+	unhashedPassword := []byte(req.Password)
+	hashedPassword, err := bcrypt.GenerateFromPassword(unhashedPassword, bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("unable to hash password: %v", err)
 	}
+
+	// Step 2: Use the ID from the first query to insert into Organization
+	var organizationID int
+	err = s.db.QueryRow(query2,
+		req.OrganizationName,
+		req.Address,
+		req.City,
+		req.ZipCode,
+		req.State,
+	).Scan(&organizationID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create organization: %v", err)
+	}
+
 	var user models.RegisterResponseAdminRoot
-	err = s.db.QueryRow(query, req.Email, string(hash_password), req.Organization).Scan(
+	err = s.db.QueryRow(query, req.Email, string(hashedPassword), req.OrganizationName, organizationID).Scan(
 		&user.ID,
 		&user.Email,
+		&user.OrganizationId,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create user %v", err)
+		return nil, fmt.Errorf("failed to create admin_root: %v", err)
 	}
+
+	// Optionally include the organization ID in the response or log it
+	fmt.Printf("Created Organization with ID: %d\n", organizationID)
+
 	return &user, nil
 }
