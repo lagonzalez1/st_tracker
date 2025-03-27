@@ -17,3 +17,7 @@ Load env files for DB passwords
 github.com/aws/aws-sdk-go-v2/service/secretsmanager
 NO NAT: Will crete a NAT instnace in public subnet or AMI image
 Secrect Manager AWS
+
+
+EC2 installs:
+sudo snap install --classic go
