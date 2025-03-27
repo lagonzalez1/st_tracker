@@ -1,0 +1,19 @@
+AWS Architechture
+
+Create VPC and more
+VPC: 10.0.0.0/16
+2 Availability zones
+2 Subnets -> Public, Private
+S3 Endpoint for the possiblity of signing URLS
+Full access Policy is attached by default
+Enable DNS resolution
+Internet facing gateway attached automatically
+
+
+Dependancies:
+S3 Write images ...
+https://pkg.go.dev/github.com/aws/aws-sdk-go/service/s3
+Load env files for DB passwords
+github.com/aws/aws-sdk-go-v2/service/secretsmanager
+NO NAT: Will crete a NAT instnace in public subnet or AMI image
+Secrect Manager AWS

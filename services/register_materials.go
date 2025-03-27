@@ -11,10 +11,10 @@ func (s *AuthService) AddMaterial(req models.RegisterRequestMaterials) (*models.
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, or email")
 	}
 	var newID int64
-	query := `INSERT INTO stu_tracker.Materials(title, external_link, description, pre, mid, post, visable, version, organization_id, location_id)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id;`
+	query := `INSERT INTO stu_tracker.Materials(title, external_link, description, pre, mid, post, visible, version, organization_id, location_id, program_id)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id;`
 
-	err := s.db.QueryRow(query, req.Title, req.ExternalLink, req.Description, req.Pre, req.Mid, req.Post, req.Visable, req.Version, *req.OrganizationId, *req.LocationId).Scan(&newID)
+	err := s.db.QueryRow(query, req.Title, req.ExternalLink, req.Description, req.Pre, req.Mid, req.Post, req.Visible, req.Version, *req.OrganizationId, req.LocationId, req.ProgramId).Scan(&newID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert Locations: %w", err)
 	}
@@ -30,10 +30,10 @@ func (s *AuthService) UpdateMaterial(req models.RegisterRequestMaterials) (*mode
 		return nil, fmt.Errorf("missing required fields: id")
 	}
 	query := `UPDATE stu_tracker.Materials SET
-			  title = $1, external_link = $2, description = $3, pre = $4, mid = $5, post = $6, visable = $7, version = $8, organization_id = $9, location_id = $10
-              WHERE id = $11`
+			  title = $1, external_link = $2, description = $3, pre = $4, mid = $5, post = $6, visible = $7, version = $8, organization_id = $9, location_id = $10, program_id = $11
+              WHERE id = $12`
 
-	_, err := s.db.Exec(query, req.Title, req.ExternalLink, req.Description, req.Pre, req.Mid, req.Post, req.Visable, req.Version, *req.OrganizationId, req.LocationId, *req.ID)
+	_, err := s.db.Exec(query, req.Title, req.ExternalLink, req.Description, req.Pre, req.Mid, req.Post, req.Visible, req.Version, *req.OrganizationId, req.LocationId, req.ProgramId, *req.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert Locations: %w", err)
 	}

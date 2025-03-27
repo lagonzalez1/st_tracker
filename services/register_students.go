@@ -12,10 +12,10 @@ func (s *AuthService) AddStudent(req models.RegisterRequestStudents) (*models.Re
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, or email")
 	}
 	var newID int64
-	query := `INSERT INTO stu_tracker.Students(first_name, last_name, middle_name, email, grade_level, active, location_id)
-              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id;`
+	query := `INSERT INTO stu_tracker.Students(first_name, last_name, middle_name, email, grade_level, active, location_id, period)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;`
 
-	err := s.db.QueryRow(query, req.FirstName, req.LastName, req.MiddleName, req.Email, req.GradeLevel, req.Active, req.LocationId).Scan(&newID)
+	err := s.db.QueryRow(query, req.FirstName, req.LastName, req.MiddleName, req.Email, req.GradeLevel, req.Active, req.LocationId, req.Period).Scan(&newID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}
@@ -31,10 +31,10 @@ func (s *AuthService) UpdateStudent(req models.RegisterRequestStudents) (*models
 	if req.ID == nil || req.LastName == "" || req.Email == "" {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, or email")
 	}
-	query := `UPDATE stu_tracker.Students SET first_name = $1, last_name = $2, middle_name = $3, email = $4, grade_level = $5, active = $6, location_id = $7
-              WHERE id = $8`
+	query := `UPDATE stu_tracker.Students SET first_name = $1, last_name = $2, middle_name = $3, email = $4, grade_level = $5, active = $6, location_id = $7, period = $8
+              WHERE id = $9`
 
-	_, err := s.db.Exec(query, req.FirstName, req.LastName, req.MiddleName, req.Email, req.GradeLevel, req.Active, req.LocationId, req.ID)
+	_, err := s.db.Exec(query, req.FirstName, req.LastName, req.MiddleName, req.Email, req.GradeLevel, req.Active, req.LocationId, req.Period, req.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update student: %w", err)
 	}

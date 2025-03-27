@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	DB   PostGresConfig
-	Port string
-	JWT  string
+	DB     PostGresConfig
+	Port   string
+	JWT    string
+	SignUp SignUpConfig
 }
 
 type PostGresConfig struct {
@@ -20,6 +21,13 @@ type PostGresConfig struct {
 	Port     string
 	Host     string
 	Name     string
+}
+
+type SignUpConfig struct {
+	ORG_ADD_KEY   string
+	ORG_ADD_KEY_1 string
+	ORG_ADD_KEY_2 string
+	ORG_ADD_KEY_3 string
 }
 
 func LoadConfig() (*Config, error) {
@@ -37,6 +45,12 @@ func LoadConfig() (*Config, error) {
 			Port:     os.Getenv("POSTGRES_PORT"),
 			Host:     os.Getenv("POSTGRES_HOST"),
 			Name:     os.Getenv("DB_NAME"),
+		},
+		SignUp: SignUpConfig{
+			ORG_ADD_KEY:   os.Getenv("ORG_ADD_KEY"),
+			ORG_ADD_KEY_1: os.Getenv("ORG_ADD_KEY_1"),
+			ORG_ADD_KEY_2: os.Getenv("ORG_ADD_KEY_2"),
+			ORG_ADD_KEY_3: os.Getenv("ORG_ADD_KEY_3"),
 		},
 	}
 	return cfg, nil

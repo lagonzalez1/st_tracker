@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 	"tracker/app/models"
 	"tracker/app/services"
 
@@ -244,7 +246,7 @@ func (h *AuthHandler) CreateProgram(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	valid, err := validateRequest(claims, "create:program")
+	valid, err := validateRequest(claims, "write:program")
 	if err != nil || !valid {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
@@ -261,9 +263,44 @@ func (h *AuthHandler) CreateProgram(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
-
 	// Need to handle 3 cases of logins for different permissions
 	user, err := h.authService.AddProgram(models)
+	if err != nil {
+		http.Error(w, "Unable to create student", http.StatusInternalServerError)
+		fmt.Printf("Unable to insert student: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+// Program create, update, delete AUTH
+func (h *AuthHandler) CreatePermission(w http.ResponseWriter, r *http.Request) {
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:permissions")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	fmt.Printf("Request body %s\n", string(body))
+
+	var models models.RegisterPermissionRequest
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+	// Need to handle 3 cases of logins for different permissions
+	user, err := h.authService.CreatePermission(models)
 	if err != nil {
 		http.Error(w, "Unable to create student", http.StatusInternalServerError)
 		fmt.Printf("Unable to insert student: %v", err)
@@ -280,7 +317,7 @@ func (h *AuthHandler) UpdateProgram(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	valid, err := validateRequest(claims, "update:program")
+	valid, err := validateRequest(claims, "write:program")
 	if err != nil || !valid {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
@@ -543,6 +580,112 @@ func (h *AuthHandler) DeleteLocation(w http.ResponseWriter, r *http.Request) {
 // END Location create, update, delete
 
 // Semester create, update, delete
+func (h *AuthHandler) CreateSemesterLocation(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	fmt.Printf("Request body %s\n", string(body))
+
+	var models models.RegisterRequestSemesterLocation
+	if err := json.Unmarshal([]byte(body), &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+
+	// Need to handle 3 cases of logins for different permissions
+	user, err := h.authService.AddSemesterLocation(models)
+	if err != nil {
+		http.Error(w, "Unable to create Semester", http.StatusInternalServerError)
+		fmt.Printf("Unable to insert location: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+func (h *AuthHandler) UpdateSemesterLocation(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	fmt.Printf("Request body %s\n", string(body))
+
+	var models models.RegisterRequestSemesterLocation
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+
+	// Need to handle 3 cases of logins for different permissions
+	user, err := h.authService.UpdateSemesterLocation(models)
+	if err != nil {
+		http.Error(w, "Unable to create Semester", http.StatusInternalServerError)
+		fmt.Printf("Unable to insert location: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+func (h *AuthHandler) DeleteSemesterLocation(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	fmt.Printf("Request body %s\n", string(body))
+
+	var models models.RemoveRequest
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+
+	// Need to handle 3 cases of logins for different permissions
+	user, err := h.authService.DeleteSemesterLocation(models)
+	if err != nil {
+		http.Error(w, "Unable to delete Semester", http.StatusInternalServerError)
+		fmt.Printf("Unable to delete location: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+// Create organization
+func (h *AuthHandler) CreateOrganization(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	fmt.Printf("Request body %s\n", string(body))
+
+	var models models.RegisterOrganization
+	if err := json.Unmarshal([]byte(body), &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+
+	// Need to handle 3 cases of logins for different permissions
+	user, err := h.authService.AddOrganization(models)
+	if err != nil {
+		http.Error(w, "Unable to add organization", http.StatusInternalServerError)
+		fmt.Printf("Unable to insert location: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+// Semester create, update, delete
 func (h *AuthHandler) CreateSemester(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -552,7 +695,7 @@ func (h *AuthHandler) CreateSemester(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Request body %s\n", string(body))
 
 	var models models.RegisterRequestSemester
-	if err := json.Unmarshal(body, &models); err != nil {
+	if err := json.Unmarshal([]byte(body), &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
@@ -709,8 +852,8 @@ func (h *AuthHandler) CreateTutor(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := h.authService.AddTutor(models)
 	if err != nil {
-		http.Error(w, "Unable to create Admin staff", http.StatusInternalServerError)
-		fmt.Printf("Unable to insert Admin staff: %v", err)
+		http.Error(w, "Unable to create tutor staff", http.StatusInternalServerError)
+		fmt.Printf("Unable to insert tutor staff: %v", err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -800,6 +943,47 @@ func (h *AuthHandler) GetLocations(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (h *AuthHandler) GetSubjectLocations(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	email := query.Get("email")
+	role := query.Get("role")
+	id := query.Get("id")
+	org_id := query.Get("organization_id")
+	loc_id := query.Get("location_id")
+
+	_, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if email == "" || role == "" || id == "" || org_id == "" || loc_id == "" {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	idd, err := strconv.ParseInt(org_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	ldd, err := strconv.ParseInt(loc_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+
+	rows, err := h.authService.GetSubjectByLocation(idd, ldd)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
 func (h *AuthHandler) GetLocationPrograms(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	email := query.Get("email")
@@ -823,12 +1007,12 @@ func (h *AuthHandler) GetLocationPrograms(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
 		return
 	}
-	idd, err := strconv.ParseInt(org_id, 10, 64)
+	org, err := strconv.ParseInt(org_id, 10, 64)
 	if err != nil {
 		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
 		return
 	}
-	rows, err := h.authService.GetProgramsByLocation(idd, locId, role)
+	rows, err := h.authService.GetProgramsByLocation(locId, org)
 	if err != nil {
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
 		return
@@ -983,7 +1167,40 @@ func (h *AuthHandler) GetPrograms(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	response := map[string]interface{}{"data": rows}
 	json.NewEncoder(w).Encode(response)
+}
 
+func (h *AuthHandler) GetSemesterLocations(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	email := query.Get("email")
+	role := query.Get("role")
+	id := query.Get("id")
+	org_id := query.Get("organization_id")
+	location_ids := query.Get("location_ids")
+
+	if email == "" || role == "" || id == "" || org_id == "" {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	idd, err := strconv.ParseInt(org_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		return
+	}
+	locations, err := ParseArrayParam(location_ids)
+	if err != nil {
+		http.Error(w, "Unable to ParseArrayParam", http.StatusInternalServerError)
+		return
+	}
+	rows, err := h.authService.GetSemesterLocationById(role, locations, idd)
+	if err != nil {
+		http.Error(w, "Unable to get programs by id", http.StatusInternalServerError)
+		fmt.Printf("error scanning row: %v", err)
+		return
+	}
+	w.Header().Set("Content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *AuthHandler) GetMaterials(w http.ResponseWriter, r *http.Request) {
@@ -1147,6 +1364,87 @@ func (h *AuthHandler) GetSubjects(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (h *AuthHandler) CreateTutorLocation(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	fmt.Printf("Request body %s\n", string(body))
+	var models models.RegisterTutorLocation
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+	user, err := h.authService.AddTutorLocation(models)
+	if err != nil {
+		http.Error(w, "Unable to create RegisterTutorLocation staff", http.StatusInternalServerError)
+		fmt.Printf("Unable to insert RegisterTutorLocation staff: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+func (h *AuthHandler) GetTutorLocations(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	email := query.Get("email")
+	role := query.Get("role")
+	id := query.Get("id")
+	org_id := query.Get("organization_id")
+
+	if email == "" || role == "" || id == "" || org_id == "" {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	idd, err := strconv.ParseInt(org_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	tid, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	rows, err := h.authService.GetTutorLocations(tid, idd)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in Semesters %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) DeleteTutorLocation(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	fmt.Printf("Request body %s\n", string(body))
+	var models models.RemoveTutorLocation
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+	user, err := h.authService.DeleteTutorLocation(models)
+	if err != nil {
+		http.Error(w, "Unable to delete DeleteTutorLocation staff", http.StatusInternalServerError)
+		fmt.Printf("Unable to delete DeleteTutorLocation staff: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
 func (h *AuthHandler) CreateSubject(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -1261,20 +1559,191 @@ func (h *AuthHandler) CreateAssessment(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
-
-func (h *AuthHandler) GetSessionSearch(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) UpdateAssessment(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		fmt.Printf("error found reading body")
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
-	var models models.SearchQuery
+	var models models.RegisterUpdateAnnouncements
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
-	rows, err := h.authService.SessionSearch(models)
+	user, err := h.authService.UpdateAnnouncement(models)
+	if err != nil {
+		http.Error(w, "Unable to create UpdateAnnouncement", http.StatusInternalServerError)
+		fmt.Printf("Unable to insert UpdateAnnouncement: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+func (h *AuthHandler) DeleteAssessment(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	fmt.Printf("Request body %s\n", string(body))
+	var models models.RemoveRequest
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+	user, err := h.authService.DeleteAssessment(models)
+	if err != nil {
+		http.Error(w, "Unable to create UpdateAnnouncement", http.StatusInternalServerError)
+		fmt.Printf("Unable to insert UpdateAnnouncement: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+func (h *AuthHandler) CreateAnnouncement(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	fmt.Printf("Request body %s\n", string(body))
+	var models models.RegisterAnnouncements
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+	user, err := h.authService.AddAnnouncement(models)
+	if err != nil {
+		http.Error(w, "Unable to AddAnnouncement", http.StatusInternalServerError)
+		fmt.Printf("Unable to insert AddAnnouncement: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+func (h *AuthHandler) DeleteAnnouncement(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	fmt.Printf("Request body %s\n", string(body))
+	var models models.RemoveRequest
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+	user, err := h.authService.DeleteAnnouncement(models)
+	if err != nil {
+		http.Error(w, "Unable to create DeleteAnnouncement", http.StatusInternalServerError)
+		fmt.Printf("Unable to insert DeleteAnnouncement: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+func (h *AuthHandler) UpdateAnnouncement(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	fmt.Printf("Request body %s\n", string(body))
+	var models models.RegisterUpdateAnnouncements
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+	user, err := h.authService.UpdateAnnouncement(models)
+	if err != nil {
+		http.Error(w, "Unable to create UpdateAnnouncement", http.StatusInternalServerError)
+		fmt.Printf("Unable to insert UpdateAnnouncement: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+func (h *AuthHandler) GetSessionSearch(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+
+	// Undefined variables like optional location_id
+	// Check if exist before
+	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	var model models.SearchQuery
+
+	if query.Get("location_id") != "" {
+		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.LocationId = &loc_id
+	}
+	if query.Get("program_id") != "" {
+		prog_id, err := strconv.ParseInt(query.Get("program_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.ProgramId = &prog_id
+	}
+	if query.Get("organization_id") != "" {
+		org_id, err := strconv.ParseInt(query.Get("organization_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.OrganizationID = &org_id
+	}
+	if query.Get("subject_id") != "" {
+		sub_id, err := strconv.ParseInt(query.Get("subject_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SubjectId = &sub_id
+	}
+	if query.Get("semester_id") != "" {
+		sub_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SemesterID = &sub_id
+	}
+
+	if query.Get("date") != "" {
+		start_time, err := time.Parse("2006-01-02", query.Get("date"))
+		if err != nil {
+			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.DateStart = start_time
+	}
+	if query.Get("date_end") != "" {
+		end_date, err := time.Parse("2006-01-02", query.Get("date_end"))
+		if err != nil {
+			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.DateEnd = end_date
+	}
+	rows, err := h.authService.SessionSearch(model)
 	if err != nil {
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
 		fmt.Printf("Unable to get rows in Semesters %v", err)
@@ -1286,4 +1755,224 @@ func (h *AuthHandler) GetSessionSearch(w http.ResponseWriter, r *http.Request) {
 	// Example response
 	response := map[string]interface{}{"data": rows}
 	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetSessionInfo(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	email := query.Get("email")
+	role := query.Get("role")
+	id := query.Get("id")
+	org_id := query.Get("organization_id")
+	session_id := query.Get("session_id")
+	if email == "" || role == "" || id == "" || org_id == "" || session_id == "" {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	idd, err := strconv.ParseInt(session_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	rows, err := h.authService.SessionInfo(idd)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in Semesters %v", err)
+		return
+	}
+	a_rows, err := h.authService.AssessmentInfo(idd)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in Semesters %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows, "assessment_data": a_rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	email := query.Get("email")
+	role := query.Get("role")
+	org_id := query.Get("organization_id")
+	id := query.Get("id")
+
+	if email == "" || role == "" || org_id == "" {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	idd, err := strconv.ParseInt(org_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	aeid, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	rows, err := h.authService.GetPermissionsById(idd, role, aeid)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in Semesters %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetOrganizationPermissions(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	email := query.Get("email")
+	role := query.Get("role")
+	org_id := query.Get("organization_id")
+
+	if email == "" || role == "" || org_id == "" {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	idd, err := strconv.ParseInt(org_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	rows, err := h.authService.GetOrganizationPermissions(idd)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in Semesters %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetAnnouncements(w http.ResponseWriter, r *http.Request) {
+	// This needs to be handled in a PUT request.
+	query := r.URL.Query()
+	email := query.Get("email")
+	role := query.Get("role")
+	id := query.Get("id")
+	location_ids := query.Get("location_ids")
+	org_id := query.Get("organization_id")
+
+	oid, err := strconv.ParseInt(org_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	idd, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	locations, err := ParseArrayParam(location_ids)
+	if err != nil {
+		http.Error(w, "Unable to ParseArrayParam", http.StatusInternalServerError)
+		return
+	}
+	var models models.AnnouncementRequest
+	models.OrganizationID = oid
+	models.ID = idd
+	models.Role = role
+	models.Email = email
+	models.LocationIDs = locations
+
+	fmt.Printf("Updating User: %+v\n", models)
+	rows, err := h.authService.GetAnnouncements(models)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in Semesters %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) CreateSubjectLocation(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	fmt.Printf("Request body %s\n", string(body))
+
+	var models models.RegisterSubjectLocation
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+
+	// Need to handle 3 cases of logins for different permissions
+	user, err := h.authService.AddSubjectLocation(models)
+	if err != nil {
+		http.Error(w, "Unable to create student", http.StatusInternalServerError)
+		fmt.Printf("Unable to insert student: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+func (h *AuthHandler) DeleteSubjectLocation(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	fmt.Printf("Request body %s\n", string(body))
+
+	var models models.RemoveSubjectLocation
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+
+	// Need to handle 3 cases of logins for different permissions
+	user, err := h.authService.DeleteSubjectLocation(models)
+	if err != nil {
+		http.Error(w, "Unable to create district", http.StatusInternalServerError)
+		fmt.Printf("Unable to insert student: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+func ParseArrayParam(param string) ([]int64, error) {
+	if param == "" {
+		return []int64{}, nil
+	}
+
+	// Split by comma
+	stringValues := strings.Split(param, ",")
+
+	// Convert to integers
+	var intValues []int64
+	for _, strVal := range stringValues {
+		num, err := strconv.ParseInt(strings.TrimSpace(strVal), 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid number in array: %v", err)
+		}
+		intValues = append(intValues, num)
+	}
+
+	return intValues, nil
 }

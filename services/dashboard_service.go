@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"tracker/app/models"
+
+	"github.com/lib/pq"
 )
 
 func (s *AuthService) GetLocationsByID(id int64, role string) ([]models.ResponseRequestLocations, error) {
@@ -79,12 +81,15 @@ func (s *AuthService) GetSubjectById(id int64, role string) ([]models.SubjectLis
 	return subjects, nil
 }
 
-func (s *AuthService) GetSubjectByLocation(id int64, loc_id int64, role string) ([]models.SubjectList, error) {
+func (s *AuthService) GetSubjectByLocation(org_id int64, loc_id int64) ([]models.SubjectList, error) {
 	var query string
 	query += `
-		SELECT sb.id, sb.title, sb.description, sb.organization_id, sb.created_at
-		FROM stu_tracker.Subjects sb where sb.organization_id = $1 AND sb.location_id = $2;`
-	rows, err := s.db.Query(query, id)
+		SELECT s.id, s.title, s.description, s.organization_id, s.created_at
+		FROM stu_tracker.Location_subjects ls
+		LEFT JOIN stu_tracker.Subjects s 
+		ON s.id = ls.subject_id
+		WHERE ls.location_id = $1 AND s.organization_id = $2;`
+	rows, err := s.db.Query(query, loc_id, org_id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying locations: %w", err)
 	}
@@ -121,7 +126,7 @@ func (s *AuthService) GetStudentsByID(id int64, role string, locationId int64) (
 			stu.location_id, stu.email, stu.grade_level, stu.active, stu.period, 
 			stu.created_at, stu.semester_id
 			FROM stu_tracker.Students stu
-			INNER JOIN stu_tracker.Locations loc
+			LEFT JOIN stu_tracker.Locations loc
 			ON stu.location_id = loc.id
 			WHERE loc.organization_id = $1 AND loc.id = $2;`
 
@@ -264,9 +269,9 @@ func (s *AuthService) GetProgramsId(id int64, role string) ([]models.ResponseReq
 
 func (s *AuthService) GetMaterialsById(id int64, role string) ([]models.ResponseRequestMaterialsList, error) {
 	var query string
-	query += `SELECT id, title, external_link, description, version, pre, mid, post, visable, created_at
+	query += `SELECT id, title, external_link, description, version, pre, mid, post, visible, created_at, program_id
 			  FROM stu_tracker.materials mt
-			  WHERE mt.organization_id = $1 AND mt.visable = FALSE;`
+			  WHERE mt.organization_id = $1;`
 	rows, err := s.db.Query(query, id)
 	if err != nil {
 		return nil, fmt.Errorf("error quering get districts by id %w", err)
@@ -284,8 +289,9 @@ func (s *AuthService) GetMaterialsById(id int64, role string) ([]models.Response
 			&material.Pre,
 			&material.Mid,
 			&material.Post,
-			&material.Visable,
+			&material.Visible,
 			&material.CreatedAt,
+			&material.ProgramId,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -300,10 +306,19 @@ func (s *AuthService) GetMaterialsById(id int64, role string) ([]models.Response
 
 func (s *AuthService) GetTutorsById(id int64, role string, locid int64) ([]models.ResponseRequestTutorsList, error) {
 	var query string
-	query += `SELECT id, first_name, last_name, email, created_at, location_id
+	var args []interface{}
+	if locid < 0 {
+		query += `SELECT id, first_name, last_name, email, created_at, location_id
 			  FROM stu_tracker.Tutors tr
-			  WHERE tr.organization_id = $1 AND tr.location_id = $2;`
-	rows, err := s.db.Query(query, id, locid)
+			  WHERE tr.organization_id = $1;`
+		args = append(args, id)
+	} else {
+		query += `SELECT id, first_name, last_name, email, created_at, location_id
+		FROM stu_tracker.Tutors tr
+		WHERE tr.organization_id = $1 AND tr.location_id = $2;`
+		args = append(args, id, locid)
+	}
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error quering get districts by id %w", err)
 	}
@@ -332,7 +347,7 @@ func (s *AuthService) GetTutorsById(id int64, role string, locid int64) ([]model
 
 func (s *AuthService) GetSemestersById(id int64, role string) ([]models.ResponseRequestSemesterList, error) {
 	var query string
-	query += `SELECT id, year, title
+	query += `SELECT id, year, title, date_start, date_end, active
 			  FROM stu_tracker.Semester sm
 			  WHERE sm.organization_id = $1;`
 	rows, err := s.db.Query(query, id)
@@ -347,6 +362,51 @@ func (s *AuthService) GetSemestersById(id int64, role string) ([]models.Response
 			&semester.ID,
 			&semester.Year,
 			&semester.Title,
+			&semester.DateStart,
+			&semester.DateEnd,
+			&semester.Active,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		semesters = append(semesters, semester)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error scanning for districts")
+	}
+	return semesters, nil
+}
+
+func (s *AuthService) GetSemesterLocationById(role string, location_ids []int64, idd int64) ([]models.ResponseRequestSemesterLocationList, error) {
+	var query string
+	query += `SELECT 
+				sl.location_id, sl.semester_id,
+				sl.created_at, ss.title, ss.year, 
+				ss.date_start, ss.date_end
+			  FROM 
+			  	stu_tracker.Semester_Location sl
+			  JOIN
+			  	stu_tracker.Semester ss
+			  ON
+			  	ss.id = sl.semester_id
+			  WHERE 
+			  	sl.organization_id = $1 AND sl.location_id = ANY($2);`
+	rows, err := s.db.Query(query, idd, pq.Array(location_ids))
+	if err != nil {
+		return nil, fmt.Errorf("error quering get districts by id %w", err)
+	}
+	defer rows.Close()
+	var semesters []models.ResponseRequestSemesterLocationList
+	for rows.Next() {
+		var semester models.ResponseRequestSemesterLocationList
+		err := rows.Scan(
+			&semester.LocationId,
+			&semester.SemesterID,
+			&semester.CreatedAt,
+			&semester.Title,
+			&semester.Year,
+			&semester.DateStart,
+			&semester.DateEnd,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -361,8 +421,15 @@ func (s *AuthService) GetSemestersById(id int64, role string) ([]models.Response
 
 func (s *AuthService) GetAssessmentsById(id int64, role string) ([]models.ResponseAssessmentList, error) {
 	var query string
-	query += `SELECT id, title, description, letter, cycle, alpha_identifier, external_link, max_score, subject, material_id, created_at
-			  FROM stu_tracker.Assessments aas WHERE aas.organization_id = $1;`
+	query += `SELECT aas.id, aas.title, aas.description, aas.letter, aas.cycle, aas.alpha_identifier, 
+			  aas.external_link, aas.max_score, aas.subject_id, aas.material_id, aas.created_at, aas.visible, 
+			  COALESCE(sb.title, 'NA') AS subject_name, COALESCE(pg.program_name, 'NA') AS program_name, pg.id as program_id
+			  FROM stu_tracker.Assessments aas 
+			  JOIN stu_tracker.Subjects sb
+			  ON sb.id = aas.subject_id
+			  JOIN stu_tracker.Programs pg
+			  ON pg.id = aas.program_id
+			  WHERE aas.organization_id = $1;`
 	rows, err := s.db.Query(query, id)
 	if err != nil {
 		return nil, fmt.Errorf("error quering get districts by id %w", err)
@@ -380,9 +447,13 @@ func (s *AuthService) GetAssessmentsById(id int64, role string) ([]models.Respon
 			&assessment.AlphaIdentifier,
 			&assessment.ExternalLink,
 			&assessment.MaxScore,
-			&assessment.Subject,
+			&assessment.SubjectId,
 			&assessment.MaterialID,
 			&assessment.CreatedAt,
+			&assessment.Visible,
+			&assessment.SubjectName,
+			&assessment.ProgramName,
+			&assessment.ProgramId,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -395,15 +466,15 @@ func (s *AuthService) GetAssessmentsById(id int64, role string) ([]models.Respon
 	return assessments, nil
 }
 
-func (s *AuthService) GetProgramsByLocation(id int64, locId int64, role string) ([]models.ResponseRequestProgramList, error) {
+func (s *AuthService) GetProgramsByLocation(locId int64, org_id int64) ([]models.ResponseRequestProgramList, error) {
 	var query string
 	query += `
 		SELECT p.id, p.program_name, p.created_at
 		FROM stu_tracker.Location_programs lp
 		JOIN stu_tracker.Programs p ON lp.program_id = p.id
-		WHERE lp.location_id = $1`
+		WHERE lp.location_id = $1 AND p.organization_id = $2`
 
-	rows, err := s.db.Query(query, locId)
+	rows, err := s.db.Query(query, locId, org_id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying program: %w", err)
 	}
@@ -429,4 +500,295 @@ func (s *AuthService) GetProgramsByLocation(id int64, locId int64, role string) 
 	}
 
 	return programs, nil
+}
+func (s *AuthService) GetProgramsByIds(locId []int64, org_id int64) ([]models.ResponseRequestProgramList, error) {
+	var query string
+	query += `
+		SELECT p.id, p.program_name, p.created_at
+		FROM stu_tracker.Location_programs lp
+		JOIN stu_tracker.Programs p 
+		ON lp.program_id = p.id
+		WHERE lp.location_id = ANY($1) AND p.organization_id = $2`
+
+	rows, err := s.db.Query(query, pq.Array(locId), org_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying program: %w", err)
+	}
+	defer rows.Close()
+
+	var programs []models.ResponseRequestProgramList
+	for rows.Next() {
+		var program models.ResponseRequestProgramList
+		err := rows.Scan(
+			&program.ID,
+			&program.ProgramName,
+			&program.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		programs = append(programs, program)
+	}
+
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+
+	return programs, nil
+}
+
+func (s *AuthService) GetTutorLocations(tutor_id int64, org_id int64) ([]models.TutorLocationList, error) {
+	var query string
+	// I can join program id to return programs as well
+	query += `
+		SELECT ls.name AS location_name, tl.location_id as id 
+		FROM 
+			stu_tracker.Tutor_locations tl 
+		INNER JOIN 
+			stu_tracker.Tutors tr 
+		ON 
+			tr.id = tl.tutor_id
+		JOIN 
+			stu_tracker.Locations ls 
+		ON 
+			ls.id = tl.location_id
+		WHERE 
+			tl.tutor_id = $1;`
+
+	rows, err := s.db.Query(query, tutor_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying Tutor_locations: %w", err)
+	}
+	defer rows.Close()
+
+	var tutors_locations []models.TutorLocationList
+	for rows.Next() {
+		var tutor models.TutorLocationList
+		err := rows.Scan(
+			&tutor.LocationName,
+			&tutor.ID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		tutors_locations = append(tutors_locations, tutor)
+	}
+
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+
+	return tutors_locations, nil
+}
+
+func (s *AuthService) GetOrganizationPermissions(org_id int64) ([]models.PermissionsList, error) {
+	query := `SELECT p.id, p.name, p.description FROM stu_tracker.Permissions p WHERE p.organization_id = $1`
+	rows, err := s.db.Query(query, org_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying permissions: %w", err)
+	}
+	defer rows.Close()
+	var permissions []models.PermissionsList
+	for rows.Next() {
+		var permission models.PermissionsList
+		err := rows.Scan(
+			&permission.ID,
+			&permission.Name,
+			&permission.Description,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		permissions = append(permissions, permission)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+	return permissions, nil
+}
+
+func (s *AuthService) GetPermissionsById(org_id int64, role string, id int64) ([]models.PermissionsList, error) {
+	var query string
+	var args []interface{}
+
+	switch role {
+	case "ROOT":
+		query = `
+			SELECT p.id, p.name, p.description
+			FROM stu_tracker.Permissions p
+			WHERE p.organization_id = $1;`
+		args = []interface{}{org_id}
+	case "TUTOR":
+		query = `
+			SELECT tp.permission_id, p.name, p.description
+			FROM stu_tracker.Tutor_Permissions tp 
+			LEFT JOIN stu_tracker.Permissions p
+			ON p.id = tp.permission_id
+			WHERE tp.tutor_id = $1 AND p.organization_id = $2;`
+		args = []interface{}{id, org_id}
+	case "ADMIN":
+		query = `
+			SELECT tp.permission_id, p.name, p.description
+			FROM stu_tracker.Admin_Permissions tp 
+			JOIN stu_tracker.Permissions p
+			ON p.id = tp.permission_id
+			WHERE tp.admin_id = $1 AND p.organization_id = $2;`
+		args = []interface{}{id, org_id}
+	default:
+		return nil, fmt.Errorf("invalid role: %s", role)
+	}
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("error querying permissions: %w", err)
+	}
+	defer rows.Close()
+	var permissions []models.PermissionsList
+	for rows.Next() {
+		var permission models.PermissionsList
+		err := rows.Scan(
+			&permission.ID,
+			&permission.Name,
+			&permission.Description,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		permissions = append(permissions, permission)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return permissions, nil
+}
+
+func (s *AuthService) GetAnnouncements(req models.AnnouncementRequest) ([]models.AnnouncementsList, error) {
+	if req.Role == "ROOT" || req.Role == "ADMIN" {
+		announcements, err := s.getAdminAnnouncements(int64(req.OrganizationID))
+		if err != nil {
+			return nil, fmt.Errorf("error on adminAnnouncements %w", err)
+		}
+		return announcements, nil
+	}
+	if req.Role == "TUTOR" {
+		announcements, err := s.getTutorAnnouncements(req.LocationIDs, int64(req.OrganizationID))
+		if err != nil {
+			return nil, err
+		}
+		return announcements, nil
+	}
+	return []models.AnnouncementsList{}, nil
+}
+
+func (s *AuthService) getAdminAnnouncements(org_id int64) ([]models.AnnouncementsList, error) {
+	var query string
+	query += `SELECT 
+		an.id, an.title, an.body, 
+		an.created_at, an.severity, 
+		an.program_id, an.admin_id,
+		an.staff_id, an.location_id,
+		COALESCE(ads.fullname, adr.fullname, 'Unknown') AS staff_name,
+		COALESCE(loc.name, 'NA') AS location_name, 
+		COALESCE(pr.program_name, 'NA') AS program_name
+		FROM stu_tracker.Announcements an 
+		LEFT JOIN stu_tracker.Admin_staff ads
+		ON ads.id = an.staff_id
+		LEFT JOIN stu_tracker.Admin_root adr
+		ON adr.id = an.admin_id
+		LEFT JOIN stu_tracker.Locations loc
+		ON loc.id = an.location_id
+		LEFT JOIN stu_tracker.Programs pr
+		ON pr.id = an.program_id
+		WHERE an.organization_id = $1`
+	rows, err := s.db.Query(query, org_id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var announcements []models.AnnouncementsList
+	for rows.Next() {
+		var announcement models.AnnouncementsList
+		err := rows.Scan(
+			&announcement.ID,
+			&announcement.Title,
+			&announcement.Body,
+			&announcement.CreatedAt,
+			&announcement.Severity,
+			&announcement.ProgramID,
+			&announcement.AdminID,
+			&announcement.StaffID,
+			&announcement.LocationID,
+			&announcement.StaffName,
+			&announcement.LocationName,
+			&announcement.ProgramName,
+		)
+		if err != nil {
+			return nil, err
+		}
+		announcements = append(announcements, announcement)
+	}
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return announcements, nil
+
+}
+func (s *AuthService) getTutorAnnouncements(loc_id []int64, org_id int64) ([]models.AnnouncementsList, error) {
+	var query string
+	query += `
+		SELECT an.id, an.title, an.body, 
+		an.created_at, an.severity, 
+		an.program_id, an.admin_id, 
+		an.staff_id, an.location_id, 
+		COALESCE(ads.fullname, adr.fullname, 'Unknown') AS staff_name,
+		COALESCE(loc.name, 'NA') AS location_name, 
+		COALESCE(pr.program_name, 'NA') AS program_name
+		FROM stu_tracker.Announcements an 
+		LEFT JOIN stu_tracker.Admin_staff ads
+		ON ads.id = an.staff_id
+		LEFT JOIN stu_tracker.Admin_root adr
+		ON adr.id = an.admin_id
+		LEFT JOIN stu_tracker.Locations loc
+		ON loc.id = an.location_id
+		LEFT JOIN stu_tracker.Programs pr
+		ON pr.id = an.program_id
+		WHERE an.location_id = ANY($1) AND an.organization_id = $2`
+	rows, err := s.db.Query(query, pq.Array(loc_id), org_id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var announcements []models.AnnouncementsList
+	for rows.Next() {
+		var announcement models.AnnouncementsList
+		err := rows.Scan(
+			&announcement.ID,
+			&announcement.Title,
+			&announcement.Body,
+			&announcement.CreatedAt,
+			&announcement.Severity,
+			&announcement.ProgramID,
+			&announcement.AdminID,
+			&announcement.StaffID,
+			&announcement.LocationID,
+			&announcement.StaffName,
+			&announcement.LocationName,
+			&announcement.ProgramName,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		announcements = append(announcements, announcement)
+	}
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return announcements, nil
 }

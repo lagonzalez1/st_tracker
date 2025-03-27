@@ -11,10 +11,10 @@ func (s *AuthService) AddSemester(req models.RegisterRequestSemester) (*models.R
 		return nil, fmt.Errorf("missing required fields: ID, Program name")
 	}
 	var newID int64
-	query := `INSERT INTO stu_tracker.Semester (title, year, organization_id) 
-			  VALUES ($1, $2, $3) RETURNING id;`
+	query := `INSERT INTO stu_tracker.Semester (title, year, organization_id, date_start, date_end, active) 
+			  VALUES ($1, $2, $3, $4, $5, $6) RETURNING id;`
 
-	err := s.db.QueryRow(query, req.Title, req.Year, *req.OrganizationId).Scan(&newID)
+	err := s.db.QueryRow(query, req.Title, req.Year, *req.OrganizationId, req.DateStart, req.DateEnd, req.Active).Scan(&newID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add semester: %w", err)
 	}
@@ -24,14 +24,67 @@ func (s *AuthService) AddSemester(req models.RegisterRequestSemester) (*models.R
 	}, nil
 }
 
+func (s *AuthService) AddSemesterLocation(req models.RegisterRequestSemesterLocation) (*models.ResponseRequestSemester, error) {
+	// Input validation
+	if req.LocationID == nil || req.OrganizationId == nil || req.SemesterID == nil {
+		return nil, fmt.Errorf("missing required fields: ID, Program name")
+	}
+	var newID int64
+	query := `INSERT INTO stu_tracker.Semester_Location (semester_id, location_id, organization_id) 
+			  VALUES ($1, $2, $3) ON CONFLICT(semester_id, location_id, organization_id) DO NOTHING RETURNING id;`
+
+	err := s.db.QueryRow(query, req.SemesterID, req.LocationID, req.OrganizationId).Scan(&newID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add semester: %w", err)
+	}
+	return &models.ResponseRequestSemester{
+		Status: "OK",
+		ID:     &newID,
+	}, nil
+}
+
+func (s *AuthService) UpdateSemesterLocation(req models.RegisterRequestSemesterLocation) (*models.ResponseRequestSemester, error) {
+	// Input validation
+	if req.LocationID == nil || req.OrganizationId == nil || req.SemesterID == nil || req.ID == nil {
+		return nil, fmt.Errorf("missing required fields: ID, Program name")
+	}
+	var newID int64
+	query := `UPDATE stu_tracker.Semester_Location SET semester_id = $1, location_iD = $2 WHERE id = $3`
+
+	err := s.db.QueryRow(query, req.SemesterID, req.LocationID, req.OrganizationId).Scan(&newID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add semester: %w", err)
+	}
+	return &models.ResponseRequestSemester{
+		Status: "OK",
+		ID:     &newID,
+	}, nil
+}
+
+func (s *AuthService) DeleteSemesterLocation(req models.RemoveRequest) (*models.RemoveResponse, error) {
+	// Input validation
+	if req.ID == nil {
+		return nil, fmt.Errorf("missing required fields: ID, Program name")
+	}
+	var newID int64
+	query := `DELETE FROM stu_tracker.Semester_Location WHERE id = $1`
+
+	err := s.db.QueryRow(query, req.ID).Scan(&newID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add semester: %w", err)
+	}
+	return &models.RemoveResponse{
+		Status: "OK",
+	}, nil
+}
+
 func (s *AuthService) UpdateSemester(req models.RegisterRequestSemester) (*models.ResponseUpdate, error) {
 	// Input validation
 	if req.Title == "" || req.OrganizationId == nil {
 		return nil, fmt.Errorf("missing required fields: ID, Program name")
 	}
-	query := `UPDATE stu_tracker.Semester SET title = $1, year = $2 WHERE id = $3;`
-
-	_, err := s.db.Exec(query, req.Title, req.Year, req.ID)
+	query := `UPDATE stu_tracker.Semester SET title = $1, year = $2, date_start = $3, date_end = $4, active = $5 WHERE id = $6;`
+	_, err := s.db.Exec(query, req.Title, req.Year, req.DateStart, req.DateEnd, req.Active, req.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update program: %w", err)
 	}

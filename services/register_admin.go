@@ -7,6 +7,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+/**
+ Admin types:
+
+ For Placment info regarding substitutes and logistics
+ View: locations, materail, district, programs, students, subjects, tutors
+ Delete: Tutor-locations
+
+**/
+
 func (s *AuthService) AddAdminStaff(req models.RegisterRequestAdmin) (*models.ResponseRequestAdmin, error) {
 	// Input validation
 	if req.Fullname == "" || req.Password == "" || req.Email == "" || req.OrganizationId == nil {
@@ -25,6 +34,17 @@ func (s *AuthService) AddAdminStaff(req models.RegisterRequestAdmin) (*models.Re
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}
+
+	permissions := `INSERT INTO stu_tracker.Admin_Permissions (admin_id, permission_id)
+					VALUES ($1, 1), ($1, 12), ($1, 39), ($1, 9), ($1, 15), 
+					($1, 30), ($1, 32), ($1, 33), ($1, 34), ($1, 31);`
+
+	_, err = s.db.Exec(permissions, newID)
+	if err != nil {
+		fmt.Printf("Unable to add permissions in admin staff: %v", err)
+		return nil, err
+	}
+
 	return &models.ResponseRequestAdmin{
 		Status:   "OK",
 		Admin_id: newID,

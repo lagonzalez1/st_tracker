@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 	"tracker/app/config"
 	"tracker/app/models"
@@ -12,52 +13,46 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type UserFinder interface {
+	FindByEmail(email string) (*models.User, error)
+	GetPermissions(userID, orgID int64) ([]string, error)
+}
+
 func (s *AuthService) LoginAction(req models.LoginRequest) (*models.LoginResponse, error) {
 	var user *models.User
-	if req.Type == "ROOT" {
-		// 1. Find the user by email
-		root_user, err := s.findUserByEmail(req.Email)
-		if err != nil {
-			return nil, err
-		}
-		user = root_user
-		user.Type = "ROOT"
-	} else if req.Type == "ADMIN" {
-		// 1. Find the user by email
-		admin_user, err := s.findAdminByEmail(req.Email)
-		if err != nil {
-			return nil, err
-		}
-		user = admin_user
-		user.Type = "ADMIN"
-	} else if req.Type == "TUTOR" {
-		// 1. Find the user by email
-		tutor_user, err := s.findATutorByEmail(req.Email)
-		if err != nil {
-			return nil, err
-		}
-		user = tutor_user
-		user.Type = "TUTOR"
-	} else {
+	var err error
+	var locations_list []models.TutorLocationList
+	var program_list []models.ResponseRequestProgramList
+
+	switch req.Type {
+	case "ROOT":
+		// PERMISSIONS MIGHT BE WONKY
+		user, err = s.findRootUser(req.Email)
+	case "ADMIN":
+		user, err = s.findAdminUser(req.Email)
+	case "TUTOR":
+		user, locations_list, program_list, err = s.findTutorUser(req.Email)
+	default:
 		return nil, errors.New("login type was not specified")
 	}
-
-	// 2. Compare passwords
-	if err := comparePasswords(user.Password, req.Password); err != nil {
+	if err != nil {
+		return nil, err
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
 		return nil, errors.New("wrong password")
 	}
-
-	// 3. Generate JWT token
-	token, err := generateJWTToken(user)
+	// 20 min
+	token, err := s.generateAccessToken(user)
 	if err != nil {
-		return nil, errors.New("unable to create JWT token")
-	}
-	refreshToken, err := generateJWTTokenRefresh(user)
-	if err != nil {
-		return nil, errors.New("unable to create refresh JWT token")
+		return nil, fmt.Errorf("unable to create access token: %w", err)
 	}
 
-	// 4. Return by reference the models.LoginResonse { Token: User: {ID, Username, Email}, nil}
+	// 5 + hours
+	refreshToken, err := s.generateRefreshToken(user)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create refresh token: %w", err)
+	}
+
 	return &models.LoginResponse{
 		Token:        token,
 		RefreshToken: refreshToken,
@@ -66,164 +61,211 @@ func (s *AuthService) LoginAction(req models.LoginRequest) (*models.LoginRespons
 			Email:          user.Email,
 			OrganizationId: user.OrganizationId,
 			Permissions:    user.Permissions,
+			FirstName:      user.FirstName,
+			LastName:       user.LastName,
+			Type:           user.Type,
 		},
 		Permissions: models.LoginResponsePermissions{
 			DisableUpdate: false,
 			DisableCreate: false,
 			DisableDelete: false,
 		},
+		TutorLocations: locations_list,
+		TutorPrograms:  program_list,
 	}, nil
 }
 
-func comparePasswords(hashedPassword, inputString string) error {
-	return bcrypt.CompareHashAndPassword(
-		[]byte(hashedPassword),
-		[]byte(inputString),
-	)
-}
+// Helper functions
 
-func generateJWTTokenRefresh(user *models.User) (string, error) {
-	env_config, err := config.LoadConfig()
-	if err != nil {
-		return fmt.Sprintf("unable to load config env"), err
-	}
-	jwt_token := env_config.JWT
-	secret_key := []byte(jwt_token)
-	// Need to create a role to return here ?
-	jwt_object := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub":         user.Email,
-		"exp":         time.Now().Add(5 * time.Hour).Unix(),
-		"iat":         time.Now().Unix(),
-		"type":        user.Type,
-		"permissions": user.Permissions,
-	})
-	token_string, err := jwt_object.SignedString(secret_key)
-	if err != nil {
-		return fmt.Sprintf("Unable to create JWT token"), err
-	}
-	return token_string, nil
-}
+func (s *AuthService) findRootUser(email string) (*models.User, error) {
+	query := `SELECT id, email, password_hash, organization_id, fullname FROM stu_tracker.Admin_root WHERE email = $1`
+	user := &models.User{Type: "ROOT"}
 
-func generateJWTToken(user *models.User) (string, error) {
-	env_config, err := config.LoadConfig()
-	if err != nil {
-		return fmt.Sprintf("unable to load config env"), err
-	}
-	jwt_token := env_config.JWT
-	secret_key := []byte(jwt_token)
-	// Need to create a role to return here ?
-	jwt_object := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub":         user.Email,
-		"exp":         time.Now().Add(10 * time.Minute).Unix(),
-		"iat":         time.Now().Unix(),
-		"type":        user.Type,
-		"permissions": user.Permissions,
-	})
-	token_string, err := jwt_object.SignedString(secret_key)
-	if err != nil {
-		return fmt.Sprintf("Unable to create JWT token"), err
-	}
-	return token_string, nil
-}
-
-func (s *AuthService) findUserByEmail(email string) (*models.User, error) {
-	query := `SELECT id, email, password_hash, organization_id from stu_tracker.Admin_root WHERE email = $1`
-	var user models.User
-	// Create copies of the id, username, email, password
 	err := s.db.QueryRow(query, email).Scan(
 		&user.ID,
 		&user.Email,
 		&user.Password,
 		&user.OrganizationId,
+		&user.FirstName,
 	)
+
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("no user found with email: %s", email)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("no root user found with email: %s", email)
 		}
-		return nil, err
+		return nil, fmt.Errorf("database error: %w", err)
 	}
-	user.Permissions = []string{"all"}
-	return &user, nil
+
+	user.Permissions = []string{"write:*", "delete:*", "view:*"}
+	return user, nil
 }
 
-func (s *AuthService) findAdminByEmail(email string) (*models.User, error) {
-	query := `SELECT id, email, password_hash, organization_id from stu_tracker.Admin_staff WHERE email = $1`
-	var user models.User
-	// Create copies of the id, username, email, password
+func (s *AuthService) findAdminUser(email string) (*models.User, error) {
+	query := `SELECT id, email, password_hash, organization_id, fullname FROM stu_tracker.Admin_staff WHERE email = $1`
+	user := &models.User{Type: "ADMIN"}
+
 	err := s.db.QueryRow(query, email).Scan(
 		&user.ID,
 		&user.Email,
 		&user.Password,
 		&user.OrganizationId,
+		&user.FirstName,
 	)
+
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("unable to find admin: %s", email)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("no admin found with email: %s", email)
 		}
-		return nil, err
+		return nil, fmt.Errorf("database error: %w", err)
 	}
 
-	permissionQuery := `SELECT name from stu_tracker.permissions p LEFT JOIN
-						stu_tracker.admin_role_permissions ad ON p.id = ad.permission_id WHERE
-						ad.user_id = $1 AND p.organization_id = $2;`
-	rows, err := s.db.Query(permissionQuery, user.ID, user.OrganizationId)
+	user.Permissions, err = s.getAdminPermissions(user.ID, user.OrganizationId)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("unable to get permissions: %s", email)
+		return nil, fmt.Errorf("failed to get permissions: %w", err)
+	}
+
+	return user, nil
+}
+
+func (s *AuthService) findTutorUser(email string) (*models.User, []models.TutorLocationList, []models.ResponseRequestProgramList, error) {
+	query := `SELECT id, email, password_hash, organization_id, first_name, last_name FROM stu_tracker.Tutors WHERE email = $1`
+	user := &models.User{Type: "TUTOR"}
+
+	err := s.db.QueryRow(query, email).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Password,
+		&user.OrganizationId,
+		&user.FirstName,
+		&user.LastName,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, nil, fmt.Errorf("no tutor found with email: %s", email)
 		}
-		return nil, err
+		return nil, nil, nil, fmt.Errorf("database error: %w", err)
+	}
+
+	// Get permissions
+	user.Permissions, err = s.getTutorPermissions(user.OrganizationId)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to get permissions: %w", err)
+	}
+
+	// Get locations and programs
+	locations, err := s.GetTutorLocations(user.ID, user.OrganizationId)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to get tutor locations: %w", err)
+	}
+
+	var programs []models.ResponseRequestProgramList
+	if len(locations) > 0 {
+		locationIDs := make([]int64, len(locations))
+		for i, loc := range locations {
+			locationIDs[i] = loc.ID
+		}
+
+		programs, err = s.GetProgramsByIds(locationIDs, user.OrganizationId)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to get programs: %w", err)
+		}
+	}
+
+	return user, locations, programs, nil
+}
+
+func (s *AuthService) getAdminPermissions(userID, orgID int64) ([]string, error) {
+	query := `SELECT name FROM stu_tracker.Permissions p 
+              INNER JOIN stu_tracker.Admin_permissions ad 
+              ON p.id = ad.permission_id 
+              WHERE ad.admin_id = $1 AND p.organization_id = $2`
+
+	return s.queryPermissions(query, userID, orgID)
+}
+
+func (s *AuthService) getTutorPermissions(orgID int64) ([]string, error) {
+	query := `SELECT name FROM stu_tracker.Permissions p 
+              LEFT JOIN stu_tracker.Tutor_permissions tp 
+              ON p.id = tp.permission_id 
+              WHERE p.organization_id = $1`
+
+	return s.queryPermissions(query, orgID)
+}
+
+func (s *AuthService) queryPermissions(query string, args ...interface{}) ([]string, error) {
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query error: %w", err)
 	}
 	defer rows.Close()
+
 	var permissions []string
 	for rows.Next() {
 		var name string
-		err := rows.Scan(&name)
-		if err != nil {
-			return nil, fmt.Errorf("error scanning row: %w", err)
+		if err := rows.Scan(&name); err != nil {
+			return nil, fmt.Errorf("scan error: %w", err)
 		}
 		permissions = append(permissions, name)
 	}
-	user.Permissions = permissions
-	return &user, nil
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return permissions, nil
 }
 
-func (s *AuthService) findATutorByEmail(email string) (*models.User, error) {
-	query := `SELECT id, email, password_hash, organization_id from stu_tracker.Tutor WHERE email = $1`
-	var user models.User
-	// Create copies of the id, username, email, password
-	err := s.db.QueryRow(query, email).Scan(
-		&user.ID,
-		&user.Email,
-		&user.Password,
-		&user.OrganizationId,
-	)
+func (s *AuthService) generateAccessToken(user *models.User) (string, error) {
+	envConfig, err := config.LoadConfig()
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("no user found with email: %s", email)
-		}
-		return nil, err
+		return "", fmt.Errorf("failed to load config: %w", err)
+	}
+	claims := jwt.MapClaims{
+		"sub":   user.Email,
+		"exp":   time.Now().Add(10 * time.Minute).Unix(),
+		"iat":   time.Now().Unix(),
+		"type":  user.Type,
+		"id":    user.ID,
+		"orgid": user.OrganizationId,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(envConfig.JWT))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign token: %w", err)
 	}
 
-	permissionQuery := `SELECT name from stu_tracker.permissions p LEFT JOIN
-						stu_tracker.admin_role_permissions ad ON p.id = ad.permission_id WHERE
-						ad.user_id = $1 AND p.organization_id = $2;`
-	rows, err := s.db.Query(permissionQuery, user.ID, user.OrganizationId)
+	log.Printf("Generated access token for %s (type: %s)", user.Email, user.Type)
+	log.Printf("Token length for %s: %d", user.Type, len(tokenString))
+
+	return tokenString, nil
+}
+
+func (s *AuthService) generateRefreshToken(user *models.User) (string, error) {
+	envConfig, err := config.LoadConfig()
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("unable to get permissions: %s", email)
-		}
-		return nil, err
+		return "", fmt.Errorf("failed to load config: %w", err)
 	}
-	defer rows.Close()
-	var permissions []string
-	for rows.Next() {
-		var name string
-		err := rows.Scan(&name)
-		if err != nil {
-			return nil, fmt.Errorf("error scanning row: %w", err)
-		}
-		permissions = append(permissions, name)
+
+	claims := jwt.MapClaims{
+		"sub":   user.Email,
+		"exp":   time.Now().Add(5 * time.Hour).Unix(),
+		"iat":   time.Now().Unix(),
+		"type":  user.Type,
+		"id":    user.ID,
+		"orgid": user.OrganizationId,
 	}
-	user.Permissions = permissions
-	return &user, nil
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(envConfig.JWT))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign token: %w", err)
+	}
+
+	log.Printf("Generated refresh token for %s (type: %s)", user.Email, user.Type)
+	log.Printf("Token length for %s: %d", user.Type, len(tokenString))
+	tokenSize := len(tokenString)
+	fmt.Printf("Refresh token size: %d bytes\n", tokenSize)
+
+	return tokenString, nil
 }
