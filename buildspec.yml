@@ -11,22 +11,17 @@ phases:
   build:
     commands:
       # Run tests (optional)
-      # Lint code (optional)      
-      # Build statically linked binary for Linux (without secrets)
-      - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o app
-      
+      # Lint code (optional)            
       # Create deployment package
-      - mkdir -p deployment
-      - cp app deployment/
-      - cp -r configs deployment/  # Static config files
+      - go build -o app tracker/app/main.go
   post_build:
     commands:
       # Package artifacts for CodeDeploy
-      - tar -czvf app.tar.gz -C deployment .
+      - tar -czvf app.tar.gz app
       # Upload to S3 for CodeDeploy
-      - aws s3 cp app.tar.gz s3://tracker-backend-deployment-bucket/app.tar.gz
+      - aws s3 cp app.tar.gz s3://tracker-backend-deployment-bucket/
 artifacts:
   files:
     - app.tar.gz
-    - appspec.yml
+    - ./appspec.yml
   discard-paths: yes
