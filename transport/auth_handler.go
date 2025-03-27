@@ -24,6 +24,13 @@ func NewAuthHandler(authService *services.AuthService) *AuthHandler {
 	}
 }
 
+func (h *AuthHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	// Example response
+}
+
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {

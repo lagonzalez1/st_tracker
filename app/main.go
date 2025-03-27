@@ -47,6 +47,7 @@ func main() {
 	r.HandleFunc("/register", authHandler.Register).Methods("POST")
 	r.HandleFunc("/login", authHandler.Login).Methods("POST")
 	r.HandleFunc("/create_organization", authHandler.CreateOrganization).Methods("POST")
+	r.HandleFunc("/health_check", authHandler.HealthCheck).Methods("POST") // FOR APPLICATIO LOAD BALANCER
 
 	apiMiddleware.HandleFunc("/create_student", authHandler.CreateStudent).Methods("POST")
 	apiMiddleware.HandleFunc("/create_location", authHandler.CreateLocation).Methods("POST")
