@@ -20,10 +20,12 @@ phases:
     commands:
       - echo "Packaging artifacts..."
       # Create structured deployment package
-      - sudo tar -czvf app.tar.gz app1 appspec.yml scripts/
+      - sudo tar -czvf app.tar.gz app1
       - aws s3 cp app.tar.gz s3://tracker-backend-deploy/app-$CODEBUILD_BUILD_NUMBER.tar.gz
 artifacts:
   files:
+    - /scripts
+    - appspec.yml
     - app.tar.gz
   discard-paths: yes
 
