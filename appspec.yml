@@ -1,7 +1,7 @@
 version: 0.0
 os: linux
 files:
-  - source: /app         # From INSIDE your tar.gz
+  - source: /         # From INSIDE your tar.gz
     destination: /home/ubuntu/app
   - source: /scripts     # From INSIDE your tar.gz
     destination: /home/ubuntu/app/scripts
