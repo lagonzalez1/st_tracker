@@ -9,7 +9,7 @@ sudo apt update
 sudo apt install python3.11
 
 
-echo pwd
+sudo pwd
 
 # Create env 
 cd /home/ubuntu/app/scripts
