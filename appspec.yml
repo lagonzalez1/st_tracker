@@ -1,18 +1,12 @@
-version: 0.0
+version: 0.2
 os: linux
 files:
-  - source: /  # All files from the root of the archive
-    destination: /home/ubuntu/app  # Copy everything under /home/ubuntu/app
-    overwrite: yes
-  - source: scripts/
-    destination: /home/ubuntu/app/
-    overwrite: yes
-  - source: app.tar.gz
-    destination: /home/ubuntu/app/
+  - source: /  
+    destination: /home/ubuntu/app  
     overwrite: yes
 hooks:
   BeforeInstall:
-    - location: scripts/before_install.sh  # Correct path
+    - location: scripts/before_install.sh 
       timeout: 600
       runas: root
   AfterInstall:
