@@ -2,26 +2,26 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      golang: 1.21
+      golang: 1.21  # Ensures Go is available
     commands:
-      - echo "Installing dependencies..."
+      - echo "Verifying Go installation..."
+      - go version || { echo "Go installation failed!"; exit 1; }
+      - go env
   pre_build:
     commands:
-      - go version
+      - echo "Installing dependencies..."
+      - go mod download
   build:
     commands:
-      # Run tests (optional)
-      # Lint code (optional)            
-      # Create deployment package
-      - go build -o app tracker/app/main.go
+      - echo "Building binary..."
+      - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o app app/main.go
   post_build:
     commands:
-      # Package artifacts for CodeDeploy
+      - echo "Packaging artifacts..."
       - tar -czvf app.tar.gz app
-      # Upload to S3 for CodeDeploy
-      - aws s3 cp app.tar.gz s3://tracker-backend-deployment-bucket/
+      - aws s3 cp app.tar.gz s3://tracker-backend-deploy/app-$CODEBUILD_BUILD_NUMBER.tar.gz
 artifacts:
   files:
     - app.tar.gz
-    - ./appspec.yml
+    - appspec.yml
   discard-paths: yes
