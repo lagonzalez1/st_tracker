@@ -27,6 +27,6 @@ phases:
       - aws s3 cp app.tar.gz s3://tracker-backend-deploy/app-$CODEBUILD_BUILD_NUMBER.tar.gz
 artifacts:
   files:
+    - "**/*"
     - app.tar.gz
-    - appspec.yml
   discard-paths: yes
