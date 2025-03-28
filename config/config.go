@@ -31,6 +31,7 @@ type SignUpConfig struct {
 }
 
 func LoadConfig() (*Config, error) {
+
 	err := godotenv.Load(".env.development")
 	if err != nil {
 		log.Println("Error loading .env file")
