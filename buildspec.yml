@@ -14,13 +14,13 @@ phases:
   build:
     commands:
       - echo "Building binary..."
-      - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o app app/main.go
+      - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o app1 app/main.go
       - sudo chmod +x app
   post_build:
     commands:
       - echo "Packaging artifacts..."
       # Create structured deployment package
-      - sudo tar -czvf app.tar.gz app appspec.yml scripts/
+      - sudo tar -czvf app.tar.gz app1 appspec.yml scripts/
       - aws s3 cp app.tar.gz s3://tracker-backend-deploy/app-$CODEBUILD_BUILD_NUMBER.tar.gz
 artifacts:
   files:
