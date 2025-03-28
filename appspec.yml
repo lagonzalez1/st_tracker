@@ -1,25 +1,23 @@
 version: 0.0
 os: linux
 files:
-  - source: scripts
-    destination: /home/ubuntu/app
-  - source: app.tar.gz
-    destination: /home/ubuntu/app
+  - source: /
+    destination: /home/ubuntu/app  
     overwrite: yes
 hooks:
   BeforeInstall:
-    - location: /home/ubuntu/app/scripts/before_install.sh
+    - location: before_install.sh 
       timeout: 600
       runas: root
   AfterInstall:
-    - location: /home/ubuntu/app/scripts/after_install.sh
+    - location: after_install.sh
       timeout: 600
       runas: root
   ApplicationStart:
-    - location: /home/ubuntu/app/scripts/application_start.sh
+    - location: application_start.sh
       timeout: 600
       runas: root
   ApplicationStop:
-    - location: /home/ubuntu/app/scripts/application_stop.sh
+    - location: application_stop.sh
       timeout: 600
       runas: root

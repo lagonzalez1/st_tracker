@@ -19,11 +19,11 @@ phases:
   post_build:
     commands:
       - echo "Packaging artifacts..."
-      - sudo tar --transform='s,^app1$,app,' -czvf app.tar.gz -C . app1 scripts/ appspec.yml
+      - sudo tar --transform='s,^app1$,app,' -czvf app.tar.gz -C . app1 scripts appspec.yml
       - aws s3 cp app.tar.gz s3://tracker-backend-deploy/app-$CODEBUILD_BUILD_NUMBER.tar.gz
 artifacts:
   files:
     - scripts/**  # Include all files inside scripts/
     - appspec.yml
     - app.tar.gz
-  discard-paths: yes  # Keep folder structure
+  discard-paths: no  # Keep folder structure
