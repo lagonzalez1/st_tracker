@@ -6,18 +6,18 @@ files:
     overwrite: yes
 hooks:
   BeforeInstall:
-    - location: /home/ubuntu/app/scripts/before_install.sh  # Correct path
+    - location: scripts/before_install.sh  # Correct path
       timeout: 600
       runas: root
   AfterInstall:
-    - location: /home/ubuntu/app/scripts/after_install.sh
+    - location: scripts/after_install.sh
       timeout: 600
       runas: root
   ApplicationStart:
-    - location: /home/ubuntu/app/scripts/application_start.sh
+    - location: scripts/application_start.sh
       timeout: 600
       runas: root
   ApplicationStop:
-    - location: /home/ubuntu/app/scripts/application_stop.sh
+    - location: scripts/application_stop.sh
       timeout: 600
       runas: root
