@@ -28,6 +28,7 @@ func fetchAwsSecrets() {
 	input := &secretsmanager.GetSecretValueInput{
 		SecretId:     aws.String(secretName),
 		VersionStage: aws.String("AWSCURRENT"), // VersionStage defaults to AWSCURRENT if unspecified
+
 	}
 
 	result, err := svc.GetSecretValue(context.TODO(), input)
