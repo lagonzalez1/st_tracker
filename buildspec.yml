@@ -2,7 +2,7 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      golang: 1.21  # Ensures Go is available
+      golang: 1.21
     commands:
       - echo "Verifying Go installation..."
       - go version || { echo "Go installation failed!"; exit 1; }
@@ -18,10 +18,15 @@ phases:
   post_build:
     commands:
       - echo "Packaging artifacts..."
-      - tar -czvf app.tar.gz app
+      # Create structured deployment package
+      - mkdir -p deployment
+      - mv app deployment/
+      - cp -r scripts deployment/
+      - cp appspec.yml deployment/
+      - tar -czvf app.tar.gz -C deployment .
+      
       - aws s3 cp app.tar.gz s3://tracker-backend-deploy/app-$CODEBUILD_BUILD_NUMBER.tar.gz
 artifacts:
   files:
     - app.tar.gz
-    - appspec.yml
   discard-paths: yes
