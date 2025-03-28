@@ -4,7 +4,6 @@ files:
   - source: app
     destination: /home/ubuntu/app
     overwrite: yes
-
 permissions:
   - object: /home/ubuntu/app
     owner: ubuntu
