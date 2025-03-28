@@ -1,28 +1,23 @@
 version: 0.0
 os: linux
 files:
-  - source: /
-    destination: /home/ubuntu/app
+  - source: /  # All files from the root of the archive
+    destination: /home/ubuntu/app  # Copy everything under /home/ubuntu/app
     overwrite: yes
-permissions:
-  - object: /home/ubuntu/app
-    owner: ubuntu
-    group: ubuntu
-    mode: 755
 hooks:
   BeforeInstall:
-    - location: scripts/before_install.sh
+    - location: /home/ubuntu/app/scripts/before_install.sh  # Correct path
       timeout: 600
       runas: root
   AfterInstall:
-    - location: scripts/after_install.sh
+    - location: /home/ubuntu/app/scripts/after_install.sh
       timeout: 600
       runas: root
   ApplicationStart:
-    - location: scripts/application_start.sh
+    - location: /home/ubuntu/app/scripts/application_start.sh
       timeout: 600
       runas: root
   ApplicationStop:
-    - location: scripts/application_stop.sh
+    - location: /home/ubuntu/app/scripts/application_stop.sh
       timeout: 600
       runas: root
