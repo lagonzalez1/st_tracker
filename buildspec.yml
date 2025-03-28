@@ -19,7 +19,7 @@ phases:
   post_build:
     commands:
       - echo "Packaging artifacts..."
-      - sudo tar --transform='s,^app1$,app,' -czvf app.tar.gz app1
+      - sudo tar --transform='s,^app1$,app,' -czvf app.tar.gz -C . app1 scripts
       - aws s3 cp app.tar.gz s3://tracker-backend-deploy/app-$CODEBUILD_BUILD_NUMBER.tar.gz
 artifacts:
   files:
