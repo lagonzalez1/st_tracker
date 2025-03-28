@@ -1,10 +1,15 @@
 version: 0.0
 os: linux
 files:
-  - source: /         # From INSIDE your tar.gz
+  - source: app
     destination: /home/ubuntu/app
-  - source: /scripts     # From INSIDE your tar.gz
-    destination: /home/ubuntu/app/scripts
+    overwrite: yes
+
+permissions:
+  - object: /home/ubuntu/app
+    owner: ubuntu
+    group: ubuntu
+    mode: 755
 hooks:
   BeforeInstall:
     - location: scripts/before_install.sh
