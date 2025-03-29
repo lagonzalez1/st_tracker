@@ -105,9 +105,10 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 			jwtToken := authHeader[1]
 			// Check if valid JWT
 			claims, jwtError := validateJWT(jwtToken, env_config.JWT)
+			fmt.Println("validateJWT Code: ", jwtError)
 			if jwtError.Code == 501 {
 				// Not valid return Unauthorized
-				fmt.Printf("jwtError code 501, %v", err)
+				fmt.Printf("jwtError code 401, %v", err)
 				fmt.Println(jwtError.Message)
 				w.WriteHeader(http.StatusUnauthorized)
 				w.Write([]byte("Unauthorized"))

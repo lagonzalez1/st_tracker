@@ -2,6 +2,7 @@
 set -e
 
 echo "Starting application..."
+pwd
 ls -l
 # Ensure old instance is stopped before starting a new one
 if [ -f app.pid ]; then

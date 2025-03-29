@@ -3,7 +3,6 @@ os: linux
 files:
   - source: /
     destination: /home/ubuntu/app  
-    overwrite: yes
 hooks:
   BeforeInstall:
     - location: scripts/before_install.sh 
