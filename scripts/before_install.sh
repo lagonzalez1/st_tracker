@@ -11,5 +11,4 @@ sudo apt install python3.11
 sudo pwd
 
 # Create env 
-cd /home/ubuntu/app/scripts
-sudo python3 deploy_env.py
+sudo python3 scripts/deploy_env.py

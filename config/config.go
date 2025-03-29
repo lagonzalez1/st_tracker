@@ -9,8 +9,19 @@ import (
 )
 
 func LoadConfig() (*models.Config, error) {
+	env := os.Getenv("APP_ENV")
+	if env == "" {
+		env = "development"
+	}
+	envFile := ".env." + env
+	if env == "production" {
+		err := awsConfig()
+		if err != nil {
+			log.Println("Error loading .env file")
+		}
+	}
 
-	err := godotenv.Load(".env.development")
+	err := godotenv.Load(envFile)
 	if err != nil {
 		log.Println("Error loading .env file")
 	}
