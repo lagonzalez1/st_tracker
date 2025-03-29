@@ -1,7 +1,6 @@
 #!/bin/bash
 
 echo "Install secrets"
-sudo yum update -y
 
-
+ls -l
 # Create env 
