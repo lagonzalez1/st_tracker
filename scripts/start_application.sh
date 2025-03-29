@@ -2,8 +2,7 @@
 set -e
 
 echo "Starting application..."
-cd /home/ubuntu/app
-
+ls -l
 # Ensure old instance is stopped before starting a new one
 if [ -f app.pid ]; then
   kill -9 $(cat app1.pid) || true
