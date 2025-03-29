@@ -6,18 +6,18 @@ files:
     overwrite: yes
 hooks:
   BeforeInstall:
-    - location: before_install.sh 
+    - location: scripts/before_install.sh 
       timeout: 600
       runas: root
   AfterInstall:
-    - location: after_install.sh
+    - location: scripts/after_install.sh
       timeout: 600
       runas: root
   ApplicationStart:
-    - location: application_start.sh
+    - location: scripts/application_start.sh
       timeout: 600
       runas: root
   ApplicationStop:
-    - location: application_stop.sh
+    - location: scripts/application_stop.sh
       timeout: 600
       runas: root
