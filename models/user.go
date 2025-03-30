@@ -24,8 +24,8 @@ type LoginRequest struct {
 
 type LoginResponse struct {
 	User           User                         `json:"user"`
-	Token          string                       `json:"token"`
-	RefreshToken   string                       `json:"refresh_token"`
+	Token          *string                      `json:"token"`
+	RefreshToken   *string                      `json:"refresh_token"`
 	Permissions    LoginResponsePermissions     `json:"permissions"`
 	TutorLocations []TutorLocationList          `json:"tutor_locations"`
 	TutorPrograms  []ResponseRequestProgramList `json:"tutor_programs"`

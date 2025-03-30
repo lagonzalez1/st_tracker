@@ -79,8 +79,19 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error unable to login: %v", err)
 		return
 	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "_auth",
+		Value:    *user.RefreshToken,
+		Path:     "/",
+		MaxAge:   3600 * 5,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+	})
+	user.RefreshToken = nil
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
+	fmt.Print(w)
 	json.NewEncoder(w).Encode(user)
 }
 

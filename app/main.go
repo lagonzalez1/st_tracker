@@ -35,12 +35,12 @@ func main() {
 	apiMiddleware.Use(middleware.Middleware(authService))
 
 	corsOptions := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"},
-		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+		AllowedOrigins:   []string{"http://localhost:3000"}, // No trailing slash!
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
+		Debug:            true, // Log CORS issues
 	})
-
 	//api.ConnectSheetsAPI()
 
 	r.HandleFunc("/hello", hello).Methods("GET")

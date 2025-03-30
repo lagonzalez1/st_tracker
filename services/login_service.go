@@ -54,8 +54,8 @@ func (s *AuthService) LoginAction(req models.LoginRequest) (*models.LoginRespons
 	}
 
 	return &models.LoginResponse{
-		Token:        token,
-		RefreshToken: refreshToken,
+		Token:        &token,
+		RefreshToken: &refreshToken,
 		User: models.User{
 			ID:             user.ID,
 			Email:          user.Email,
@@ -249,7 +249,7 @@ func (s *AuthService) generateRefreshToken(user *models.User) (string, error) {
 
 	claims := jwt.MapClaims{
 		"sub":   user.Email,
-		"exp":   time.Now().Add(5 * time.Hour).Unix(),
+		"exp":   time.Now().Add(10 * time.Hour).Unix(),
 		"iat":   time.Now().Unix(),
 		"type":  user.Type,
 		"id":    user.ID,
@@ -262,10 +262,10 @@ func (s *AuthService) generateRefreshToken(user *models.User) (string, error) {
 		return "", fmt.Errorf("failed to sign token: %w", err)
 	}
 
-	log.Printf("Generated refresh token for %s (type: %s)", user.Email, user.Type)
 	log.Printf("Token length for %s: %d", user.Type, len(tokenString))
 	tokenSize := len(tokenString)
 	fmt.Printf("Refresh token size: %d bytes\n", tokenSize)
+	fmt.Print(time.Now().Add(5 * time.Hour).Unix())
 
 	return tokenString, nil
 }

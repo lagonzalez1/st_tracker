@@ -24,7 +24,7 @@ func generateJWTToken(claims jwt.MapClaims) (string, error) {
 	// Need to create a role to return here ?
 	jwt_object := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":   claims["sub"],
-		"exp":   time.Now().Add(20 * time.Minute).Unix(),
+		"exp":   time.Now().Add(10 * time.Minute).Unix(),
 		"iat":   time.Now().Unix(),
 		"type":  claims["type"],
 		"id":    claims["id"],
@@ -43,22 +43,41 @@ type JWTValidError struct {
 }
 
 func validateJWT(tokenString, secret string) (jwt.MapClaims, JWTValidError) {
+	if tokenString == "" {
+		return nil, JWTValidError{
+			Message: "Token is ErrTokenSignatureInvalid and or ErrTokenNotValidYet",
+			Code:    501,
+		}
+	}
 	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 		return []byte(secret), nil
 	})
+	fmt.Println("ValidateJWT - Token", token.Valid)
+	if token == nil {
+		return nil, JWTValidError{
+			Message: "Token is nill",
+			Code:    501,
+		}
+	}
 	if token.Valid {
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok || !token.Valid {
 			return nil, JWTValidError{
 				Message: "Token invalid after claims attempt",
-				Code:    501,
+				Code:    500,
 			}
 		}
 		fmt.Print("Token is valid..")
 		return claims, JWTValidError{Message: "OK", Code: 0}
+	}
+	if !token.Valid {
+		return nil, JWTValidError{
+			Message: "Token invalid after claims attempt",
+			Code:    500,
+		}
 	}
 	// Check for token expired ?
 	if err != nil {
@@ -95,7 +114,6 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 				w.WriteHeader(http.StatusUnauthorized)
 				w.Write([]byte("Unable to load config files."))
 			}
-			// Refresh token long 5 hours + generateRefreshToken()
 			authHeader := strings.Split(r.Header.Get("Authorization"), "Bearer ")
 			if len(authHeader) != 2 {
 				fmt.Println("Malformed token")
@@ -104,8 +122,9 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 			}
 			jwtToken := authHeader[1]
 			// Check if valid JWT
+			fmt.Println("JWT token", jwtToken)
 			claims, jwtError := validateJWT(jwtToken, env_config.JWT)
-			fmt.Println("validateJWT Code: ", jwtError)
+			fmt.Println("validateJWT Code----", jwtError)
 			if jwtError.Code == 501 {
 				// Not valid return Unauthorized
 				fmt.Printf("jwtError code 401, %v", err)
@@ -132,6 +151,7 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 					return
 				}
 				// Create new access token
+				fmt.Println("Cookie claims----", cookie_claims)
 				new_access_token, err := generateJWTToken(cookie_claims)
 				if err != nil {
 					fmt.Printf("Error trying to generate new jwt token %v", err)
@@ -139,39 +159,38 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 					w.Write([]byte("Unauthorized"))
 					return
 				}
-				id, ok := claims["id"].(float64) // JWT stores numbers as float64
+				id, ok := cookie_claims["id"].(float64) // JWT stores numbers as float64
 				if !ok {
-					fmt.Println(err)
+					fmt.Println("Error trying to get id claims")
 					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to parse id"))
+					w.Write([]byte("Unable to parse id claims id as float64"))
 					return
 				}
-				userType, ok := claims["type"].(string)
+				userType, ok := cookie_claims["type"].(string)
 				if !ok {
-					fmt.Println(err)
+					fmt.Println("Error trying to get type claims")
 					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to parse user type"))
+					w.Write([]byte("Unable to parse user type in claims"))
 					return
 				}
-
-				orgID, ok := claims["orgid"].(float64) // Convert orgid from float64 to int64
+				orgID, ok := cookie_claims["orgid"].(float64) // Convert orgid from float64 to int64
 				if !ok {
-					fmt.Println(err)
+					fmt.Println("Error trying to get orgid claims")
 					w.WriteHeader(http.StatusUnauthorized)
 					w.Write([]byte("Unable to parse orgid"))
 					return
 				}
-
 				// Need a fast lookup like redis
 				// Attach permissions
 				// This can be faster if using redis or something in memory
 				permissions, err := GetPermissions(int64(id), userType, int64(orgID), s)
 				if err != nil {
-					fmt.Println(err)
+					fmt.Println("Error trying to get permissions claims")
 					w.WriteHeader(http.StatusUnauthorized)
 					w.Write([]byte("Unable to get user permissions"))
 					return
 				}
+				fmt.Println("Sending new access token ---", new_access_token)
 				cookie_claims["permissions"] = permissions
 				// Set the header field with new access token
 				ctx := context.WithValue(r.Context(), "props", cookie_claims)
@@ -217,7 +236,7 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 				return
 			}
 
-			fmt.Printf("Unable to verify first token %v", jwtError)
+			fmt.Printf("Unable to verify token %v", jwtError)
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte("Unauthorized"))
 		})
