@@ -492,51 +492,47 @@ func buildStudentSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 	var args []interface{}
 	var conditions []string
 	query := `SELECT 
-				s.id,s.first_name, s.last_name, count(st.id)
-			FROM 
-				stu_tracker.Session_students st
-			INNER JOIN 
-				stu_tracker.Sessions ss 
-			ON 
-				ss.id = st.session_id
-			JOIN 
-				stu_tracker.Students s
-			ON 
-				s.id = st.student_id
-			
-		`
+			s.id AS student_id,
+			s.first_name,
+			s.last_name,
+			COUNT(DISTINCT ss.session_id) AS session_count,
+			COUNT(DISTINCT a.assessment_id) AS assessment_count
+		FROM stu_tracker.Students s
+		LEFT JOIN stu_tracker.Session_students ss ON s.id = ss.student_id
+		LEFT JOIN stu_tracker.Sessions st ON st.id = ss.session_id
+		LEFT JOIN stu_tracker.Assessments_students a ON s.id = a.student_id `
 
 	if ss.SearchTerm != "" {
-		conditions = append(conditions, fmt.Sprintf("ss.first_name ILIKE $%d OR ss.last_name ILIKE $%d", argIndex, argIndex+1))
+		conditions = append(conditions, fmt.Sprintf("st.first_name ILIKE $%d OR st.last_name ILIKE $%d", argIndex, argIndex+1))
 		args = append(args, "%"+ss.SearchTerm+"%", "%"+ss.SearchTerm+"%")
 		argIndex += 2
 	}
 	if ss.LocationId != nil {
-		conditions = append(conditions, fmt.Sprintf("ss.location_id = $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("st.location_id = $%d", argIndex))
 		args = append(args, ss.LocationId)
 		argIndex++
 	}
 	if ss.OrganizationID != nil {
-		conditions = append(conditions, fmt.Sprintf("ss.organization_id = $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("st.organization_id = $%d", argIndex))
 		args = append(args, ss.OrganizationID)
 		argIndex++
 	}
 	if ss.ProgramId != nil {
-		conditions = append(conditions, fmt.Sprintf("ss.program_id = $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("st.program_id = $%d", argIndex))
 		args = append(args, ss.ProgramId)
 		argIndex++
 	}
 	if ss.SemesterID != nil {
-		conditions = append(conditions, fmt.Sprintf("ss.semester_id = $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("st.semester_id = $%d", argIndex))
 		args = append(args, ss.SemesterID)
 		argIndex++
 	}
 	if !ss.DateStart.IsZero() && !ss.DateEnd.IsZero() {
-		conditions = append(conditions, fmt.Sprintf("DATE(ss.session_date) BETWEEN $%d AND $%d", argIndex, argIndex+1))
+		conditions = append(conditions, fmt.Sprintf("DATE(st.session_date) BETWEEN $%d AND $%d", argIndex, argIndex+1))
 		args = append(args, ss.DateStart, ss.DateEnd)
 		argIndex += 2
 	} else if !ss.DateStart.IsZero() {
-		conditions = append(conditions, fmt.Sprintf("DATE(ss.session_date) >= $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("DATE(st.session_date) >= $%d", argIndex))
 		args = append(args, ss.DateStart)
 		argIndex++
 	}
@@ -550,7 +546,7 @@ func buildStudentSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 	if len(conditions) > 0 {
 		query += "WHERE " + strings.Join(conditions, " AND ")
 	}
-	query += `GROUP BY
-				s.id, s.first_name, s.last_name`
+	query += ` GROUP BY s.id, s.first_name, s.last_name
+				ORDER BY session_count DESC, assessment_count DESC;`
 	return query, args
 }
