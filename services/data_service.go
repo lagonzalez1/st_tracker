@@ -59,6 +59,46 @@ func (s *AuthService) SessionSearch(ss models.SearchQuery) ([]models.ServiceSess
 	return sessions, nil
 }
 
+func (s *AuthService) StudentSessionSearch(ss models.SearchQuery) ([]models.ServiceSession, error) {
+	query, args := buildSearchQuery(ss)
+	fmt.Println(query)
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("error querying locations: %w", err)
+	}
+	defer rows.Close()
+	var sessions []models.ServiceSession
+	for rows.Next() {
+		var session models.ServiceSession
+		err := rows.Scan(
+			&session.FirstName,
+			&session.LastName,
+			&session.ID,
+			&session.TutorId,
+			&session.Location,
+			&session.Substitute,
+			&session.SubstituteId,
+			&session.StartTime,
+			&session.Subject,
+			&session.Notes,
+			&session.EditedAt,
+			&session.CreatedAt,
+			&session.ProgramName,
+			&session.SubjectName,
+			&session.StudentCount,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		sessions = append(sessions, session)
+	}
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+	return sessions, nil
+}
+
 func (s *AuthService) SessionInfo(session_id int64) ([]models.SessionInfoStudent, error) {
 	query := `
 	SELECT ss.duration, st.id as student_id, st.first_name, st.last_name, COALESCE(st.middle_name, '') as middle_name, st.email, st.grade_level AS grade, st.period
