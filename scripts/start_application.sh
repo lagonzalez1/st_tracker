@@ -19,7 +19,6 @@ cd "${APP_DIR}" || {
 
 # Set production environment
 export APP_ENV=production
-export GIN_MODE=release  # If using Gin web framework
 
 # Function to stop existing application
 stop_application() {
@@ -45,7 +44,7 @@ start_application() {
   # Rotate logs if they exist
   [ -f "${LOG_FILE}" ] && mv "${LOG_FILE}" "${LOG_FILE}.old"
   
-  nohup "./${APP_NAME}" >> "${LOG_FILE}" 2>&1 &
+  nohup "sudo APP_ENV=production ./${APP_NAME}" >> "${LOG_FILE}" 2>&1 &
   local pid=$!
   
   # Verify process started
