@@ -26,18 +26,28 @@ func ConnectDB() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	var ssl string
 	host, username := env_config.DB.Host, env_config.DB.Username
 	password, name := env_config.DB.Password, env_config.DB.Name
 	port, err := strconv.Atoi(env_config.DB.Port)
 	if err != nil {
 		return nil, err
 	}
-	psql_info := fmt.Sprintf("host=%s port=%d user=%s "+"password=%s dbname=%s sslmode=require",
+	if port == 5433 {
+		ssl += `disable`
+	}
+	if port == 5432 {
+		ssl += `require`
+	}
+
+	psql_info := fmt.Sprintf("host=%s port=%d user=%s "+"password=%s dbname=%s sslmode=%s",
 		host,
 		port,
 		username,
 		password,
-		name)
+		name,
+		ssl,
+	)
 	db, err := sql.Open("postgres", psql_info)
 
 	if err != nil {

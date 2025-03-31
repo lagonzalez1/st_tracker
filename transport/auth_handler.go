@@ -1775,6 +1775,90 @@ func (h *AuthHandler) GetSessionSearch(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (h *AuthHandler) GetStudentSessionSearch(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+
+	// Undefined variables like optional location_id
+	// Check if exist before
+	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	var model models.SearchQuery
+
+	if query.Get("location_id") != "" {
+		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.LocationId = &loc_id
+	}
+	if query.Get("program_id") != "" {
+		prog_id, err := strconv.ParseInt(query.Get("program_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.ProgramId = &prog_id
+	}
+	if query.Get("organization_id") != "" {
+		org_id, err := strconv.ParseInt(query.Get("organization_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.OrganizationID = &org_id
+	}
+	if query.Get("subject_id") != "" {
+		sub_id, err := strconv.ParseInt(query.Get("subject_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SubjectId = &sub_id
+	}
+	if query.Get("semester_id") != "" {
+		sub_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SemesterID = &sub_id
+	}
+
+	if query.Get("date") != "" {
+		start_time, err := time.Parse("2006-01-02", query.Get("date"))
+		if err != nil {
+			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.DateStart = start_time
+	}
+	if query.Get("date_end") != "" {
+		end_date, err := time.Parse("2006-01-02", query.Get("date_end"))
+		if err != nil {
+			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.DateEnd = end_date
+	}
+	rows, err := h.authService.StudentSessionSearch(model)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in Semesters %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
 func (h *AuthHandler) GetSessionInfo(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	email := query.Get("email")
@@ -1798,6 +1882,43 @@ func (h *AuthHandler) GetSessionInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a_rows, err := h.authService.AssessmentInfo(idd)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in Semesters %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows, "assessment_data": a_rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetStudentInfo(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	email := query.Get("email")
+	role := query.Get("role")
+	id := query.Get("id")
+	org_id := query.Get("organization_id")
+	student_id := query.Get("student_id")
+	if email == "" || role == "" || id == "" || org_id == "" || student_id == "" {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	idd, err := strconv.ParseInt(student_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	rows, err := h.authService.SessionInfo(idd)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in Semesters %v", err)
+		return
+	}
+	a_rows, err := h.authService.StudentInfo(idd)
 	if err != nil {
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
 		fmt.Printf("Unable to get rows in Semesters %v", err)

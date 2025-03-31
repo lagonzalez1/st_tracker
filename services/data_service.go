@@ -59,33 +59,23 @@ func (s *AuthService) SessionSearch(ss models.SearchQuery) ([]models.ServiceSess
 	return sessions, nil
 }
 
-func (s *AuthService) StudentSessionSearch(ss models.SearchQuery) ([]models.ServiceSession, error) {
-	query, args := buildSearchQuery(ss)
+func (s *AuthService) StudentSessionSearch(ss models.SearchQuery) ([]models.StudentSessions, error) {
+	query, args := buildStudentSearchQuery(ss)
 	fmt.Println(query)
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error querying locations: %w", err)
 	}
 	defer rows.Close()
-	var sessions []models.ServiceSession
+	var sessions []models.StudentSessions
 	for rows.Next() {
-		var session models.ServiceSession
+		var session models.StudentSessions
 		err := rows.Scan(
+			&session.ID,
 			&session.FirstName,
 			&session.LastName,
-			&session.ID,
-			&session.TutorId,
-			&session.Location,
-			&session.Substitute,
-			&session.SubstituteId,
-			&session.StartTime,
-			&session.Subject,
-			&session.Notes,
-			&session.EditedAt,
-			&session.CreatedAt,
-			&session.ProgramName,
-			&session.SubjectName,
-			&session.StudentCount,
+			&session.SessionCount,
+			&session.AssessmentCount,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -100,6 +90,49 @@ func (s *AuthService) StudentSessionSearch(ss models.SearchQuery) ([]models.Serv
 }
 
 func (s *AuthService) SessionInfo(session_id int64) ([]models.SessionInfoStudent, error) {
+	query := `
+	SELECT ss.duration, st.id as student_id, st.first_name, st.last_name, COALESCE(st.middle_name, '') as middle_name, st.email, st.grade_level AS grade, st.period
+	FROM 
+		stu_tracker.Session_students ss 
+	JOIN 
+		stu_tracker.Students st 
+	ON 
+		st.id = ss.student_id 
+	WHERE 
+		ss.session_id = $1`
+	fmt.Println(query)
+
+	rows, err := s.db.Query(query, session_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying Session_students: %w", err)
+	}
+	defer rows.Close()
+	var sessionsInfo []models.SessionInfoStudent
+	for rows.Next() {
+		var session models.SessionInfoStudent
+		err := rows.Scan(
+			&session.Duration,
+			&session.ID,
+			&session.FirstName,
+			&session.LastName,
+			&session.MiddleName,
+			&session.Email,
+			&session.Grade,
+			&session.Period,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		sessionsInfo = append(sessionsInfo, session)
+	}
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+	return sessionsInfo, nil
+}
+
+func (s *AuthService) StudentInfo(session_id int64) ([]models.SessionInfoStudent, error) {
 	query := `
 	SELECT ss.duration, st.id as student_id, st.first_name, st.last_name, COALESCE(st.middle_name, '') as middle_name, st.email, st.grade_level AS grade, st.period
 	FROM 
@@ -451,5 +484,73 @@ func buildSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 	if len(conditions) > 0 {
 		query += "WHERE " + strings.Join(conditions, " AND ")
 	}
+	return query, args
+}
+
+func buildStudentSearchQuery(ss models.SearchQuery) (string, []interface{}) {
+	argIndex := 1
+	var args []interface{}
+	var conditions []string
+	query := `SELECT 
+				s.id,s.first_name, s.last_name, count(st.id)
+			FROM 
+				stu_tracker.Session_students st
+			INNER JOIN 
+				stu_tracker.Sessions ss 
+			ON 
+				ss.id = st.session_id
+			JOIN 
+				stu_tracker.Students s
+			ON 
+				s.id = st.student_id
+			
+		`
+
+	if ss.SearchTerm != "" {
+		conditions = append(conditions, fmt.Sprintf("ss.first_name ILIKE $%d OR ss.last_name ILIKE $%d", argIndex, argIndex+1))
+		args = append(args, "%"+ss.SearchTerm+"%", "%"+ss.SearchTerm+"%")
+		argIndex += 2
+	}
+	if ss.LocationId != nil {
+		conditions = append(conditions, fmt.Sprintf("ss.location_id = $%d", argIndex))
+		args = append(args, ss.LocationId)
+		argIndex++
+	}
+	if ss.OrganizationID != nil {
+		conditions = append(conditions, fmt.Sprintf("ss.organization_id = $%d", argIndex))
+		args = append(args, ss.OrganizationID)
+		argIndex++
+	}
+	if ss.ProgramId != nil {
+		conditions = append(conditions, fmt.Sprintf("ss.program_id = $%d", argIndex))
+		args = append(args, ss.ProgramId)
+		argIndex++
+	}
+	if ss.SemesterID != nil {
+		conditions = append(conditions, fmt.Sprintf("ss.semester_id = $%d", argIndex))
+		args = append(args, ss.SemesterID)
+		argIndex++
+	}
+	if !ss.DateStart.IsZero() && !ss.DateEnd.IsZero() {
+		conditions = append(conditions, fmt.Sprintf("DATE(ss.session_date) BETWEEN $%d AND $%d", argIndex, argIndex+1))
+		args = append(args, ss.DateStart, ss.DateEnd)
+		argIndex += 2
+	} else if !ss.DateStart.IsZero() {
+		conditions = append(conditions, fmt.Sprintf("DATE(ss.session_date) >= $%d", argIndex))
+		args = append(args, ss.DateStart)
+		argIndex++
+	}
+
+	if ss.SubjectId != nil {
+		conditions = append(conditions, fmt.Sprintf("ss.subject_id = $%d", argIndex))
+		args = append(args, ss.SubjectId)
+		argIndex++
+	}
+
+	if len(conditions) > 0 {
+		query += "WHERE " + strings.Join(conditions, " AND ")
+	}
+	query += `GROUP BY
+				s.id, s.first_name, s.last_name`
 	return query, args
 }
