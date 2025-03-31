@@ -7,3 +7,4 @@ pwd
 ls -l 
 # Ensure its executable
 sudo cd /home/ubuntu/app
+

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"tracker/app/models"
@@ -10,6 +11,7 @@ import (
 
 func LoadConfig() (*models.Config, error) {
 	env := os.Getenv("APP_ENV")
+	fmt.Println("Current ENV---", env)
 	if env == "" {
 		env = "development"
 	}
@@ -17,7 +19,7 @@ func LoadConfig() (*models.Config, error) {
 	if env == "production" {
 		err := awsConfig()
 		if err != nil {
-			log.Println("Error loading .env file")
+			log.Println("Error creating .env file")
 		}
 	}
 

@@ -61,6 +61,13 @@ func awsConfig() error {
 	if err := json.Unmarshal([]byte(secretString), &secrets); err != nil {
 		return fmt.Errorf("Error decoding JSON: %v\n", err)
 	}
+	env := os.Getenv("APP_ENV")
+	if env == "production" {
+		if fileExist("/home/ubuntu/app/.env.production") {
+			fmt.Println("File exist...")
+			return nil
+		}
+	}
 
 	err = writeEnvFile(".env.production", secrets)
 	if err != nil {
@@ -69,6 +76,14 @@ func awsConfig() error {
 	fmt.Println("Successfully created config.env")
 	// Your code goes here.
 	return nil
+}
+
+func fileExist(file string) bool {
+	_, err := os.Stat(file)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return err == nil
 }
 
 func writeEnvFile(filename string, config interface{}) error {
