@@ -36,7 +36,7 @@ func main() {
 	apiMiddleware.Use(middleware.Middleware(authService))
 
 	corsOptions := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"}, // No trailing slash!
+		AllowedOrigins:   []string{"http://localhost:3000", "http://tracker-frontend-bucket.s3-website-us-west-1.amazonaws.com"}, // No trailing slash!
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
