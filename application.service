@@ -1,0 +1,15 @@
+[Unit]
+Description=Run tracker backend
+After=network.target
+
+[Service]
+User=ubuntu
+ExecStart=/home/ubuntu/app/app1
+WorkingDirectory=/home/ubuntu/app
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+
+[Install]
+WantedBy=multi-user.target

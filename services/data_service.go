@@ -132,7 +132,7 @@ func (s *AuthService) SessionInfo(session_id int64) ([]models.SessionInfoStudent
 	return sessionsInfo, nil
 }
 
-func (s *AuthService) StudentInfo(session_id int64) ([]models.SessionInfoStudent, error) {
+func (s *AuthService) StudentInfo(student_id int64) ([]models.SessionInfoStudent, error) {
 	query := `
 	SELECT ss.duration, st.id as student_id, st.first_name, st.last_name, COALESCE(st.middle_name, '') as middle_name, st.email, st.grade_level AS grade, st.period
 	FROM 
@@ -145,7 +145,7 @@ func (s *AuthService) StudentInfo(session_id int64) ([]models.SessionInfoStudent
 		ss.session_id = $1`
 	fmt.Println(query)
 
-	rows, err := s.db.Query(query, session_id)
+	rows, err := s.db.Query(query, student_id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying Session_students: %w", err)
 	}
@@ -207,6 +207,85 @@ func (s *AuthService) AssessmentInfo(session_id int64) ([]models.AssessmentInfoS
 			&assessment.Score,
 			&assessment.CreatedAt,
 			&assessment.StudentID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		assessmentInfo = append(assessmentInfo, assessment)
+	}
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+	return assessmentInfo, nil
+}
+
+func (s *AuthService) StudentSessionInfo(student_id int64, organization_id int64) ([]models.StudentSessionInfo, error) {
+	query := `
+	SELECT
+		ast.created_at, ast.absent, ast.subject_id, ast.duration
+	FROM 
+		stu_tracker.Sessions ss
+	LEFT JOIN 
+		stu_tracker.Session_students ast
+	ON	
+		ast.session_id = ss.id
+	WHERE 
+		ast.student_id = 44 AND ss.organization_id = $2`
+	rows, err := s.db.Query(query, student_id, organization_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying AssessmentInfo: %w", err)
+	}
+	defer rows.Close()
+	var assessmentInfo []models.StudentSessionInfo
+	for rows.Next() {
+		var assessment models.StudentSessionInfo
+		err := rows.Scan(
+			&assessment.CreatedAt,
+			&assessment.Absent,
+			&assessment.SubjectID,
+			&assessment.Duration,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		assessmentInfo = append(assessmentInfo, assessment)
+	}
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+	return assessmentInfo, nil
+}
+
+func (s *AuthService) StudentAssessmentInfo(student_id int64, organization_id int64) ([]models.StudentAssessmentInfo, error) {
+	query := `
+		SELECT
+			ast.created_at, ast.absent, ast.subject_id, ast.duration
+		FROM 
+			stu_tracker.Sessions ss
+		LEFT JOIN 
+			stu_tracker.Session_students ast
+		ON	
+			ast.session_id = ss.id
+		WHERE 
+			ast.student_id = 44 AND ss.organization_id = $2`
+	rows, err := s.db.Query(query, student_id, organization_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying AssessmentInfo: %w", err)
+	}
+	defer rows.Close()
+	var assessmentInfo []models.StudentAssessmentInfo
+	for rows.Next() {
+		var assessment models.StudentAssessmentInfo
+		err := rows.Scan(
+			&assessment.CreatedAt,
+			&assessment.Absent,
+			&assessment.AssessmentID,
+			&assessment.MaxScore,
+			&assessment.Score,
+			&assessment.Cycle,
+			&assessment.Letter,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)

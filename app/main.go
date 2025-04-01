@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 	"tracker/app/database"
 	"tracker/app/middleware"
 	"tracker/app/services"
@@ -47,7 +48,7 @@ func main() {
 	r.HandleFunc("/register", authHandler.Register).Methods("POST")
 	r.HandleFunc("/login", authHandler.Login).Methods("POST")
 	r.HandleFunc("/create_organization", authHandler.CreateOrganization).Methods("POST")
-	r.HandleFunc("/health_check", authHandler.HealthCheck).Methods("POST") // FOR APPLICATIO LOAD BALANCER
+	r.HandleFunc("/health_check", authHandler.HealthCheck).Methods("GET") // FOR APPLICATIO LOAD BALANCER
 
 	apiMiddleware.HandleFunc("/create_student", authHandler.CreateStudent).Methods("POST")
 	apiMiddleware.HandleFunc("/create_location", authHandler.CreateLocation).Methods("POST")
@@ -156,8 +157,15 @@ func main() {
 	r.PathPrefix("/api").Handler(apiMiddleware)
 
 	handler := corsOptions.Handler(r)
+	httpListen := &http.Server{
+		Addr:           ":3333",
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20, // MAX header size might be a issue with ZIP files ??
+		Handler:        handler,
+	}
 
-	err := http.ListenAndServe(":3333", handler)
+	err := httpListen.ListenAndServe()
 
 	if errors.Is(err, http.ErrServerClosed) {
 		fmt.Printf("server closed\n")

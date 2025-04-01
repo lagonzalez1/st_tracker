@@ -559,6 +559,22 @@ type AssessmentInfoStudent struct {
 	CreatedAt time.Time `json:"created_at"`
 	StudentID *int64    `json:"student_id"`
 }
+type StudentSessionInfo struct {
+	CreatedAt time.Time `json:"created_at"`
+	SubjectID *int64    `json:"subject_id"`
+	Duration  *int64    `json:"duration"`
+	Absent    bool      `json:"absent"`
+}
+
+type StudentAssessmentInfo struct {
+	CreatedAt    time.Time `json:"created_at"`
+	AssessmentID *int64    `json:"assessment_id"`
+	Score        *int64    `json:"score"`
+	MaxScore     *int64    `json:"max_score"`
+	Absent       bool      `json:"absent"`
+	Letter       string    `json:"letter"`
+	Cycle        string    `json:"cycle"`
+}
 
 type TutorLocationList struct {
 	LocationName string `json:"location_name"`
