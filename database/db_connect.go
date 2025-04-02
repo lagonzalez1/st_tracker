@@ -70,7 +70,7 @@ func CreateSchemaIfNotExist(db *sql.DB) error {
 	err := db.QueryRow(`
         SELECT EXISTS (
             SELECT 1 FROM information_schema.tables 
-            WHERE table_schema = 'testing_schema' AND table_name = 'Organization'
+            WHERE table_schema = 'stu_tracker' AND table_name = 'organization'
         );`).Scan(&tableExists)
 
 	if err != nil {
@@ -79,7 +79,7 @@ func CreateSchemaIfNotExist(db *sql.DB) error {
 
 	// Skip table creation if it already exists
 	if tableExists {
-		fmt.Println("Table 'testdb' already exists.")
+		fmt.Println("Table 'stu_tracker' already exists.")
 		return nil
 	}
 
