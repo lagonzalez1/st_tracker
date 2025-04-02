@@ -388,24 +388,24 @@ type ResponseRegisterSubject struct {
 }
 
 type ServiceSession struct {
-	FirstName       string         `json:"first_name"`
-	LastName        string         `json:"last_name"`
-	ID              *int64         `json:"id"`
-	Location        string         `json:"location_name"`
-	SubstituteId    sql.NullInt64  `json:"substitute_id"`
-	ProgramId       sql.NullInt64  `json:"program_id"`
-	ProgramName     string         `json:"program_name"`
-	Notes           string         `json:"notes"`
-	SessionDate     string         `json:"session_date"`
-	StartTime       sql.NullString `json:"start_time"`
-	Subject         sql.NullInt32  `json:"subject"`
-	Substitute      sql.NullBool   `json:"substitute"`
-	TutorId         sql.NullInt64  `json:"tutor_id"`
-	CreatedAt       time.Time      `json:"created_at"`
-	EditedAt        string         `json:"edited_at"`
-	SubjectName     string         `json:"subject_name"`
-	StudentCount    int64          `json:"student_count"`
-	AssessmentCount *int64         `json:"assessment_count"`
+	FirstName       string        `json:"first_name"`
+	LastName        string        `json:"last_name"`
+	ID              *int64        `json:"id"`
+	Location        string        `json:"location_name"`
+	SubstituteId    sql.NullInt64 `json:"substitute_id"`
+	ProgramId       sql.NullInt64 `json:"program_id"`
+	ProgramName     string        `json:"program_name"`
+	Notes           string        `json:"notes"`
+	SessionDate     string        `json:"session_date"`
+	StartTime       time.Time     `json:"start_time"`
+	Subject         sql.NullInt32 `json:"subject"`
+	Substitute      sql.NullBool  `json:"substitute"`
+	TutorId         sql.NullInt64 `json:"tutor_id"`
+	CreatedAt       time.Time     `json:"created_at"`
+	EditedAt        string        `json:"edited_at"`
+	SubjectName     string        `json:"subject_name"`
+	StudentCount    int64         `json:"student_count"`
+	AssessmentCount *int64        `json:"assessment_count"`
 }
 
 type StudentSessions struct {

@@ -1,6 +1,6 @@
 CREATE SCHEMA stu_tracker;
 
-CREATE TABLE stu_tracker.Organization (
+CREATE TABLE stu_tracker.Organization(
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) UNIQUE,
     address VARCHAR(255),
@@ -44,7 +44,7 @@ CREATE TABLE stu_tracker.Admin_Permissions (
     permission_id INT NOT NULL,
     FOREIGN KEY (admin_id) REFERENCES stu_tracker.Admin_staff(id) ON DELETE CASCADE,
     FOREIGN KEY (permission_id) REFERENCES stu_tracker.Permissions(id) ON DELETE CASCADE,
-    UNIQUE (admin_id, permission_id)  -- Prevent duplicate permission entries
+    UNIQUE (admin_id, permission_id)
 );
 
 CREATE TABLE stu_tracker.District (
@@ -63,11 +63,11 @@ CREATE TABLE stu_tracker.Locations (
     name VARCHAR(100) NOT NULL,
     district_id INT REFERENCES stu_tracker.District(id) ON DELETE SET NULL,
     admin_id INT REFERENCES stu_tracker.Admin_root(id) ON DELETE SET NULL,
-    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE SET NULL,
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     address VARCHAR(255) NOT NULL,
-    city VARCHAR(100),
-    state VARCHAR(100),
-    zip_code VARCHAR(100),
+    city VARCHAR(255) NOT NULL,
+    state VARCHAR(2) CHECK (state ~ '^[A-Z]{2}$'),
+    zip_code VARCHAR(10),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -78,7 +78,7 @@ CREATE TABLE stu_tracker.Subjects(
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE SET NULL,
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
+);
 
 CREATE TABLE stu_tracker.Location_subjects (
     subject_id INT REFERENCES stu_tracker.Subjects(id) ON DELETE CASCADE,
@@ -87,16 +87,6 @@ CREATE TABLE stu_tracker.Location_subjects (
 );
 
 
-CREATE TABLE stu_tracker.Location_contacts (
-    location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE CASCADE,
-    program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE CASCADE,
-    description VARCHAR(255),
-    first_name VARCHAR(255),
-    last_name VARCHAR(255),
-    email VARCHAR(255),
-    phone TEXT CHECK(VALUE ~ '^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$'),
-)
-
 CREATE TABLE stu_tracker.Programs (
     id SERIAL PRIMARY KEY,
     program_name VARCHAR(150) NOT NULL,
@@ -104,11 +94,33 @@ CREATE TABLE stu_tracker.Programs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE stu_tracker.Location_contacts (
+    location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE CASCADE,
+    program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE CASCADE,
+    description VARCHAR(255),
+    first_name VARCHAR(255),
+    last_name VARCHAR(255),
+    email VARCHAR(255),
+    phone TEXT CHECK(phone ~ '^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$')
+);
+
 CREATE TABLE stu_tracker.Location_programs (
     location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE CASCADE,
     program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE CASCADE,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     PRIMARY KEY (location_id, program_id)
+);
+
+CREATE TABLE stu_tracker.Tutors (
+    id SERIAL PRIMARY KEY,
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
+    location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE SET NULL,
+    email VARCHAR(150) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE stu_tracker.Tutor_locations (
@@ -119,26 +131,13 @@ CREATE TABLE stu_tracker.Tutor_locations (
     PRIMARY KEY (tutor_id, location_id, organization_id)
 );
 
-
-CREATE TABLE stu_tracker.Tutors (
-    id SERIAL PRIMARY KEY,
-    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
-    location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE SET NULL,
-    email VARCHAR(100) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    active BOOLEAN,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE stu_tracker.Tutor_Permissions (
     id SERIAL PRIMARY KEY,
     tutor_id INT NOT NULL,
     permission_id INT NOT NULL,
     FOREIGN KEY (tutor_id) REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
     FOREIGN KEY (permission_id) REFERENCES stu_tracker.Permissions(id) ON DELETE CASCADE,
-    UNIQUE (tutor_id, permission_id)  -- Prevent duplicate permission entries
+    UNIQUE (tutor_id, permission_id)
 );
 
 CREATE TABLE stu_tracker.Materials (
@@ -146,7 +145,7 @@ CREATE TABLE stu_tracker.Materials (
     title VARCHAR(255) NOT NULL,
     external_link TEXT,
     description VARCHAR(255),
-    admin_id int REFERENCES stu_tracker.Admin_root(id) ON DELETE SET NULL,
+    admin_id INT REFERENCES stu_tracker.Admin_root(id) ON DELETE SET NULL,
     location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE SET NULL,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE SET NULL,
@@ -156,7 +155,7 @@ CREATE TABLE stu_tracker.Materials (
     post BOOLEAN DEFAULT FALSE,
     visible BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
+);
 
 CREATE TABLE stu_tracker.Assessments (
     id SERIAL PRIMARY KEY,
@@ -208,8 +207,9 @@ CREATE TABLE stu_tracker.Students (
     semester_id INT REFERENCES stu_tracker.Semester(id) ON DELETE SET NULL,
     period VARCHAR(200), 
     email VARCHAR(100) CHECK (email ~* '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$'),
-    grade_level INT,
-    active BOOLEAN,
+    grade_level INT CHECK (grade_level BETWEEN 0 AND 12),
+    active BOOLEAN DEFAULT TRUE,
+    created_by INT DEFAULT 0,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -225,7 +225,7 @@ CREATE TABLE stu_tracker.Sessions (
     substitute_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE SET NULL,
     semester_id INT REFERENCES stu_tracker.Semester(id) ON DELETE SET NULL,
     student_count INT,
-    start_time VARCHAR(10),
+    start_time TIME,
     duration INT,
     subject VARCHAR(100),
     subject_id INT REFERENCES stu_tracker.Subjects(id) ON DELETE SET NULL,
@@ -239,7 +239,7 @@ CREATE TABLE stu_tracker.Session_students (
     session_id INT NOT NULL,
     student_id INT NOT NULL,
     subject_id INT DEFAULT NULL,
-    absent BOOLEAN DEFAULT TRUE,
+    absent BOOLEAN DEFAULT FALSE,
     duration INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (session_id, student_id),
@@ -251,7 +251,7 @@ CREATE TABLE stu_tracker.Assessments_students (
     id SERIAL PRIMARY KEY,
     session_id INT NOT NULL,
     student_id INT NOT NULL,
-    score INT NOT NULL,
+    score INT NOT NULL CHECK (score >= 0),
     assessment_id INT NOT NULL,
     subject_id INT REFERENCES stu_tracker.Subjects(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -263,37 +263,26 @@ CREATE TABLE stu_tracker.Assessments_students (
 
 CREATE TABLE stu_tracker.Notifications (
     id SERIAL PRIMARY KEY,
-    organization_id INT REFERENCES stu_tracker.Students(id),
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     location_id INT REFERENCES stu_tracker.Locations(id) DEFAULT NULL,
     district_id INT REFERENCES stu_tracker.District(id) ON DELETE SET NULL,
     title TEXT,
     body TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-)
-
-CREATE TABLE stu_tracker.Google_sheets(
-    location_id INT REFERENCES stu_tracker.Locations(id) DEFAULT NULL,
-    tutor_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE, 
-    google_url TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE stu_tracker.Announcements (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     body TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    location_id INT,
-    severity VARCHAR(255),
-    organization_id INT,
-    program_id INT,
-    admin_id INT NOT NULL,
-    FOREIGN KEY (location_id) REFERENCES stu_tracker.Locations(id) ON DELETE SET NULL,
-    FOREIGN KEY (organization_id) REFERENCES stu_tracker.Organization(id) ON DELETE SET NULL,
-    FOREIGN KEY (program_id) REFERENCES stu_tracker.Programs(id) ON DELETE SET NULL,
-    FOREIGN KEY (admin_id) REFERENCES stu_tracker.Admin_root(id) ON DELETE CASCADE,
-    FOREIGN KEY (staff_id) REFERENCES stu_tracker.Admin_staff(id) ON DELETE SET NULL,
-
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE SET NULL,
+    severity VARCHAR(20),
+    organization_id INT NOT NULL REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
+    program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE SET NULL,
+    admin_id INT REFERENCES stu_tracker.Admin_root(id) ON DELETE SET NULL,
+    staff_id INT REFERENCES stu_tracker.Admin_staff(id) ON DELETE CASCADE
 );
 
 CREATE TABLE stu_tracker.User_Acknowledgments (
@@ -301,6 +290,7 @@ CREATE TABLE stu_tracker.User_Acknowledgments (
     tutor_id INT NOT NULL,
     announcement_id INT NOT NULL,
     acknowledged BOOLEAN DEFAULT FALSE,
+	organization_id INT NOT NULL,
     acknowledged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (organization_id) REFERENCES stu_tracker.Organization(id) ON DELETE SET NULL,
     FOREIGN KEY (tutor_id) REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
