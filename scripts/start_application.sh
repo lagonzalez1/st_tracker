@@ -24,9 +24,9 @@ if [ -f "${SERVICE_FILE}" ]; then
     echo "Starting application deployment"
     
     # Copy service file to systemd directory
-    echo "Copying service file to /etc/systemd/system/"
-    sudo mv application.service /etc/systemd/system
-    
+    echo "Copying service file sudo mv application.service /etc/systemd/system/"
+    sudo mv application.service /etc/systemd/system/
+
     # Reload and enable service 
     echo "Reloading systemd"
     sudo systemctl daemon-reload
