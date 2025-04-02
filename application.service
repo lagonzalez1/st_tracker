@@ -4,14 +4,14 @@ After=network.target
 
 [Service]
 User=ubuntu
-ExecStart=/home/ubuntu/app/app1
 WorkingDirectory=/home/ubuntu/app
+ExecStart=/home/ubuntu/app/app1
 Restart=always
 RestartSec=10
 StandardOutput=syslog
 StandardError=syslog
 SyslogIdentifier=myapp
-Environment=APP_ENV=production
+Environment="APP_ENV=production"
 
 
 [Install]

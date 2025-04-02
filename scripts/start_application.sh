@@ -17,19 +17,15 @@ if [ -f "${SERVICE_FILE}" ]; then
     echo "Copying service file to /etc/systemd/system/"
     sudo mv application.service /etc/systemd/system
     
-    # Set environment variables (correct syntax)
-    echo "Setting up environment"
-    
     # Reload and enable service
     echo "Reloading systemd"
     sudo systemctl daemon-reload
     echo "Enabling and starting service"
-    sudo systemctl enable "${SERVICE_FILE}"
-    sudo systemctl start "${SERVICE_FILE}"
-    sudo systemctl restart "${SERVICE_FILE}"  # Using restart instead of start for idempotency
-    
+    sudo systemctl enable application
+    sudo systemctl start application
+    sudo systemctl restart application
     echo "Service status:"
-    sudo systemctl status "${SERVICE_FILE}"
+    sudo systemctl status application
 else
     echo "Error: Service file ${SERVICE_FILE} not found in ${APP_DIR}"
     exit 1
