@@ -15,23 +15,21 @@ if [ -f "${SERVICE_FILE}" ]; then
     
     # Copy service file to systemd directory
     echo "Copying service file to /etc/systemd/system/"
-    sudo cp "${SERVICE_FILE}" "/etc/systemd/system/${SERVICE_NAME}.service"
+    sudo mv application.service /etc/systemd/system
     
     # Set environment variables (correct syntax)
     echo "Setting up environment"
-    sudo mkdir -p /etc/systemd/system/"${SERVICE_NAME}".service.d/
-    echo -e "[Service]\nEnvironment=APP_ENV=production" | sudo tee /etc/systemd/system/"${SERVICE_NAME}".service.d/override.conf
     
     # Reload and enable service
     echo "Reloading systemd"
     sudo systemctl daemon-reload
-    
     echo "Enabling and starting service"
-    sudo systemctl enable "${SERVICE_NAME}"
-    sudo systemctl restart "${SERVICE_NAME}"  # Using restart instead of start for idempotency
+    sudo systemctl enable "${SERVICE_FILE}"
+    sudo systemctl start "${SERVICE_FILE}"
+    sudo systemctl restart "${SERVICE_FILE}"  # Using restart instead of start for idempotency
     
     echo "Service status:"
-    sudo systemctl status "${SERVICE_NAME}"
+    sudo systemctl status "${SERVICE_FILE}"
 else
     echo "Error: Service file ${SERVICE_FILE} not found in ${APP_DIR}"
     exit 1

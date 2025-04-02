@@ -53,8 +53,12 @@ func ConnectDB() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	if err = db.Ping(); err != nil {
+		return nil, err
+	}
+	err = CreateSchemaIfNotExist(db)
+	if err != nil {
+		fmt.Println("error on createSchemaIfNotExist")
 		return nil, err
 	}
 	fmt.Println("Postgres connected.")
@@ -63,9 +67,23 @@ func ConnectDB() (*sql.DB, error) {
 
 // @Params: db pointer @Returns: Possible error
 func CreateSchemaIfNotExist(db *sql.DB) error {
+	var tableExists bool
+	err := db.QueryRow(`
+        SELECT EXISTS (
+            SELECT count(*) 
+			FROM information_schema.tables 
+		WHERE table_name = 'organization');`).Scan(&tableExists)
+
+	if err != nil {
+		return fmt.Errorf("error checking table existence: %v", err)
+	}
+	// 2. Skip if tables exist
+	if tableExists {
+		fmt.Print("table exist")
+		return nil
+	}
 	schemaPath := filepath.Join("database", "db_schema.sql")
 	schemaSQL, err := os.ReadFile(schemaPath)
-
 	if err != nil {
 		return fmt.Errorf("error reading schema file: %v", err)
 	}
