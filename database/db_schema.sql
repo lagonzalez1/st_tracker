@@ -1,9 +1,18 @@
 CREATE SCHEMA stu_tracker;
 
+CREATE TABLE stu_tracker.Organization (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) UNIQUE,
+    address VARCHAR(255),
+    zip_code VARCHAR(10),
+    state VARCHAR(10),
+    city VARCHAR(255)
+);
+
 CREATE TABLE stu_tracker.Admin_root (
     id SERIAL PRIMARY KEY,
     password_hash VARCHAR(255) NOT NULL,
-    email VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(100) NOT NULL UNIQUE CHECK (email ~* '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$'),
     fullname VARCHAR (100) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     stripe_id VARCHAR(100) DEFAULT NULL,
@@ -11,20 +20,24 @@ CREATE TABLE stu_tracker.Admin_root (
     organization_name VARCHAR(255) DEFAULT NULL
 );
 
-CREATE TABLE stu_tracker.Organization (
-    id SERIAL PRIMARY KEY,
-    title VARCHAR(255) UNIQUE,
-    address VARCHAR(255),
-    zip_code VARCHAR(10),
-    state VARCHAR(10),
-    city VARCHAR(255),
-);
-
 CREATE TABLE stu_tracker.Permissions (
     id SERIAL PRIMARY KEY,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL UNIQUE,
     description TEXT
+);
+
+
+
+CREATE TABLE stu_tracker.Admin_staff (
+    id SERIAL PRIMARY KEY,
+    fullname VARCHAR(255),
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    region VARCHAR(100) DEFAULT NULL,
+    state VARCHAR(100) NOT NULL
 );
 
 CREATE TABLE stu_tracker.Admin_Permissions (
@@ -36,26 +49,6 @@ CREATE TABLE stu_tracker.Admin_Permissions (
     UNIQUE (admin_id, permission_id)  -- Prevent duplicate permission entries
 );
 
-CREATE TABLE stu_tracker.Tutor_Permissions (
-    id SERIAL PRIMARY KEY,
-    tutor_id INT NOT NULL,
-    permission_id INT NOT NULL,
-    FOREIGN KEY (tutor_id) REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
-    FOREIGN KEY (permission_id) REFERENCES stu_tracker.Permissions(id) ON DELETE CASCADE,
-    UNIQUE (tutor_id, permission_id)  -- Prevent duplicate permission entries
-);
-
-CREATE TABLE stu_tracker.Admin_staff (
-    id SERIAL PRIMARY KEY,
-    fullname VARCHAR(255),
-    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE
-    email VARCHAR(100) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    region VARCHAR(100) DEFAULT NULL,
-    state VARCHAR(100) NOT NULL
-);
-
 CREATE TABLE stu_tracker.District (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -63,7 +56,7 @@ CREATE TABLE stu_tracker.District (
     city VARCHAR(255) NOT NULL,
     state VARCHAR(100) NOT NULL,
     region VARCHAR(100) NOT NULL,
-    admin_id INT REFERENCES stu_tracker.Admin_root(id) ON DELETE CASCADE
+    admin_id INT REFERENCES stu_tracker.Admin_root(id) ON DELETE CASCADE,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE
 );
 
@@ -95,28 +88,29 @@ CREATE TABLE stu_tracker.Location_subjects (
     PRIMARY KEY (subject_id, location_id)
 );
 
-CREATE TABLE stu_tracker.Location_programs (
-    location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE CASCADE,
-    program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE CASCADE,
-    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
-    PRIMARY KEY (location_id, program_id)
-);
 
-CREATE TABLE stu_tracker.Location_contacts {
+CREATE TABLE stu_tracker.Location_contacts (
     location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE CASCADE,
     program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE CASCADE,
     description VARCHAR(255),
     first_name VARCHAR(255),
     last_name VARCHAR(255),
     email VARCHAR(255),
-    phone AS TEXT CHECK(VALUE ~ '^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$'),
-}
+    phone TEXT CHECK(VALUE ~ '^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$'),
+)
 
 CREATE TABLE stu_tracker.Programs (
     id SERIAL PRIMARY KEY,
     program_name VARCHAR(150) NOT NULL,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE stu_tracker.Location_programs (
+    location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE CASCADE,
+    program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE CASCADE,
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
+    PRIMARY KEY (location_id, program_id)
 );
 
 CREATE TABLE stu_tracker.Tutor_locations (
@@ -140,6 +134,15 @@ CREATE TABLE stu_tracker.Tutors (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE stu_tracker.Tutor_Permissions (
+    id SERIAL PRIMARY KEY,
+    tutor_id INT NOT NULL,
+    permission_id INT NOT NULL,
+    FOREIGN KEY (tutor_id) REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES stu_tracker.Permissions(id) ON DELETE CASCADE,
+    UNIQUE (tutor_id, permission_id)  -- Prevent duplicate permission entries
+);
+
 CREATE TABLE stu_tracker.Materials (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
@@ -148,7 +151,7 @@ CREATE TABLE stu_tracker.Materials (
     admin_id int REFERENCES stu_tracker.Admin_root(id) ON DELETE SET NULL,
     location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE SET NULL,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
-    program_id INT REFERENCES stu_tracker.Programs(id) REFERENCES stu_tracker.Programs(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE SET NULL,
     version VARCHAR(255),
     pre BOOLEAN DEFAULT FALSE,
     mid BOOLEAN DEFAULT FALSE,
@@ -181,7 +184,7 @@ CREATE TABLE stu_tracker.Semester(
     title VARCHAR(100),
     date_start TIMESTAMP NOT NULL,
     date_end TIMESTAMP NOT NULL,
-    active DEFAULT FALSE
+    active BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE stu_tracker.Semester_Location (
@@ -206,7 +209,7 @@ CREATE TABLE stu_tracker.Students (
     middle_name VARCHAR(255) DEFAULT NULL,
     semester_id INT REFERENCES stu_tracker.Semester(id) ON DELETE SET NULL,
     period VARCHAR(200), 
-    email VARCHAR(100),
+    email VARCHAR(100) CHECK (email ~* '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$'),
     grade_level INT,
     active BOOLEAN,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -308,26 +311,21 @@ CREATE TABLE stu_tracker.User_Acknowledgments (
 );
 
 
-/** Possible improvements **/
+/** Indexes **/
 
-CREATE TABLE stu_tracker.Questions (
-    id SERIAL PRIMARY KEY,
-    assessment_id INT REFERENCES stu_tracker.Assessments(id) ON DELETE CASCADE,
-    question_text TEXT NOT NULL,
-    question_type VARCHAR(50) NOT NULL, -- e.g., multiple-choice, short-answer
-    max_score INT NOT NULL, -- Maximum score for this question
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+CREATE INDEX idx_sessions_date ON stu_tracker.Sessions(session_date);
 
-CREATE TABLE stu_tracker.Standards (
-    id SERIAL PRIMARY KEY,
-    standard_code VARCHAR(20) UNIQUE NOT NULL, -- e.g., F1.1, F1.2
-    description TEXT, -- Optional: Description of the standard
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- For tutor-specific queries
+CREATE INDEX idx_sessions_tutor ON stu_tracker.Sessions(tutor_id);
 
-CREATE TABLE stu_tracker.QuestionStandards (
-    question_id INT REFERENCES stu_tracker.Questions(id) ON DELETE CASCADE,
-    standard_id INT REFERENCES stu_tracker.Standards(id) ON DELETE CASCADE,
-    PRIMARY KEY (question_id, standard_id) -- Composite primary key
-);
+-- For organization/location filtering
+CREATE INDEX idx_sessions_org_loc ON stu_tracker.Sessions(organization_id, location_id);
+
+-- For semester-based reporting
+CREATE INDEX idx_sessions_semester ON stu_tracker.Sessions(semester_id);
+
+-- For finding all students in a session (reverse of your UNIQUE constraint)
+CREATE INDEX idx_session_students_session ON stu_tracker.Session_students(session_id);
+
+-- For finding all sessions for a specific student
+CREATE INDEX idx_session_students_student ON stu_tracker.Session_students(student_id);

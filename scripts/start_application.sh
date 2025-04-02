@@ -15,7 +15,7 @@ if [ -f "${SERVICE_FILE}" ]; then
     
     # Copy service file to systemd directory
     echo "Copying service file to /etc/systemd/system/"
-    sudo mv application.service /etc/systemd/system
+    sudo mv application.service /etc/systemd/  
     
     # Reload and enable service
     echo "Reloading systemd"
@@ -23,7 +23,7 @@ if [ -f "${SERVICE_FILE}" ]; then
     echo "Enabling and starting service"
     sudo systemctl enable application
     sudo systemctl start application
-    sudo systemctl restart application
+
     echo "Service status:"
     sudo systemctl status application
 else
