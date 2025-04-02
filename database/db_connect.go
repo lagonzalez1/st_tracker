@@ -39,7 +39,6 @@ func ConnectDB() (*sql.DB, error) {
 	if port == 5432 {
 		ssl += `require`
 	}
-
 	psql_info := fmt.Sprintf("host=%s port=%d user=%s "+"password=%s dbname=%s sslmode=%s",
 		host,
 		port,
@@ -49,7 +48,6 @@ func ConnectDB() (*sql.DB, error) {
 		ssl,
 	)
 	db, err := sql.Open("postgres", psql_info)
-
 	if err != nil {
 		return nil, err
 	}
@@ -68,28 +66,41 @@ func ConnectDB() (*sql.DB, error) {
 // @Params: db pointer @Returns: Possible error
 func CreateSchemaIfNotExist(db *sql.DB) error {
 	var tableExists bool
+	// Check if table exists
 	err := db.QueryRow(`
         SELECT EXISTS (
-            SELECT count(*) 
-			FROM information_schema.tables 
-		WHERE table_name = 'organization');`).Scan(&tableExists)
+            SELECT 1 FROM information_schema.tables 
+            WHERE table_schema = 'testing_schema' AND table_name = 'testdb'
+        );`).Scan(&tableExists)
 
 	if err != nil {
 		return fmt.Errorf("error checking table existence: %v", err)
 	}
-	// 2. Skip if tables exist
+
+	// Skip table creation if it already exists
 	if tableExists {
-		fmt.Print("table exist")
+		fmt.Println("Table 'testdb' already exists.")
 		return nil
 	}
+
+	// Debug: Verify file exists before reading
 	schemaPath := filepath.Join("database", "db_schema.sql")
+	if _, err := os.Stat(schemaPath); os.IsNotExist(err) {
+		return fmt.Errorf("schema file not found: %s", schemaPath)
+	}
+
+	// Read SQL file
 	schemaSQL, err := os.ReadFile(schemaPath)
 	if err != nil {
 		return fmt.Errorf("error reading schema file: %v", err)
 	}
+
+	// Execute SQL script
 	_, err = db.Exec(string(schemaSQL))
 	if err != nil {
-		return fmt.Errorf("error executing schema %v", err)
+		return fmt.Errorf("error executing schema SQL: %v", err)
 	}
+
+	fmt.Println("Database schema created successfully.")
 	return nil
 }

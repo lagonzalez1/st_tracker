@@ -27,8 +27,6 @@ CREATE TABLE stu_tracker.Permissions (
     description TEXT
 );
 
-
-
 CREATE TABLE stu_tracker.Admin_staff (
     id SERIAL PRIMARY KEY,
     fullname VARCHAR(255),
@@ -312,7 +310,6 @@ CREATE TABLE stu_tracker.User_Acknowledgments (
 
 
 /** Indexes **/
-
 CREATE INDEX idx_sessions_date ON stu_tracker.Sessions(session_date);
 
 -- For tutor-specific queries
