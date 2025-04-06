@@ -417,7 +417,7 @@ func (s *AuthService) GetSemestersVAssessmentChartData(req *models.RequestSemest
 }
 
 func (s *AuthService) GetAssessmentGrowth(req models.RequestAssessmentGrowth) (*models.ResponseAssessmentGrowth, error) {
-	if req.Assessment1ID == req.Assessment2ID {
+	if *req.Assessment1ID == *req.Assessment2ID {
 		return nil, fmt.Errorf("assessment 1 cannot be assessment 2")
 	}
 	assessment1, err := s.QueryAssessmentGrowth(req.LocationID, req.OrganizationID, req.Assessment1ID)

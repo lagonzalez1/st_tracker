@@ -12,10 +12,10 @@ func (s *AuthService) AddStudent(req models.RegisterRequestStudents) (*models.Re
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, or email")
 	}
 	var newID int64
-	query := `INSERT INTO stu_tracker.Students(first_name, last_name, middle_name, email, grade_level, active, location_id, period)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;`
+	query := `INSERT INTO stu_tracker.Students(first_name, last_name, middle_name, email, grade_level, active, location_id, period, created_by)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id;`
 
-	err := s.db.QueryRow(query, req.FirstName, req.LastName, req.MiddleName, req.Email, req.GradeLevel, req.Active, req.LocationId, req.Period).Scan(&newID)
+	err := s.db.QueryRow(query, req.FirstName, req.LastName, req.MiddleName, req.Email, req.GradeLevel, req.Active, req.LocationId, req.Period, req.CreatedBy).Scan(&newID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}

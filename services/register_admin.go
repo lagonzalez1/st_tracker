@@ -9,12 +9,17 @@ import (
 
 /**
  Admin types:
-
  For Placment info regarding substitutes and logistics
  View: locations, materail, district, programs, students, subjects, tutors
  Delete: Tutor-locations
 
 **/
+
+const (
+	Root  = "root"
+	Admin = "admin"
+	Tutor = "tutor"
+)
 
 func (s *AuthService) AddAdminStaff(req models.RegisterRequestAdmin) (*models.ResponseRequestAdmin, error) {
 	// Input validation
@@ -27,22 +32,11 @@ func (s *AuthService) AddAdminStaff(req models.RegisterRequestAdmin) (*models.Re
 		return nil, fmt.Errorf("unable to hash password: %v", err)
 	}
 	var newID int64
-	query := `INSERT INTO stu_tracker.Admin_staff (fullname, email, password_hash, region, state, organization_id) 
+	query := `INSERT INTO stu_tracker.Admin_staff(fullname, email, password_hash, region, state, organization_id) 
 			  VALUES ($1, $2, $3, $4, $5, $6) RETURNING id;`
-
 	err = s.db.QueryRow(query, req.Fullname, req.Email, string(hash_password), req.Region, req.State, *req.OrganizationId).Scan(&newID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
-	}
-
-	permissions := `INSERT INTO stu_tracker.Admin_Permissions (admin_id, permission_id)
-					VALUES ($1, 1), ($1, 12), ($1, 39), ($1, 9), ($1, 15), 
-					($1, 30), ($1, 32), ($1, 33), ($1, 34), ($1, 31);`
-
-	_, err = s.db.Exec(permissions, newID)
-	if err != nil {
-		fmt.Printf("Unable to add permissions in admin staff: %v", err)
-		return nil, err
 	}
 
 	return &models.ResponseRequestAdmin{

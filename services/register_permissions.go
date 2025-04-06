@@ -14,8 +14,8 @@ func (s *AuthService) CreatePermission(req models.RegisterPermissionRequest) (*m
 		return nil, fmt.Errorf("missing required fields: org id and user type")
 	}
 	// Query permissions based on the provided permission IDs
-	permissionQuery := `SELECT p.id, p.name FROM stu_tracker.Permissions p WHERE p.organization_id = $1 AND p.name = ANY($2);`
-	rows, err := s.db.Query(permissionQuery, req.OrganizationId, pq.Array(req.Permissions))
+	permissionQuery := `SELECT p.id, p.name FROM stu_tracker.Permissions p WHERE p.name = ANY($1);`
+	rows, err := s.db.Query(permissionQuery, pq.Array(req.Permissions))
 	if err != nil {
 		return nil, fmt.Errorf("error querying permissions: %w", err)
 	}

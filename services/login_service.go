@@ -46,7 +46,6 @@ func (s *AuthService) LoginAction(req models.LoginRequest) (*models.LoginRespons
 	if err != nil {
 		return nil, fmt.Errorf("unable to create access token: %w", err)
 	}
-
 	// 5 + hours
 	refreshToken, err := s.generateRefreshToken(user)
 	if err != nil {
@@ -75,12 +74,10 @@ func (s *AuthService) LoginAction(req models.LoginRequest) (*models.LoginRespons
 	}, nil
 }
 
-// Helper functions
-
+// Helper functions HARD CODEDE
 func (s *AuthService) findRootUser(email string) (*models.User, error) {
 	query := `SELECT id, email, password_hash, organization_id, fullname FROM stu_tracker.Admin_root WHERE email = $1`
 	user := &models.User{Type: "ROOT"}
-
 	err := s.db.QueryRow(query, email).Scan(
 		&user.ID,
 		&user.Email,
@@ -88,14 +85,12 @@ func (s *AuthService) findRootUser(email string) (*models.User, error) {
 		&user.OrganizationId,
 		&user.FirstName,
 	)
-
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("no root user found with email: %s", email)
 		}
 		return nil, fmt.Errorf("database error: %w", err)
 	}
-
 	user.Permissions = []string{"write:*", "delete:*", "view:*"}
 	return user, nil
 }
@@ -103,7 +98,6 @@ func (s *AuthService) findRootUser(email string) (*models.User, error) {
 func (s *AuthService) findAdminUser(email string) (*models.User, error) {
 	query := `SELECT id, email, password_hash, organization_id, fullname FROM stu_tracker.Admin_staff WHERE email = $1`
 	user := &models.User{Type: "ADMIN"}
-
 	err := s.db.QueryRow(query, email).Scan(
 		&user.ID,
 		&user.Email,
@@ -111,14 +105,12 @@ func (s *AuthService) findAdminUser(email string) (*models.User, error) {
 		&user.OrganizationId,
 		&user.FirstName,
 	)
-
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("no admin found with email: %s", email)
 		}
 		return nil, fmt.Errorf("database error: %w", err)
 	}
-
 	user.Permissions, err = s.getAdminPermissions(user.ID, user.OrganizationId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get permissions: %w", err)
@@ -130,7 +122,6 @@ func (s *AuthService) findAdminUser(email string) (*models.User, error) {
 func (s *AuthService) findTutorUser(email string) (*models.User, []models.TutorLocationList, []models.ResponseRequestProgramList, error) {
 	query := `SELECT id, email, password_hash, organization_id, first_name, last_name FROM stu_tracker.Tutors WHERE email = $1`
 	user := &models.User{Type: "TUTOR"}
-
 	err := s.db.QueryRow(query, email).Scan(
 		&user.ID,
 		&user.Email,
@@ -139,7 +130,6 @@ func (s *AuthService) findTutorUser(email string) (*models.User, []models.TutorL
 		&user.FirstName,
 		&user.LastName,
 	)
-
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil, nil, fmt.Errorf("no tutor found with email: %s", email)
@@ -179,18 +169,17 @@ func (s *AuthService) getAdminPermissions(userID, orgID int64) ([]string, error)
 	query := `SELECT name FROM stu_tracker.Permissions p 
               INNER JOIN stu_tracker.Admin_permissions ad 
               ON p.id = ad.permission_id 
-              WHERE ad.admin_id = $1 AND p.organization_id = $2`
+              WHERE ad.admin_id = $1`
 
-	return s.queryPermissions(query, userID, orgID)
+	return s.queryPermissions(query, userID)
 }
 
 func (s *AuthService) getTutorPermissions(orgID int64) ([]string, error) {
 	query := `SELECT name FROM stu_tracker.Permissions p 
               LEFT JOIN stu_tracker.Tutor_permissions tp 
-              ON p.id = tp.permission_id 
-              WHERE p.organization_id = $1`
+              ON p.id = tp.permission_id`
 
-	return s.queryPermissions(query, orgID)
+	return s.queryPermissions(query)
 }
 
 func (s *AuthService) queryPermissions(query string, args ...interface{}) ([]string, error) {

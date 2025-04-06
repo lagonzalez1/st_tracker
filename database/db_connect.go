@@ -82,21 +82,31 @@ func CreateSchemaIfNotExist(db *sql.DB) error {
 		fmt.Println("Table 'stu_tracker' already exists.")
 		return nil
 	}
-
 	// Debug: Verify file exists before reading
 	schemaPath := filepath.Join("database", "db_schema.sql")
 	if _, err := os.Stat(schemaPath); os.IsNotExist(err) {
 		return fmt.Errorf("schema file not found: %s", schemaPath)
 	}
-
 	// Read SQL file
 	schemaSQL, err := os.ReadFile(schemaPath)
 	if err != nil {
 		return fmt.Errorf("error reading schema file: %v", err)
 	}
-
 	// Execute SQL script
 	_, err = db.Exec(string(schemaSQL))
+	if err != nil {
+		return fmt.Errorf("error executing schema SQL: %v", err)
+	}
+	// Execute permissions SQL page
+	permissionPath := filepath.Join("database", "db_init_permissions.sql")
+	if _, err := os.Stat(permissionPath); os.IsNotExist(err) {
+		return fmt.Errorf("permissions init sql file not found %s", err)
+	}
+	permissionSQL, err := os.ReadFile(permissionPath)
+	if err != nil {
+		return fmt.Errorf("error reading init permissions file: %v", err)
+	}
+	_, err = db.Exec(string(permissionSQL))
 	if err != nil {
 		return fmt.Errorf("error executing schema SQL: %v", err)
 	}

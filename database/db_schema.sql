@@ -5,15 +5,16 @@ CREATE TABLE stu_tracker.Organization(
     title VARCHAR(255) UNIQUE,
     address VARCHAR(255),
     zip_code VARCHAR(10),
-    state VARCHAR(10),
+    state VARCHAR(100),
     city VARCHAR(255)
 );
 
 CREATE TABLE stu_tracker.Admin_root (
     id SERIAL PRIMARY KEY,
     password_hash VARCHAR(255) NOT NULL,
-    email VARCHAR(100) NOT NULL UNIQUE CHECK (email ~* '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$'),
+    email VARCHAR(200) NOT NULL UNIQUE CHECK (email ~* '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$'),
     fullname VARCHAR (100) DEFAULT NULL,
+    last_name VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     stripe_id VARCHAR(100) DEFAULT NULL,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
@@ -22,8 +23,9 @@ CREATE TABLE stu_tracker.Admin_root (
 
 CREATE TABLE stu_tracker.Permissions (
     id SERIAL PRIMARY KEY,
-    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL UNIQUE,
+    primary_role TEXT,
+    secondary_role TEXT,
     description TEXT
 );
 
@@ -66,7 +68,7 @@ CREATE TABLE stu_tracker.Locations (
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     address VARCHAR(255) NOT NULL,
     city VARCHAR(255) NOT NULL,
-    state VARCHAR(2) CHECK (state ~ '^[A-Z]{2}$'),
+    state VARCHAR(100),
     zip_code VARCHAR(10),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -130,6 +132,7 @@ CREATE TABLE stu_tracker.Tutor_locations (
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     PRIMARY KEY (tutor_id, location_id, organization_id)
 );
+-- Index location_id
 
 CREATE TABLE stu_tracker.Tutor_Permissions (
     id SERIAL PRIMARY KEY,
@@ -145,11 +148,10 @@ CREATE TABLE stu_tracker.Materials (
     title VARCHAR(255) NOT NULL,
     external_link TEXT,
     description VARCHAR(255),
-    admin_id INT REFERENCES stu_tracker.Admin_root(id) ON DELETE SET NULL,
     location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE SET NULL,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE SET NULL,
-    version VARCHAR(255),
+    version DECIMAL,
     pre BOOLEAN DEFAULT FALSE,
     mid BOOLEAN DEFAULT FALSE,
     post BOOLEAN DEFAULT FALSE,
@@ -169,6 +171,11 @@ CREATE TABLE stu_tracker.Assessments (
     subject_id INT REFERENCES stu_tracker.Subjects(id) ON DELETE SET NULL,
     program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE SET NULL,
     material_id INT REFERENCES stu_tracker.Materials(id) ON DELETE SET NULL,
+    pre BOOLEAN DEFAULT FALSE,
+    mid BOOLEAN DEFAULT FALSE,
+    post BOOLEAN DEFAULT FALSE,
+    visible BOOLEAN DEFAULT FALSE,
+    version DECIMAL,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     edited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -209,7 +216,8 @@ CREATE TABLE stu_tracker.Students (
     email VARCHAR(100) CHECK (email ~* '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$'),
     grade_level INT CHECK (grade_level BETWEEN 0 AND 12),
     active BOOLEAN DEFAULT TRUE,
-    created_by INT DEFAULT 0,
+    created_by TEXT,
+    created_by_id INT,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -225,7 +233,7 @@ CREATE TABLE stu_tracker.Sessions (
     substitute_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE SET NULL,
     semester_id INT REFERENCES stu_tracker.Semester(id) ON DELETE SET NULL,
     student_count INT,
-    start_time TIME,
+    start_time VARCHAR(10),
     duration INT,
     subject VARCHAR(100),
     subject_id INT REFERENCES stu_tracker.Subjects(id) ON DELETE SET NULL,

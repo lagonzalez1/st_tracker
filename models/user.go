@@ -73,6 +73,7 @@ type RegisterRequestStudents struct {
 	Active     bool   `json:"active"`
 	CreatedAt  string `json:"created_at"`
 	LocationId int64  `json:"location_id"`
+	CreatedBy  string `json:"created_by"`
 }
 
 type ResponseRequestStudentList struct {
@@ -203,33 +204,33 @@ type ResponseRequestProgram struct {
 }
 
 type ResponseRequestMaterialsList struct {
-	ID           int64  `json:"id"`
-	Title        string `json:"title"`
-	ExternalLink string `json:"external_link"`
-	Description  string `json:"description"`
-	Version      int    `json:"version"`
-	Pre          bool   `json:"pre"`
-	Mid          bool   `json:"mid"`
-	Post         bool   `json:"post"`
-	Visible      bool   `json:"visible"`
-	ProgramId    *int64 `json:"program_id"`
-	CreatedAt    string `json:"created_at"`
+	ID           int64   `json:"id"`
+	Title        string  `json:"title"`
+	ExternalLink string  `json:"external_link"`
+	Description  string  `json:"description"`
+	Version      float64 `json:"version"`
+	Pre          bool    `json:"pre"`
+	Mid          bool    `json:"mid"`
+	Post         bool    `json:"post"`
+	Visible      bool    `json:"visible"`
+	ProgramId    *int64  `json:"program_id"`
+	CreatedAt    string  `json:"created_at"`
 }
 
 type RegisterRequestMaterials struct {
-	ID             *int64 `json:"id"`
-	Title          string `json:"title"`
-	ExternalLink   string `json:"external_link"`
-	Description    string `json:"description"`
-	Version        int    `json:"version"`
-	Pre            bool   `json:"pre"`
-	Mid            bool   `json:"mid"`
-	Post           bool   `json:"post"`
-	Visible        bool   `json:"visible"`
-	CreatedAt      string `json:"created_at"`
-	LocationId     *int64 `json:"location_id"`
-	ProgramId      *int64 `json:"program_id"`
-	OrganizationId *int64 `json:"organization_id"`
+	ID             *int64  `json:"id"`
+	Title          string  `json:"title"`
+	ExternalLink   string  `json:"external_link"`
+	Description    string  `json:"description"`
+	Version        float64 `json:"version"`
+	Pre            bool    `json:"pre"`
+	Mid            bool    `json:"mid"`
+	Post           bool    `json:"post"`
+	Visible        bool    `json:"visible"`
+	CreatedAt      string  `json:"created_at"`
+	LocationId     *int64  `json:"location_id"`
+	ProgramId      *int64  `json:"program_id"`
+	OrganizationId *int64  `json:"organization_id"`
 }
 
 type ResponseRequestMaterials struct {
@@ -397,7 +398,7 @@ type ServiceSession struct {
 	ProgramName     string        `json:"program_name"`
 	Notes           string        `json:"notes"`
 	SessionDate     string        `json:"session_date"`
-	StartTime       time.Time     `json:"start_time"`
+	StartTime       string        `json:"start_time"`
 	Subject         sql.NullInt32 `json:"subject"`
 	Substitute      sql.NullBool  `json:"substitute"`
 	TutorId         sql.NullInt64 `json:"tutor_id"`
@@ -449,40 +450,48 @@ type ResponseStudentSession struct {
 }
 
 type ResponseAssessmentList struct {
-	ID              *int64 `json:"id"`
-	Title           string `json:"title"`
-	Description     string `json:"description,omitempty"`
-	Letter          string `json:"letter"`
-	Cycle           *int64 `json:"cycle"`
-	AlphaIdentifier string `json:"alpha_identifier,omitempty"`
-	ExternalLink    string `json:"external_link,omitempty"`
-	MaxScore        *int64 `json:"max_score,omitempty"`
-	SubjectId       *int64 `json:"subject_id,omitempty"`
-	ProgramId       *int64 `json:"program_id"`
-	MaterialID      *int64 `json:"material_id,omitempty"`
-	SubjectName     string `json:"subject_name,omitempty"`
-	ProgramName     string `json:"program_name,omitempty"`
-	MaterialName    string `json:"material_name,omitempty"`
-	OrganizationID  *int64 `json:"organization_id"`
-	CreatedAt       string `json:"created_at"`
-	Visible         bool   `json:"visible"`
+	ID              *int64  `json:"id"`
+	Title           string  `json:"title"`
+	Description     string  `json:"description,omitempty"`
+	Letter          string  `json:"letter"`
+	Cycle           *int64  `json:"cycle"`
+	AlphaIdentifier string  `json:"alpha_identifier,omitempty"`
+	ExternalLink    string  `json:"external_link,omitempty"`
+	MaxScore        *int64  `json:"max_score,omitempty"`
+	SubjectId       *int64  `json:"subject_id,omitempty"`
+	ProgramId       *int64  `json:"program_id"`
+	MaterialID      *int64  `json:"material_id,omitempty"`
+	SubjectName     string  `json:"subject_name,omitempty"`
+	ProgramName     string  `json:"program_name,omitempty"`
+	MaterialName    string  `json:"material_name,omitempty"`
+	OrganizationID  *int64  `json:"organization_id"`
+	CreatedAt       string  `json:"created_at"`
+	Visible         bool    `json:"visible"`
+	Version         float64 `json:"version"`
+	Pre             bool    `json:"pre"`
+	Mid             bool    `json:"mid"`
+	Post            bool    `json:"post"`
 }
 
 type RegisterAssessment struct {
-	ID              *int64 `json:"id"`
-	Title           string `json:"title"`
-	Description     string `json:"description,omitempty"`
-	Letter          string `json:"letter"`
-	Cycle           *int64 `json:"cycle"`
-	Visible         bool   `json:"visible"`
-	AlphaIdentifier string `json:"alpha_identifier,omitempty"`
-	ExternalLink    string `json:"external_link,omitempty"`
-	MaxScore        *int64 `json:"max_score,omitempty"`
-	SubjectId       *int64 `json:"subject_id,omitempty"`
-	OrganizationID  *int64 `json:"organization_id"`
-	MaterialID      *int   `json:"material_id,omitempty"`
-	ProgramId       *int64 `json:"program_id"`
-	CreatedAt       string `json:"created_at"`
+	ID              *int64  `json:"id"`
+	Title           string  `json:"title"`
+	Description     string  `json:"description,omitempty"`
+	Letter          string  `json:"letter"`
+	Cycle           *int64  `json:"cycle"`
+	Visible         bool    `json:"visible"`
+	AlphaIdentifier string  `json:"alpha_identifier,omitempty"`
+	ExternalLink    string  `json:"external_link,omitempty"`
+	MaxScore        *int64  `json:"max_score,omitempty"`
+	SubjectId       *int64  `json:"subject_id,omitempty"`
+	OrganizationID  *int64  `json:"organization_id"`
+	MaterialID      *int    `json:"material_id,omitempty"`
+	ProgramId       *int64  `json:"program_id"`
+	CreatedAt       string  `json:"created_at"`
+	Version         float64 `json:"version"`
+	Pre             bool    `json:"pre"`
+	Mid             bool    `json:"mid"`
+	Post            bool    `json:"post"`
 }
 
 type RegisterResponseAssessment struct {
@@ -612,6 +621,7 @@ type AnnouncementRequest struct {
 	Email          string  `json:"email"`
 	Role           string  `json:"role"`
 	OrganizationID int64   `json:"organization_id"`
+	ProgramID      []int64 `json:"program_ids"`
 	LocationIDs    []int64 `json:"location_ids"`
 }
 
@@ -625,7 +635,7 @@ type RegisterAnnouncements struct {
 	OrganizationID int    `json:"organization_id"` // Required
 	ProgramID      *int   `json:"program_id"`      // Nullable
 	AdminID        *int   `json:"admin_id"`        // Required
-	StaffID        *int   `json"staff_id"`
+	StaffID        *int   `json:"staff_id"`
 }
 
 type RegisterUpdateAnnouncements struct {

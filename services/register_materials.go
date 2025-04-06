@@ -11,7 +11,8 @@ func (s *AuthService) AddMaterial(req models.RegisterRequestMaterials) (*models.
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, or email")
 	}
 	var newID int64
-	query := `INSERT INTO stu_tracker.Materials(title, external_link, description, pre, mid, post, visible, version, organization_id, location_id, program_id)
+	query := `INSERT INTO stu_tracker.Materials
+			(title, external_link, description, pre, mid, post, visible, version, organization_id, location_id, program_id)
               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id;`
 
 	err := s.db.QueryRow(query, req.Title, req.ExternalLink, req.Description, req.Pre, req.Mid, req.Post, req.Visible, req.Version, *req.OrganizationId, req.LocationId, req.ProgramId).Scan(&newID)

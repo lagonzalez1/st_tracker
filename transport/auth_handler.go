@@ -1193,7 +1193,7 @@ func (h *AuthHandler) GetSemesterLocations(w http.ResponseWriter, r *http.Reques
 	role := query.Get("role")
 	id := query.Get("id")
 	org_id := query.Get("organization_id")
-	location_ids := query.Get("location_ids")
+	location_id := query.Get("location_id")
 
 	if email == "" || role == "" || id == "" || org_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
@@ -1204,12 +1204,13 @@ func (h *AuthHandler) GetSemesterLocations(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
 		return
 	}
-	locations, err := ParseArrayParam(location_ids)
+	lod, err := strconv.ParseInt(location_id, 10, 64)
 	if err != nil {
-		http.Error(w, "Unable to ParseArrayParam", http.StatusInternalServerError)
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
 		return
 	}
-	rows, err := h.authService.GetSemesterLocationById(role, locations, idd)
+
+	rows, err := h.authService.GetSemesterLocationById(role, lod, idd)
 	if err != nil {
 		http.Error(w, "Unable to get programs by id", http.StatusInternalServerError)
 		fmt.Printf("error scanning row: %v", err)
@@ -1274,7 +1275,6 @@ func (h *AuthHandler) GetTutors(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
 		return
 	}
-
 	rows, err := h.authService.GetTutorsById(idd, role, locid)
 	if err != nil {
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
@@ -1584,12 +1584,12 @@ func (h *AuthHandler) UpdateAssessment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
-	var models models.RegisterUpdateAnnouncements
+	var models models.RegisterAssessment
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
-	user, err := h.authService.UpdateAnnouncement(models)
+	user, err := h.authService.UpdateAssessment(models)
 	if err != nil {
 		http.Error(w, "Unable to create UpdateAnnouncement", http.StatusInternalServerError)
 		fmt.Printf("Unable to insert UpdateAnnouncement: %v", err)
@@ -1957,7 +1957,7 @@ func (h *AuthHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.authService.GetPermissionsById(idd, role, aeid)
 	if err != nil {
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
-		fmt.Printf("Unable to get rows in Semesters %v", err)
+		fmt.Printf("Unable to get rows in GetPermissionsById %v", err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -1986,7 +1986,7 @@ func (h *AuthHandler) GetOrganizationPermissions(w http.ResponseWriter, r *http.
 	rows, err := h.authService.GetOrganizationPermissions(idd)
 	if err != nil {
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
-		fmt.Printf("Unable to get rows in Semesters %v", err)
+		fmt.Printf("Unable to get rows in GetOrganizationPermissions %v", err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -2004,6 +2004,7 @@ func (h *AuthHandler) GetAnnouncements(w http.ResponseWriter, r *http.Request) {
 	role := query.Get("role")
 	id := query.Get("id")
 	location_ids := query.Get("location_ids")
+	program_ids := query.Get("program_ids")
 	org_id := query.Get("organization_id")
 
 	oid, err := strconv.ParseInt(org_id, 10, 64)
@@ -2021,14 +2022,19 @@ func (h *AuthHandler) GetAnnouncements(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to ParseArrayParam", http.StatusInternalServerError)
 		return
 	}
+	programs, err := ParseArrayParam(program_ids)
+	if err != nil {
+		http.Error(w, "Unable to ParseArrayParam", http.StatusInternalServerError)
+		return
+	}
 	var models models.AnnouncementRequest
 	models.OrganizationID = oid
 	models.ID = idd
 	models.Role = role
 	models.Email = email
 	models.LocationIDs = locations
+	models.ProgramID = programs
 
-	fmt.Printf("Updating User: %+v\n", models)
 	rows, err := h.authService.GetAnnouncements(models)
 	if err != nil {
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)

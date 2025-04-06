@@ -108,7 +108,7 @@ func writeEnvFile(filename string, config interface{}) error {
 		strValue := value.String()
 		_, err := fmt.Fprintf(file, "%s=%s\n", envTag, strValue)
 		if err != nil {
-			fmt.Print("unable to write %v", err)
+			fmt.Errorf("unable to write %v", err)
 			return err
 		}
 	}

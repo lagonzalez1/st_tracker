@@ -21,7 +21,7 @@ func (s *AuthService) AddTutor(req models.RegisterRequestTutor) (*models.Respons
 	query := `INSERT INTO stu_tracker.Tutors(first_name, last_name, email, password_hash, organization_id, location_id) 
 			  VALUES ($1, $2, $3, $4, $5, $6) RETURNING id;`
 
-	err = s.db.QueryRow(query, req.FirstName, req.LastName, req.Email, hash_password, *req.OrganizationId, *req.LocationId).Scan(&newID)
+	err = s.db.QueryRow(query, req.FirstName, req.LastName, req.Email, hash_password, *req.OrganizationId, req.LocationId).Scan(&newID)
 	if err != nil {
 		return nil, err
 	}
@@ -33,14 +33,6 @@ func (s *AuthService) AddTutor(req models.RegisterRequestTutor) (*models.Respons
 			fmt.Printf("Database query failed at AddTutor: %v", err)
 			return nil, err
 		}
-	}
-
-	permissionQuery := `INSERT INTO stu_tracker.Tutor_Permissions (tutor_id, permission_id)
-						VALUES ($1, 25), ($1, 24), ($1, 6), ($1, 39);`
-	_, err = s.db.Exec(permissionQuery, newID)
-	if err != nil {
-		fmt.Printf("Unable to add permissions to tutor: %v", err)
-		return nil, err
 	}
 
 	return &models.ResponseRequestTutor{

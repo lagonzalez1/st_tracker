@@ -5,14 +5,14 @@ CREATE TABLE stu_test.Organization(
     title VARCHAR(255) UNIQUE,
     address VARCHAR(255),
     zip_code VARCHAR(10),
-    state VARCHAR(10),
+    state VARCHAR(100),
     city VARCHAR(255)
 );
 
 CREATE TABLE stu_test.Admin_root (
     id SERIAL PRIMARY KEY,
     password_hash VARCHAR(255) NOT NULL,
-    email VARCHAR(100) NOT NULL UNIQUE CHECK (email ~* '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$'),
+    email VARCHAR(200) NOT NULL UNIQUE CHECK (email ~* '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$'),
     fullname VARCHAR (100) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     stripe_id VARCHAR(100) DEFAULT NULL,
@@ -22,16 +22,20 @@ CREATE TABLE stu_test.Admin_root (
 
 CREATE TABLE stu_test.Permissions (
     id SERIAL PRIMARY KEY,
-    organization_id INT REFERENCES stu_test.Organization(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL UNIQUE,
+    primary_role TEXT,
+    secondary_role TEXT,
     description TEXT
 );
+
+CREATE INDEX primary_role_idx ON stu_test.Permissions(primary_role);
 
 CREATE TABLE stu_test.Admin_staff (
     id SERIAL PRIMARY KEY,
     fullname VARCHAR(255),
+    last_name VARCHAR(100), -- should be included
     organization_id INT REFERENCES stu_test.Organization(id) ON DELETE CASCADE,
-    email VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(200) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     region VARCHAR(100) DEFAULT NULL,
@@ -214,7 +218,7 @@ CREATE TABLE stu_test.Students (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE stu_test.Sessions (
+CREATE TABLE stu_test.Sessions(
     id SERIAL PRIMARY KEY,
     tutor_id INT REFERENCES stu_test.Tutors(id) ON DELETE CASCADE,
     session_date TIMESTAMP NOT NULL,
@@ -233,6 +237,8 @@ CREATE TABLE stu_test.Sessions (
     edited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX session_student_idx ON stu_test.Session(id);
 
 CREATE TABLE stu_test.Session_students (
     id SERIAL PRIMARY KEY,

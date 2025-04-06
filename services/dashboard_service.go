@@ -307,16 +307,21 @@ func (s *AuthService) GetMaterialsById(id int64, role string) ([]models.Response
 func (s *AuthService) GetTutorsById(id int64, role string, locid int64) ([]models.ResponseRequestTutorsList, error) {
 	var query string
 	var args []interface{}
-	if locid < 0 {
+	if locid <= 0 {
 		query += `SELECT id, first_name, last_name, email, created_at, location_id
 			  FROM stu_tracker.Tutors tr
 			  WHERE tr.organization_id = $1;`
 		args = append(args, id)
 	} else {
-		query += `SELECT id, first_name, last_name, email, created_at, location_id
-		FROM stu_tracker.Tutors tr
-		WHERE tr.organization_id = $1 AND tr.location_id = $2;`
-		args = append(args, id, locid)
+		query += `SELECT tr.id, tr.first_name, tr.last_name, tr.email, tr.created_at, tr.location_id
+					FROM stu_tracker.Tutors tr
+					WHERE tr.location_id = $1
+					OR EXISTS (
+						SELECT 1
+						FROM stu_tracker.Tutor_locations o
+						WHERE o.tutor_id = tr.id AND o.location_id = $2);`
+
+		args = append(args, locid, locid)
 	}
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
@@ -377,7 +382,7 @@ func (s *AuthService) GetSemestersById(id int64, role string) ([]models.Response
 	return semesters, nil
 }
 
-func (s *AuthService) GetSemesterLocationById(role string, location_ids []int64, idd int64) ([]models.ResponseRequestSemesterLocationList, error) {
+func (s *AuthService) GetSemesterLocationById(role string, location_id int64, idd int64) ([]models.ResponseRequestSemesterLocationList, error) {
 	var query string
 	query += `SELECT 
 				sl.location_id, sl.semester_id,
@@ -390,8 +395,8 @@ func (s *AuthService) GetSemesterLocationById(role string, location_ids []int64,
 			  ON
 			  	ss.id = sl.semester_id
 			  WHERE 
-			  	sl.organization_id = $1 AND sl.location_id = ANY($2);`
-	rows, err := s.db.Query(query, idd, pq.Array(location_ids))
+			  	sl.organization_id = $1 AND sl.location_id = $2;`
+	rows, err := s.db.Query(query, idd, location_id)
 	if err != nil {
 		return nil, fmt.Errorf("error quering get districts by id %w", err)
 	}
@@ -421,15 +426,21 @@ func (s *AuthService) GetSemesterLocationById(role string, location_ids []int64,
 
 func (s *AuthService) GetAssessmentsById(id int64, role string) ([]models.ResponseAssessmentList, error) {
 	var query string
-	query += `SELECT aas.id, aas.title, aas.description, aas.letter, aas.cycle, aas.alpha_identifier, 
-			  aas.external_link, aas.max_score, aas.subject_id, aas.material_id, aas.created_at, aas.visible, 
-			  COALESCE(sb.title, 'NA') AS subject_name, COALESCE(pg.program_name, 'NA') AS program_name, pg.id as program_id
-			  FROM stu_tracker.Assessments aas 
-			  JOIN stu_tracker.Subjects sb
-			  ON sb.id = aas.subject_id
-			  JOIN stu_tracker.Programs pg
-			  ON pg.id = aas.program_id
-			  WHERE aas.organization_id = $1;`
+	query += `SELECT 
+			aas.id, aas.title, aas.description, aas.letter,
+			aas.cycle, aas.alpha_identifier, aas.external_link, 
+			aas.max_score, aas.subject_id, aas.material_id, 
+			aas.created_at, 
+			COALESCE(sb.title, 'NA') AS subject_name, 
+			COALESCE(pg.program_name, 'NA') AS program_name, 
+			pg.id as program_id,
+			aas.version, aas.pre, aas.mid, aas.post, aas.visible
+			FROM stu_tracker.Assessments aas 
+			LEFT JOIN stu_tracker.Subjects sb
+			ON sb.id = aas.subject_id
+			LEFT JOIN stu_tracker.Programs pg
+			ON pg.id = aas.program_id
+			WHERE aas.organization_id = $1;`
 	rows, err := s.db.Query(query, id)
 	if err != nil {
 		return nil, fmt.Errorf("error quering get districts by id %w", err)
@@ -450,10 +461,14 @@ func (s *AuthService) GetAssessmentsById(id int64, role string) ([]models.Respon
 			&assessment.SubjectId,
 			&assessment.MaterialID,
 			&assessment.CreatedAt,
-			&assessment.Visible,
 			&assessment.SubjectName,
 			&assessment.ProgramName,
 			&assessment.ProgramId,
+			&assessment.Version,
+			&assessment.Pre,
+			&assessment.Mid,
+			&assessment.Post,
+			&assessment.Visible,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -501,6 +516,7 @@ func (s *AuthService) GetProgramsByLocation(locId int64, org_id int64) ([]models
 
 	return programs, nil
 }
+
 func (s *AuthService) GetProgramsByIds(locId []int64, org_id int64) ([]models.ResponseRequestProgramList, error) {
 	var query string
 	query += `
@@ -545,11 +561,11 @@ func (s *AuthService) GetTutorLocations(tutor_id int64, org_id int64) ([]models.
 		SELECT ls.name AS location_name, tl.location_id as id 
 		FROM 
 			stu_tracker.Tutor_locations tl 
-		INNER JOIN 
+		LEFT JOIN 
 			stu_tracker.Tutors tr 
 		ON 
 			tr.id = tl.tutor_id
-		JOIN 
+		LEFT JOIN 
 			stu_tracker.Locations ls 
 		ON 
 			ls.id = tl.location_id
@@ -584,8 +600,8 @@ func (s *AuthService) GetTutorLocations(tutor_id int64, org_id int64) ([]models.
 }
 
 func (s *AuthService) GetOrganizationPermissions(org_id int64) ([]models.PermissionsList, error) {
-	query := `SELECT p.id, p.name, p.description FROM stu_tracker.Permissions p WHERE p.organization_id = $1`
-	rows, err := s.db.Query(query, org_id)
+	query := `SELECT p.id, p.name, p.description FROM stu_tracker.Permissions p;`
+	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("error querying permissions: %w", err)
 	}
@@ -612,36 +628,35 @@ func (s *AuthService) GetOrganizationPermissions(org_id int64) ([]models.Permiss
 
 func (s *AuthService) GetPermissionsById(org_id int64, role string, id int64) ([]models.PermissionsList, error) {
 	var query string
-	var args []interface{}
-
+	var rows *sql.Rows
+	var err error
 	switch role {
 	case "ROOT":
 		query = `
 			SELECT p.id, p.name, p.description
-			FROM stu_tracker.Permissions p
-			WHERE p.organization_id = $1;`
-		args = []interface{}{org_id}
+			FROM stu_tracker.Permissions p`
+		rows, err = s.db.Query(query)
 	case "TUTOR":
 		query = `
 			SELECT tp.permission_id, p.name, p.description
 			FROM stu_tracker.Tutor_Permissions tp 
 			LEFT JOIN stu_tracker.Permissions p
 			ON p.id = tp.permission_id
-			WHERE tp.tutor_id = $1 AND p.organization_id = $2;`
-		args = []interface{}{id, org_id}
+			WHERE tp.tutor_id = $1`
+		rows, err = s.db.Query(query, id)
+
 	case "ADMIN":
 		query = `
 			SELECT tp.permission_id, p.name, p.description
 			FROM stu_tracker.Admin_Permissions tp 
 			JOIN stu_tracker.Permissions p
 			ON p.id = tp.permission_id
-			WHERE tp.admin_id = $1 AND p.organization_id = $2;`
-		args = []interface{}{id, org_id}
+			WHERE tp.admin_id = $1`
+		rows, err = s.db.Query(query, id)
 	default:
 		return nil, fmt.Errorf("invalid role: %s", role)
 	}
 
-	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error querying permissions: %w", err)
 	}
@@ -676,7 +691,7 @@ func (s *AuthService) GetAnnouncements(req models.AnnouncementRequest) ([]models
 		return announcements, nil
 	}
 	if req.Role == "TUTOR" {
-		announcements, err := s.getTutorAnnouncements(req.LocationIDs, int64(req.OrganizationID))
+		announcements, err := s.getTutorAnnouncements(req.LocationIDs, int64(req.OrganizationID), req.ProgramID)
 		if err != nil {
 			return nil, err
 		}
@@ -739,7 +754,7 @@ func (s *AuthService) getAdminAnnouncements(org_id int64) ([]models.Announcement
 	return announcements, nil
 
 }
-func (s *AuthService) getTutorAnnouncements(loc_id []int64, org_id int64) ([]models.AnnouncementsList, error) {
+func (s *AuthService) getTutorAnnouncements(loc_id []int64, org_id int64, pro_id []int64) ([]models.AnnouncementsList, error) {
 	var query string
 	query += `
 		SELECT an.id, an.title, an.body, 
@@ -758,8 +773,10 @@ func (s *AuthService) getTutorAnnouncements(loc_id []int64, org_id int64) ([]mod
 		ON loc.id = an.location_id
 		LEFT JOIN stu_tracker.Programs pr
 		ON pr.id = an.program_id
-		WHERE an.location_id = ANY($1) AND an.organization_id = $2`
-	rows, err := s.db.Query(query, pq.Array(loc_id), org_id)
+		WHERE 
+			an.location_id = ANY($1) OR an.program_id = ANY($2) 
+		AND an.organization_id = $3`
+	rows, err := s.db.Query(query, pq.Array(loc_id), pq.Array(pro_id), org_id)
 	if err != nil {
 		return nil, err
 	}

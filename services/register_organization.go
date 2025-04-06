@@ -17,10 +17,10 @@ func (s *AuthService) AddOrganization(req models.RegisterOrganization) (*models.
 	if req.Email == nil || req.Password == nil || req.Code == nil {
 		return nil, fmt.Errorf("missing required fields: email, password")
 	}
-	fmt.Print(env_config.SignUp.ORG_ADD_KEY)
+	fmt.Println("SIGN UPN KEY", env_config.SignUp.ORG_ADD_KEY)
 	if *req.Code == env_config.SignUp.ORG_ADD_KEY || *req.Code == env_config.SignUp.ORG_ADD_KEY_1 || *req.Code == env_config.SignUp.ORG_ADD_KEY_2 || *req.Code == env_config.SignUp.ORG_ADD_KEY_3 {
 		var orgID *int64
-		query := `INSERT INTO stu_tracker.Organization (title, address, zip_code, state, city) 
+		query := `INSERT INTO stu_tracker.Organization(title, address, zip_code, state, city) 
 			  VALUES ($1, $2, $3, $4, $5) RETURNING id;`
 
 		err = s.db.QueryRow(query, req.OrganizationName, req.Address, req.ZipCode, req.State, req.City).Scan(&orgID)
