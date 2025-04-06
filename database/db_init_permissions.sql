@@ -79,6 +79,28 @@ INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:tutor-data', 'view big tutor data', 'tutor', 'admin');
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:tutor-data', 'delete big tutor data', 'tutor', 'admin');
 
+-- Semester locations
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:semester-location', 'Write semester locations', 'root', 'admin');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:semester-location', 'Delete semester locations','root', 'admin');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:semester-location', 'View semester locations', 'root', 'admin');
+
+-- Subject locations
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:subject-location', 'Write subject locations', 'root', 'admin');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:subject-location', 'Delete subject locations','root', 'admin');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:subject-location', 'View subject locations', 'root', 'admin');
+
+
+-- Password
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:password', 'Change passwords from user accounts', 'root', 'root');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:password', 'Delete passwords from user accounts','root', 'root');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:password', 'View passwords from user accouts', 'root', 'root');
+
+
+-- Emails
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:email', 'Change email from user accounts', 'root', 'root');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:email', 'Delete email from user accounts','root', 'root');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:email', 'View email from user accouts', 'root', 'root');
+
 -- Root permissions
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:*', 'Root permission for write', 'root', 'root');
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:*', 'Root permission to delete','root', 'root');
