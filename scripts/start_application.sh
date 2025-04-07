@@ -38,6 +38,7 @@ if [ -f "${SERVICE_FILE}" ]; then
     fi
 
     sudo systemctl enable application
+    sleep 2
     if [ $? -ne 0 ]; then
         echo "Error: Failed to enable service"
         exit 1
@@ -53,6 +54,6 @@ fi
 
 if ! systemctl is-active --quiet application; then
     echo "Error: Service failed to start"
-    journalctl -u application -n 20 --no-pager
+    journalctl -u application -n 30 --no-pager
     exit 1
 fi
