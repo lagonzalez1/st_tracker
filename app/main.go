@@ -35,8 +35,9 @@ func main() {
 	apiMiddleware := mux.NewRouter().PathPrefix("/api").Subrouter()
 	apiMiddleware.Use(middleware.Middleware(authService))
 
+	// Testing allow different cors http://localhost:3000
 	corsOptions := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000", "https://api.presentifyclone.click"},
+		AllowedOrigins:   []string{"https://presentifyclone.click"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
