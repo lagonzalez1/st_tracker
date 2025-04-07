@@ -4,10 +4,12 @@ set -e
 echo "Extracting application..."
 # Enter into app folder 
 cd /home/ubuntu/app
-sudo python3 create_env.py
 
+if [ -f ".env.production"]; then
+    echo "Env production exist continue.."
+else
+    echo "Env production does not exist running to create"
+    sudo python3 create_env.py
+fi
 
-
-ls -l 
-# Ensure its executable
 
