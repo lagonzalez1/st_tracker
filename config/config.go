@@ -16,12 +16,6 @@ func LoadConfig() (*models.Config, error) {
 		env = "development"
 	}
 	envFile := ".env." + env
-	if env == "production" {
-		err := awsConfig()
-		if err != nil {
-			log.Println("Error creating .env file")
-		}
-	}
 
 	err := godotenv.Load(envFile)
 	if err != nil {

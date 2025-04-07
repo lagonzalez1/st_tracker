@@ -43,17 +43,8 @@ if [ -f "${SERVICE_FILE}" ]; then
         echo "Error: Failed to enable service"
         exit 1
     fi
-
-    sudo systemctl start application
-    sleep 2  # Allow service startup time
 else
     echo "Error: Service file ${SERVICE_FILE} not found in ${APP_DIR}"
     exit 1
 fi
 
-
-if ! systemctl is-active --quiet application; then
-    echo "Error: Service failed to start"
-    journalctl -u application -n 30 --no-pager
-    exit 1
-fi

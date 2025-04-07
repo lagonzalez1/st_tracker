@@ -3,7 +3,11 @@ set -e
 
 echo "Extracting application..."
 # Enter into app folder 
-pwd
+cd /home/ubuntu/app
+sudo python3 create_env.py
+
+
+
 ls -l 
 # Ensure its executable
 
