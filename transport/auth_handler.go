@@ -1859,6 +1859,43 @@ func (h *AuthHandler) GetStudentSessionSearch(w http.ResponseWriter, r *http.Req
 	json.NewEncoder(w).Encode(response)
 }
 
+func (h *AuthHandler) GetTutorSearch(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+
+	// Undefined variables like optional location_id
+	// Check if exist before
+	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") || !query.Has("search_term") {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	var model models.SearchQueryTutor
+	if query.Get("organization_id") != "" {
+		org_id, err := strconv.ParseInt(query.Get("organization_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.OrganizationID = &org_id
+	}
+
+	if query.Get("search_term") != "" {
+		model.SearchTerm = query.Get("search_term")
+	}
+
+	rows, err := h.authService.TutorSearch(model)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in Semesters %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
 func (h *AuthHandler) GetSessionInfo(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	email := query.Get("email")

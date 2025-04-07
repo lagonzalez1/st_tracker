@@ -111,7 +111,7 @@ func (s *AuthService) findAdminUser(email string) (*models.User, error) {
 		}
 		return nil, fmt.Errorf("database error: %w", err)
 	}
-	user.Permissions, err = s.getAdminPermissions(user.ID, user.OrganizationId)
+	user.Permissions, err = s.getAdminPermissions(user.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get permissions: %w", err)
 	}
@@ -138,7 +138,7 @@ func (s *AuthService) findTutorUser(email string) (*models.User, []models.TutorL
 	}
 
 	// Get permissions
-	user.Permissions, err = s.getTutorPermissions(user.OrganizationId)
+	user.Permissions, err = s.getTutorPermissions(user.ID)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get permissions: %w", err)
 	}
@@ -165,21 +165,22 @@ func (s *AuthService) findTutorUser(email string) (*models.User, []models.TutorL
 	return user, locations, programs, nil
 }
 
-func (s *AuthService) getAdminPermissions(userID, orgID int64) ([]string, error) {
+func (s *AuthService) getAdminPermissions(userID int64) ([]string, error) {
 	query := `SELECT name FROM stu_tracker.Permissions p 
               INNER JOIN stu_tracker.Admin_permissions ad 
               ON p.id = ad.permission_id 
-              WHERE ad.admin_id = $1`
+              WHERE ad.admin_id = $1;`
 
 	return s.queryPermissions(query, userID)
 }
 
-func (s *AuthService) getTutorPermissions(orgID int64) ([]string, error) {
+func (s *AuthService) getTutorPermissions(id int64) ([]string, error) {
 	query := `SELECT name FROM stu_tracker.Permissions p 
               LEFT JOIN stu_tracker.Tutor_permissions tp 
-              ON p.id = tp.permission_id`
+              ON p.id = tp.permission_id
+		  	  WHERE tp.tutor_id = $1;`
 
-	return s.queryPermissions(query)
+	return s.queryPermissions(query, id)
 }
 
 func (s *AuthService) queryPermissions(query string, args ...interface{}) ([]string, error) {

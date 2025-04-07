@@ -79,6 +79,12 @@ INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:tutor-data', 'view big tutor data', 'tutor', 'admin');
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:tutor-data', 'delete big tutor data', 'tutor', 'admin');
 
+-- Student data permissions
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:student-data', 'write big student data', 'root', 'admin');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:student-data', 'view big student data', 'root', 'admin');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:student-data', 'delete big student data', 'root', 'admin');
+
+
 -- Semester locations
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:semester-location', 'Write semester locations', 'root', 'admin');
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:semester-location', 'Delete semester locations','root', 'admin');

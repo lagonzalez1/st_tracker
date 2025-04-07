@@ -526,6 +526,11 @@ type SearchQuery struct {
 	SubjectId      *int64    `json:"subject_id,omitempty"`
 }
 
+type SearchQueryTutor struct {
+	OrganizationID *int64 `json:"organization_id"`
+	SearchTerm     string `json:"search_term"`
+}
+
 type SessionSearchResponse struct {
 	Status string    `json:"status"`
 	Data   []Session `json:"data"`

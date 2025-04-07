@@ -59,6 +59,41 @@ func (s *AuthService) SessionSearch(ss models.SearchQuery) ([]models.ServiceSess
 	return sessions, nil
 }
 
+func (s *AuthService) TutorSearch(query models.SearchQueryTutor) ([]models.ResponseRequestTutorsList, error) {
+	if query.SearchTerm == "" || query.OrganizationID == nil {
+		return nil, fmt.Errorf("Organization or search term cannot be empty")
+	}
+	q := `SELECT t.id, t.first_name, t.last_name, t.email, t.created_at, t.location_id
+			  FROM 
+			  	stu_tracker.Tutors t 
+			  WHERE 
+			  	t.organization_id = $1
+			  AND 
+			  	to_tsvector('english', first_name || ' ' || last_name) @@ to_tsquery('english', $2 || ':*'); `
+
+	rows, err := s.db.Query(q, *query.OrganizationID, query.SearchTerm)
+	if err != nil {
+		return nil, fmt.Errorf("error querying tutors: %w", err)
+	}
+	var tutors []models.ResponseRequestTutorsList
+	for rows.Next() {
+		var tutor models.ResponseRequestTutorsList
+		err := rows.Scan(
+			&tutor.ID,
+			&tutor.FirstName,
+			&tutor.LastName,
+			&tutor.Email,
+			&tutor.CreatedAt,
+			&tutor.LocationId,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning tutors: %w", err)
+		}
+		tutors = append(tutors, tutor)
+	}
+	return tutors, nil
+}
+
 func (s *AuthService) StudentSessionSearch(ss models.SearchQuery) ([]models.StudentSessions, error) {
 	query, args := buildStudentSearchQuery(ss)
 	fmt.Println(query)

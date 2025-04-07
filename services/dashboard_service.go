@@ -634,7 +634,7 @@ func (s *AuthService) GetPermissionsById(org_id int64, role string, id int64) ([
 	case "ROOT":
 		query = `
 			SELECT p.id, p.name, p.description
-			FROM stu_tracker.Permissions p`
+			FROM stu_tracker.Permissions p;`
 		rows, err = s.db.Query(query)
 	case "TUTOR":
 		query = `
@@ -642,7 +642,7 @@ func (s *AuthService) GetPermissionsById(org_id int64, role string, id int64) ([
 			FROM stu_tracker.Tutor_Permissions tp 
 			LEFT JOIN stu_tracker.Permissions p
 			ON p.id = tp.permission_id
-			WHERE tp.tutor_id = $1`
+			WHERE tp.tutor_id = $1;`
 		rows, err = s.db.Query(query, id)
 
 	case "ADMIN":
@@ -651,7 +651,7 @@ func (s *AuthService) GetPermissionsById(org_id int64, role string, id int64) ([
 			FROM stu_tracker.Admin_Permissions tp 
 			JOIN stu_tracker.Permissions p
 			ON p.id = tp.permission_id
-			WHERE tp.admin_id = $1`
+			WHERE tp.admin_id = $1;`
 		rows, err = s.db.Query(query, id)
 	default:
 		return nil, fmt.Errorf("invalid role: %s", role)

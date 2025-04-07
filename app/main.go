@@ -37,7 +37,7 @@ func main() {
 
 	// Testing allow different cors http://localhost:3000
 	corsOptions := cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://presentifyclone.click"},
+		AllowedOrigins:   []string{"https://presentifyclone.click", "http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
@@ -93,6 +93,7 @@ func main() {
 
 	apiMiddleware.HandleFunc("/session_search", authHandler.GetSessionSearch).Methods("GET")
 	apiMiddleware.HandleFunc("/student_search", authHandler.GetStudentSessionSearch).Methods("GET")
+	apiMiddleware.HandleFunc("/tutor_search", authHandler.GetTutorSearch).Methods("GET")
 
 	apiMiddleware.HandleFunc("/get_tutor_sessions", authHandler.GetTutorSessionAnalytics).Methods("GET")
 
