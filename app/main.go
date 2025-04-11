@@ -88,6 +88,8 @@ func main() {
 	apiMiddleware.HandleFunc("/update_tutor", authHandler.UpdateTutor).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_tutor", authHandler.DeleteTutor).Methods("POST")
 
+	apiMiddleware.HandleFunc("/delete_schedule", authHandler.DeleteSchedule).Methods("POST")
+
 	apiMiddleware.HandleFunc("/create_program_location", authHandler.CreateProgramLocation).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_program_location", authHandler.DeleteProgramLocation).Methods("POST")
 
@@ -110,6 +112,7 @@ func main() {
 	apiMiddleware.HandleFunc("/delete_subject", authHandler.DeleteSubject).Methods("POST")
 
 	apiMiddleware.HandleFunc("/create_permission", authHandler.CreatePermission).Methods("POST")
+	apiMiddleware.HandleFunc("/create_schedule", authHandler.CreateSchedule).Methods("POST")
 
 	apiMiddleware.HandleFunc("/create_subject_location", authHandler.CreateSubjectLocation).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_subject_location", authHandler.DeleteSubjectLocation).Methods("POST")
@@ -127,7 +130,9 @@ func main() {
 
 	apiMiddleware.HandleFunc("/get_locations", authHandler.GetLocations).Methods("GET")
 
+	apiMiddleware.HandleFunc("/get_session_accountability", authHandler.GetSessionAccountability).Methods("GET")
 	apiMiddleware.HandleFunc("/get_tutors", authHandler.GetTutors).Methods("GET")
+	apiMiddleware.HandleFunc("/get_schedule", authHandler.GetSchedules).Methods("GET")
 	apiMiddleware.HandleFunc("/get_materials", authHandler.GetMaterials).Methods("GET")
 	apiMiddleware.HandleFunc("/get_programs", authHandler.GetPrograms).Methods("GET")
 	apiMiddleware.HandleFunc("/get_districts", authHandler.GetDistricts).Methods("GET")

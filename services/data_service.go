@@ -124,20 +124,89 @@ func (s *AuthService) StudentSessionSearch(ss models.SearchQuery) ([]models.Stud
 	return sessions, nil
 }
 
-func (s *AuthService) SessionInfo(session_id int64) ([]models.SessionInfoStudent, error) {
+func (s *AuthService) TrailSessions(student_id int64) ([]models.SessionTrail, error) {
 	query := `
-	SELECT ss.duration, st.id as student_id, st.first_name, st.last_name, COALESCE(st.middle_name, '') as middle_name, st.email, st.grade_level AS grade, st.period
+		SELECT
+			ss.id,
+			t.first_name, 
+			t.last_name,
+			COALESCE(p.program_name, 'NA') as program_name, 
+			ss.duration as session_duration,
+			ss.start_time,
+			ss.notes,
+			ss.created_at,
+			ss.student_count,
+			ss.substitute,
+			sst.absent,
+			sst.duration as student_duration
+		FROM 
+			stu_tracker.Session_students sst 
+		LEFT JOIN 
+			stu_tracker.Sessions ss
+		ON 
+			sst.session_id = ss.id
+		JOIN
+			stu_tracker.Tutors t
+		ON
+			t.id = ss.tutor_id
+		JOIN 
+			stu_tracker.Programs p
+		ON 
+			p.id = ss.program_id
+		WHERE 
+			sst.student_id = $1`
+
+	rows, err := s.db.Query(query, student_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying Session_students: %w", err)
+	}
+	defer rows.Close()
+	var sessionsInfo []models.SessionTrail
+	for rows.Next() {
+		var session models.SessionTrail
+		err := rows.Scan(
+			&session.ID,
+			&session.FirstName,
+			&session.LastName,
+			&session.ProgramName,
+			&session.SessionDuration,
+			&session.StartTime,
+			&session.Notes,
+			&session.CreatedAt,
+			&session.StudentCount,
+			&session.Substitute,
+			&session.Absent,
+			&session.StudentDuration,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		sessionsInfo = append(sessionsInfo, session)
+	}
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+	return sessionsInfo, nil
+}
+
+func (s *AuthService) SessionInfo(student_id int64) ([]models.SessionInfoStudent, error) {
+	query := `
+	SELECT
+		ss.duration, st.id as student_id, 
+		st.first_name, st.last_name, COALESCE(st.middle_name, '') as middle_name, 
+		st.email, st.grade_level AS grade, st.period
 	FROM 
 		stu_tracker.Session_students ss 
-	JOIN 
+	LEFT JOIN 
 		stu_tracker.Students st 
 	ON 
 		st.id = ss.student_id 
 	WHERE 
-		ss.session_id = $1`
+		ss.student_id = $1`
 	fmt.Println(query)
 
-	rows, err := s.db.Query(query, session_id)
+	rows, err := s.db.Query(query, student_id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying Session_students: %w", err)
 	}
@@ -169,15 +238,20 @@ func (s *AuthService) SessionInfo(session_id int64) ([]models.SessionInfoStudent
 
 func (s *AuthService) StudentInfo(student_id int64) ([]models.SessionInfoStudent, error) {
 	query := `
-	SELECT ss.duration, st.id as student_id, st.first_name, st.last_name, COALESCE(st.middle_name, '') as middle_name, st.email, st.grade_level AS grade, st.period
+	SELECT 
+		ss.duration, st.id as student_id, 
+		st.first_name, st.last_name, 
+		COALESCE(st.middle_name, '') as middle_name, 
+		st.email, st.grade_level AS grade, 
+		st.period
 	FROM 
 		stu_tracker.Session_students ss 
-	JOIN 
+	LEFT JOIN 
 		stu_tracker.Students st 
 	ON 
 		st.id = ss.student_id 
 	WHERE 
-		ss.session_id = $1`
+		ss.student_id = $1`
 	fmt.Println(query)
 
 	rows, err := s.db.Query(query, student_id)
@@ -296,16 +370,30 @@ func (s *AuthService) StudentSessionInfo(student_id int64, organization_id int64
 func (s *AuthService) StudentAssessmentInfo(student_id int64, organization_id int64) ([]models.StudentAssessmentInfo, error) {
 	query := `
 		SELECT
-			ast.created_at, ast.absent, ast.subject_id, ast.duration
+		ast.created_at,
+		ast.score,
+		ast.session_id,
+		a.title,
+		a.max_score,
+		a.pre,
+		a.post,
+		a.mid,
+		a.cycle,
+		a.letter,
+		a.version
 		FROM 
-			stu_tracker.Sessions ss
+			stu_tracker.Assessments_students ast
 		LEFT JOIN 
-			stu_tracker.Session_students ast
+			stu_tracker.Students ss
 		ON	
 			ast.session_id = ss.id
+		JOIN
+			stu_tracker.Assessments a
+		ON
+			a.id = ast.assessment_id
 		WHERE 
-			ast.student_id = 44 AND ss.organization_id = $2`
-	rows, err := s.db.Query(query, student_id, organization_id)
+			ast.student_id = $1`
+	rows, err := s.db.Query(query, student_id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying AssessmentInfo: %w", err)
 	}
@@ -315,12 +403,16 @@ func (s *AuthService) StudentAssessmentInfo(student_id int64, organization_id in
 		var assessment models.StudentAssessmentInfo
 		err := rows.Scan(
 			&assessment.CreatedAt,
-			&assessment.Absent,
-			&assessment.AssessmentID,
-			&assessment.MaxScore,
 			&assessment.Score,
+			&assessment.SessionID,
+			&assessment.Title,
+			&assessment.MaxScore,
+			&assessment.Pre,
+			&assessment.Post,
+			&assessment.Mid,
 			&assessment.Cycle,
 			&assessment.Letter,
+			&assessment.Version,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)

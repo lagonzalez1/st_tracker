@@ -17,6 +17,7 @@ type ResponseMultipleRegisterUser struct {
 	LastName  string `json:"last_name"`
 	Email     string `json:"email"`
 	Password  string `json:"password"`
+	Location  int64  `json:"location"`
 }
 
 type UploadRegisterStudents struct {

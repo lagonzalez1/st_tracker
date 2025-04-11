@@ -45,9 +45,9 @@ func buildQuerySessionBChart(baseQuery string, req models.RequestSessionBChart) 
 	}
 	baseQuery += `
 	GROUP BY
-    	DATE(session_date)
+		DATE(session_date), month_name
 	ORDER BY
-    	DATE(session_date);
+		DATE(session_date)
 	`
 	return baseQuery, args
 }
@@ -284,11 +284,12 @@ func (s *AuthService) GetSessionBChart(req models.RequestSessionBChart) ([]model
 		MIN(student_count) AS min_students,
 		MAX(student_count) AS max_students,
 		ROUND(AVG(student_count), 2) AS student_average_rounded,
-		TO_CHAR(DATE(session_date), 'Month') AS month
+		TO_CHAR(session_date, 'Month') AS month_name
 	FROM
 		stu_tracker.Sessions ss
 	`
 	query, args := buildQuerySessionBChart(base, req)
+	fmt.Println(query)
 	fmt.Print(query)
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
@@ -569,7 +570,6 @@ func (s *AuthService) GetSessionTrendLine(req models.RequestSessionBChart) ([]mo
 
 func (s *AuthService) GetTutorSessions(req models.RequestTutorSessions) ([]models.ServiceSession, error) {
 	query, args := buildSearchQueryTutorSessions(&req)
-	fmt.Println(query)
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error querying locations: %w", err)

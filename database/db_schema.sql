@@ -34,6 +34,7 @@ CREATE TABLE stu_tracker.Admin_staff (
     fullname VARCHAR(255),
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     email VARCHAR(100) NOT NULL UNIQUE,
+    job_title VARCHAR(255),
     password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     region VARCHAR(100) DEFAULT NULL,
@@ -69,7 +70,7 @@ CREATE TABLE stu_tracker.Locations (
     address VARCHAR(255) NOT NULL,
     city VARCHAR(255) NOT NULL,
     state VARCHAR(100),
-    zip_code VARCHAR(10),
+    zip_code VARCHAR(20),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -95,6 +96,18 @@ CREATE TABLE stu_tracker.Programs (
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE stu_tracker.Tutors(
+    id SERIAL PRIMARY KEY,
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
+    location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE SET NULL,
+    email VARCHAR(150) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE stu_tracker.Location_contacts (
     location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE CASCADE,
@@ -111,18 +124,6 @@ CREATE TABLE stu_tracker.Location_programs (
     program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE CASCADE,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     PRIMARY KEY (location_id, program_id)
-);
-
-CREATE TABLE stu_tracker.Tutors (
-    id SERIAL PRIMARY KEY,
-    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
-    location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE SET NULL,
-    email VARCHAR(150) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE stu_tracker.Tutor_locations (
@@ -222,6 +223,7 @@ CREATE TABLE stu_tracker.Students (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+
 CREATE TABLE stu_tracker.Sessions (
     id SERIAL PRIMARY KEY,
     tutor_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
@@ -242,6 +244,7 @@ CREATE TABLE stu_tracker.Sessions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+
 CREATE TABLE stu_tracker.Session_students (
     id SERIAL PRIMARY KEY,
     session_id INT NOT NULL,
@@ -254,6 +257,8 @@ CREATE TABLE stu_tracker.Session_students (
     FOREIGN KEY (session_id) REFERENCES stu_tracker.Sessions(id) ON DELETE CASCADE,
     FOREIGN KEY (student_id) REFERENCES stu_tracker.Students(id) ON DELETE CASCADE
 );
+
+
 
 CREATE TABLE stu_tracker.Assessments_students (
     id SERIAL PRIMARY KEY,
@@ -307,20 +312,32 @@ CREATE TABLE stu_tracker.User_Acknowledgments (
 );
 
 
-/** Indexes **/
-CREATE INDEX idx_sessions_date ON stu_tracker.Sessions(session_date);
+ --- INDEXES ---
+CREATE INDEX idx_tutor_schedules_tutor_id ON stu_tracker.Tutor_schedules(tutor_id);
+CREATE INDEX idx_tutor_schedules_program_id ON stu_tracker.Tutor_schedules(program_id);
+CREATE INDEX idx_tutor_schedules_dates ON stu_tracker.Tutor_schedules(start_date, end_date);
+CREATE INDEX idx_tutor_location ON stu_tracker.Tutors(location_id);
 
--- For tutor-specific queries
 CREATE INDEX idx_sessions_tutor ON stu_tracker.Sessions(tutor_id);
+CREATE INDEX idx_student_semester ON stu_tracker.Sessions(semester_id);
 
--- For organization/location filtering
-CREATE INDEX idx_sessions_org_loc ON stu_tracker.Sessions(organization_id, location_id);
-
--- For semester-based reporting
-CREATE INDEX idx_sessions_semester ON stu_tracker.Sessions(semester_id);
-
--- For finding all students in a session (reverse of your UNIQUE constraint)
 CREATE INDEX idx_session_students_session ON stu_tracker.Session_students(session_id);
-
--- For finding all sessions for a specific student
 CREATE INDEX idx_session_students_student ON stu_tracker.Session_students(student_id);
+
+CREATE INDEX idx_student_location ON stu_tracker.Students(location_id);
+
+-- NEW SCHEMA --
+
+
+CREATE TABLE stu_tracker.Tutor_schedules (
+    id SERIAL PRIMARY KEY,
+    tutor_id INTEGER NOT NULL REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
+    program_id INTEGER NOT NULL REFERENCES stu_tracker.Programs(id),
+    schedule_type VARCHAR(20) NOT NULL CHECK (schedule_type IN ('inclusion', 'exclusion')),
+    start_date DATE NOT NULL,
+    end_date DATE,
+    recurring BOOLEAN DEFAULT FALSE,
+    recurrence_pattern JSONB, -- For complex recurrence rules
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

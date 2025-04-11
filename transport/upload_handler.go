@@ -55,23 +55,22 @@ func (h *AuthHandler) UploadTutorBigData(w http.ResponseWriter, r *http.Request)
 	}
 	returnFile, response, err := h.authService.RegisterMultipleTutors(rows, &oid)
 	if err != nil {
-		http.Error(w, "Error RegisterMultipleTutors", http.StatusInternalServerError)
+		http.Error(w, "Error return file RegisterMultipleTutors", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	w.Header().Set("Content-Disposition", "attachment; filename=data.xlsx")
-	w.Header().Set("File-Transfer-Encoding", "binary")
+	w.Header().Set("Content-Transfer-Encoding", "binary")
 	str := strconv.Itoa(response.Count)
 	// Include metadata in headers
 	w.Header().Set("X-Response-Message", response.Status)
 	w.Header().Set("X-Response-Status", str)
 	// Write the Excel file to the response
+	returnFile.WriteToBuffer()
 	if err := returnFile.Write(w); err != nil {
 		http.Error(w, "Failed to write Excel file", http.StatusInternalServerError)
 		return
 	}
-	// Set status code
-	w.WriteHeader(http.StatusOK)
 }
 
 func (h *AuthHandler) UploadStudentBigData(w http.ResponseWriter, r *http.Request) {

@@ -558,7 +558,7 @@ func (s *AuthService) GetTutorLocations(tutor_id int64, org_id int64) ([]models.
 	var query string
 	// I can join program id to return programs as well
 	query += `
-		SELECT ls.name AS location_name, tl.location_id as id 
+		SELECT ls.name AS location_name, tl.location_id as id
 		FROM 
 			stu_tracker.Tutor_locations tl 
 		LEFT JOIN 
@@ -597,6 +597,95 @@ func (s *AuthService) GetTutorLocations(tutor_id int64, org_id int64) ([]models.
 	}
 
 	return tutors_locations, nil
+}
+func (s *AuthService) GetTutorSchedules(tutor_id int64) ([]models.RegisterScheduleList, error) {
+	var query string
+	// I can join program id to return programs as well
+	query += `
+		SELECT 
+		ts.id, ts.tutor_id, p.program_name AS program_name, schedule_type, 
+		ts.start_date, ts.end_date, ts.recurring, ts.notes, ts.created_at
+		FROM stu_tracker.Tutor_schedules ts
+		JOIN stu_tracker.Programs p
+		ON p.id = ts.program_id
+		WHERE ts.tutor_id = $1;
+		`
+
+	rows, err := s.db.Query(query, tutor_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying Tutor_locations: %w", err)
+	}
+	defer rows.Close()
+
+	var schedules []models.RegisterScheduleList
+	for rows.Next() {
+		var schedule models.RegisterScheduleList
+		err := rows.Scan(
+			&schedule.ID,
+			&schedule.TutorID,
+			&schedule.ProgramName,
+			&schedule.ScheduleType,
+			&schedule.StartDate,
+			&schedule.EndDate,
+			&schedule.Recurring,
+			&schedule.Notes,
+			&schedule.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		schedules = append(schedules, schedule)
+	}
+
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+
+	return schedules, nil
+}
+
+func (s *AuthService) GetTutorSessionsAccountability(req models.RequestTutorAccountability) ([]models.TutorAccountability, error) {
+
+	if req.TutorID == nil || req.StartDate.IsZero() || req.EndDate.IsZero() {
+		return nil, fmt.Errorf("unable to get sessions missing params")
+	}
+	var query string
+	query += `
+		SELECT 
+			ss.session_date 
+		FROM 
+			stu_tracker.Sessions ss
+		WHERE 
+			ss.tutor_id = $1
+		AND 
+			DATE(ss.session_date)
+		BETWEEN
+			$2	
+		AND
+			$3;`
+	rows, err := s.db.Query(query, req.TutorID, req.StartDate, req.EndDate)
+	if err != nil {
+		return nil, fmt.Errorf("error querying Tutor_locations: %w", err)
+	}
+	defer rows.Close()
+
+	var tutorList []models.TutorAccountability
+	for rows.Next() {
+		var session models.TutorAccountability
+		err := rows.Scan(
+			&session.SessionDate,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		tutorList = append(tutorList, session)
+	}
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+	return tutorList, nil
 }
 
 func (s *AuthService) GetOrganizationPermissions(org_id int64) ([]models.PermissionsList, error) {

@@ -72,7 +72,7 @@ type RegisterRequestStudents struct {
 	GradeLevel int    `json:"grade_level"`
 	Active     bool   `json:"active"`
 	CreatedAt  string `json:"created_at"`
-	LocationId int64  `json:"location_id"`
+	LocationId *int64 `json:"location_id"`
 	CreatedBy  string `json:"created_by"`
 }
 
@@ -112,7 +112,7 @@ type RegisterRequestLocation struct {
 	DistrictId     int64  `json:"district_id"`
 	City           string `json:"city"`
 	State          string `json:"state"`
-	ZipCode        int64  `json:"zip_code"`
+	ZipCode        string `json:"zip_code"`
 	CreatedAt      string `json:"created_at"`
 	OrganizationId *int64 `json:"organization_id"`
 }
@@ -555,8 +555,8 @@ type Session struct {
 type SessionInfoStudent struct {
 	ID         *int64 `json:"student_id"`
 	FirstName  string `json:"first_name"`
-	Email      string `json"email"`
 	LastName   string `json:"last_name"`
+	Email      string `json"email"`
 	MiddleName string `json:"middle_name"`
 	Duration   *int64 `json:"duration"`
 	Period     *int64 `json:"period,omitempty"`
@@ -581,13 +581,32 @@ type StudentSessionInfo struct {
 }
 
 type StudentAssessmentInfo struct {
-	CreatedAt    time.Time `json:"created_at"`
-	AssessmentID *int64    `json:"assessment_id"`
-	Score        *int64    `json:"score"`
-	MaxScore     *int64    `json:"max_score"`
-	Absent       bool      `json:"absent"`
-	Letter       string    `json:"letter"`
-	Cycle        string    `json:"cycle"`
+	CreatedAt time.Time `json:"created_at"`
+	Score     *int64    `json:"score"`
+	MaxScore  *int64    `json:"max_score"`
+	Letter    string    `json:"letter"`
+	Cycle     string    `json:"cycle"`
+	SessionID *int64    `json:"session_id"`
+	Title     string    `json:"title"`
+	Pre       bool      `json:"pre"`
+	Mid       bool      `json:"mid"`
+	Post      bool      `json:"post"`
+	Version   float64   `json:"version"`
+}
+
+type SessionTrail struct {
+	ID              int64     `json:"id"`
+	FirstName       string    `json:"first_name"`
+	LastName        string    `json:"last_name"`
+	ProgramName     string    `json:"program_name"`
+	SessionDuration int       `json:"session_duration"`
+	StartTime       string    `json:"start_time"`
+	Notes           string    `json:"notes"`
+	CreatedAt       time.Time `json:"created_at"`
+	StudentCount    int       `json:"student_count"`
+	Substitute      bool      `json:"substitute"`
+	Absent          bool      `json:"absent"`
+	StudentDuration int       `json:"student_duration"`
 }
 
 type TutorLocationList struct {

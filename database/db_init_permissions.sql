@@ -26,7 +26,7 @@ INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_
 
 -- Permissions for semester
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:semester', 'Permission to delete semester', 'root', 'admin');
-INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:semester', 'Permission to view semester', 'view', 'admin');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:semester', 'Permission to view semester', 'root', 'admin');
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:semester', 'Permission to write semester', 'root', 'admin');
 
 -- Permissions for students

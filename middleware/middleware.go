@@ -55,7 +55,6 @@ func validateJWT(tokenString, secret string) (jwt.MapClaims, JWTValidError) {
 		}
 		return []byte(secret), nil
 	})
-	fmt.Println("ValidateJWT - Token", token.Valid)
 	if token == nil {
 		return nil, JWTValidError{
 			Message: "Token is nill",
@@ -70,7 +69,6 @@ func validateJWT(tokenString, secret string) (jwt.MapClaims, JWTValidError) {
 				Code:    500,
 			}
 		}
-		fmt.Print("Token is valid..")
 		return claims, JWTValidError{Message: "OK", Code: 0}
 	}
 	if !token.Valid {
@@ -110,13 +108,15 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
-				fmt.Println("Unable to lead env")
 				w.WriteHeader(http.StatusUnauthorized)
 				w.Write([]byte("Unable to load config files."))
 			}
+			if r.Header.Get("Authorization") == "" {
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte("Malformed Token"))
+			}
 			authHeader := strings.Split(r.Header.Get("Authorization"), "Bearer ")
 			if len(authHeader) != 2 {
-				fmt.Println("Malformed token")
 				w.WriteHeader(http.StatusUnauthorized)
 				w.Write([]byte("Malformed Token"))
 			}

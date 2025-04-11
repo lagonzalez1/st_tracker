@@ -102,6 +102,16 @@ func (h *AuthHandler) CreateDistrict(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body")
 		return
 	}
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:district")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	fmt.Printf("Request body %s\n", string(body))
 
 	var models models.RegisterRequestDistrict
@@ -322,6 +332,41 @@ func (h *AuthHandler) CreatePermission(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Unable to create student", http.StatusInternalServerError)
 		fmt.Printf("Unable to insert student: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+func (h *AuthHandler) CreateSchedule(w http.ResponseWriter, r *http.Request) {
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:tutor")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	fmt.Printf("Request body %s\n", string(body))
+
+	var models models.RegisterSchedule
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+	// Need to handle 3 cases of logins for different permissions
+	user, err := h.authService.AddSchedule(models)
+	if err != nil {
+		http.Error(w, "Unable to create AddSchedule", http.StatusInternalServerError)
+		fmt.Printf("Unable to insert AddSchedule: %v", err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -790,6 +835,16 @@ func (h *AuthHandler) CreateAdminStaff(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body")
 		return
 	}
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:admin")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	fmt.Printf("Request body %s\n", string(body))
 	var models models.RegisterRequestAdmin
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -937,7 +992,6 @@ func (h *AuthHandler) GetLocations(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	//fmt.Print(props["sub"].(string))
 	if email == "" || role == "" || id == "" || org_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -949,6 +1003,67 @@ func (h *AuthHandler) GetLocations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := h.authService.GetLocationsByID(idd, role)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetSessionAccountability(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	email := query.Get("email")
+	role := query.Get("role")
+	id := query.Get("id")
+	org_id := query.Get("organization_id")
+	tid := query.Get("tutor_id")
+	start_date := query.Get("start_date")
+	end_Date := query.Get("end_date")
+
+	if email == "" || role == "" || id == "" || org_id == "" || start_date == "" || end_Date == "" || tid == "" {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	idd, err := strconv.ParseInt(org_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	tutor_id, err := strconv.ParseInt(tid, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	var model models.RequestTutorAccountability
+	if query.Get("start_date") != "" {
+		start_time, err := time.Parse("2006-01-02", query.Get("start_date"))
+		if err != nil {
+			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.StartDate = start_time
+	}
+	if query.Get("end_date") != "" {
+		end_date, err := time.Parse("2006-01-02", query.Get("end_date"))
+		if err != nil {
+			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.EndDate = end_date
+	}
+	model.TutorID = &tutor_id
+	model.OrganizationID = &idd
+	fmt.Println(model.StartDate)
+	fmt.Println(model.EndDate)
+
+	rows, err := h.authService.GetTutorSessionsAccountability(model)
 	if err != nil {
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
 		return
@@ -1289,6 +1404,37 @@ func (h *AuthHandler) GetTutors(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (h *AuthHandler) GetSchedules(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	email := query.Get("email")
+	role := query.Get("role")
+	id := query.Get("id")
+	tutor_id := query.Get("tutor_id")
+	org_id := query.Get("organization_id")
+
+	if email == "" || role == "" || id == "" || org_id == "" {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	tid, err := strconv.ParseInt(tutor_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	rows, err := h.authService.GetTutorSchedules(tid)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in materials %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
 func (h *AuthHandler) GetSemesters(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	email := query.Get("email")
@@ -1336,7 +1482,6 @@ func (h *AuthHandler) GetAssessments(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
 		return
 	}
-
 	rows, err := h.authService.GetAssessmentsById(idd, role)
 	if err != nil {
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
@@ -1453,6 +1598,29 @@ func (h *AuthHandler) DeleteTutorLocation(w http.ResponseWriter, r *http.Request
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
 	user, err := h.authService.DeleteTutorLocation(models)
+	if err != nil {
+		http.Error(w, "Unable to delete DeleteTutorLocation staff", http.StatusInternalServerError)
+		fmt.Printf("Unable to delete DeleteTutorLocation staff: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+func (h *AuthHandler) DeleteSchedule(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	fmt.Printf("Request body %s\n", string(body))
+	var models models.RemoveSchedule
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+	user, err := h.authService.DeleteSchedule(models)
 	if err != nil {
 		http.Error(w, "Unable to delete DeleteTutorLocation staff", http.StatusInternalServerError)
 		fmt.Printf("Unable to delete DeleteTutorLocation staff: %v", err)
@@ -1940,6 +2108,7 @@ func (h *AuthHandler) GetStudentInfo(w http.ResponseWriter, r *http.Request) {
 	id := query.Get("id")
 	org_id := query.Get("organization_id")
 	student_id := query.Get("student_id")
+
 	if email == "" || role == "" || id == "" || org_id == "" || student_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -1949,13 +2118,20 @@ func (h *AuthHandler) GetStudentInfo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
 		return
 	}
-	rows, err := h.authService.SessionInfo(idd)
+	organization_id, err := strconv.ParseInt(org_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	// I want to return all the session and their information
+	rows, err := h.authService.TrailSessions(idd)
 	if err != nil {
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
 		fmt.Printf("Unable to get rows in Semesters %v", err)
 		return
 	}
-	a_rows, err := h.authService.StudentInfo(idd)
+	// Also return all assessments
+	a_rows, err := h.authService.StudentAssessmentInfo(idd, organization_id)
 	if err != nil {
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
 		fmt.Printf("Unable to get rows in Semesters %v", err)
