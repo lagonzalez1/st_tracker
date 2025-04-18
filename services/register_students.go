@@ -8,7 +8,7 @@ import (
 func (s *AuthService) AddStudent(req models.RegisterRequestStudents) (*models.ResponseRequestStudents, error) {
 	// Input validation
 	println(req.LastName)
-	if req.FirstName == "" || req.LastName == "" || req.Email == "" {
+	if req.FirstName == "" || req.LastName == "" {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, or email")
 	}
 	var newID int64
@@ -28,7 +28,7 @@ func (s *AuthService) AddStudent(req models.RegisterRequestStudents) (*models.Re
 func (s *AuthService) UpdateStudent(req models.RegisterRequestStudents) (*models.ResponseUpdate, error) {
 	// Input validation
 	println(req.LastName)
-	if req.ID == nil || req.LastName == "" || req.Email == "" {
+	if req.ID == nil || req.LastName == "" {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, or email")
 	}
 	query := `UPDATE stu_tracker.Students SET first_name = $1, last_name = $2, middle_name = $3, email = $4, grade_level = $5, active = $6, location_id = $7, period = $8

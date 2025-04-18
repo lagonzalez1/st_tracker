@@ -120,11 +120,14 @@ func (h *AuthHandler) UploadStudentBigData(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	defer tempFile.Close()
-	_, err = io.Copy(tempFile, file)
-	if err != nil {
-		http.Error(w, "Error saving file", http.StatusInternalServerError)
-		return
-	}
+	/*
+		Dont think this is needed, just process the file and move along
+		_, err = io.Copy(tempFile, file)
+		if err != nil {
+			http.Error(w, "Error saving file", http.StatusInternalServerError)
+			return
+		}
+	*/
 	// Process Excel file
 	excelFile, err := excelize.OpenFile(tempFile.Name())
 	if err != nil {
@@ -139,7 +142,7 @@ func (h *AuthHandler) UploadStudentBigData(w http.ResponseWriter, r *http.Reques
 	}
 	response, err := h.authService.RegisterMultipleStudents(rows, &oid, sid, lid)
 	if err != nil {
-		fmt.Printf("Error on RegisterMultipleStudents %w", err)
+		fmt.Printf("Error on RegisterMultipleStudents %v", err)
 		http.Error(w, "Error RegisterMultipleTutors", http.StatusInternalServerError)
 		return
 	}

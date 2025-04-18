@@ -139,7 +139,7 @@ type AssessmentGrowth struct {
 	Average      float32 `json:"average"`
 }
 
-type RequestTutorSessions struct {
+type RequestTutorsSessions struct {
 	ID             *int64 `json:"id"`
 	Email          string `json:"email"`
 	OrganizationID *int64 `json:"organization_id"`

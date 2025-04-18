@@ -15,7 +15,6 @@ func response_tutor_file(responseList []*models.ResponseMultipleRegisterUser) (*
 	f := excelize.NewFile()
 	sheetName := "Multi_add_tutors"
 	f.SetSheetName("Sheet1", sheetName)
-
 	// Set headers
 	headers := []string{"First Name", "Last Name", "Email", "Password", "Location"}
 	for i, header := range headers {

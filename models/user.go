@@ -63,31 +63,31 @@ type RegisterResponseAdminRoot struct {
 	OrganizationId *int64 `json:"organization_id"`
 }
 type RegisterRequestStudents struct {
-	ID         *int64 `json:"id"`
-	FirstName  string `json:"firstname"`
-	MiddleName string `json:"middle_name"`
-	LastName   string `json:"last_name"`
-	Period     *int64 `json:"period,omitempty"`
-	Email      string `json:"email"`
-	GradeLevel int    `json:"grade_level"`
-	Active     bool   `json:"active"`
-	CreatedAt  string `json:"created_at"`
-	LocationId *int64 `json:"location_id"`
-	CreatedBy  string `json:"created_by"`
+	ID         *int64  `json:"id"`
+	FirstName  string  `json:"firstname"`
+	MiddleName string  `json:"middle_name"`
+	LastName   string  `json:"last_name"`
+	Period     *int64  `json:"period,omitempty"`
+	Email      *string `json:"email"`
+	GradeLevel int     `json:"grade_level"`
+	Active     bool    `json:"active"`
+	CreatedAt  string  `json:"created_at"`
+	LocationId *int64  `json:"location_id"`
+	CreatedBy  string  `json:"created_by"`
 }
 
 type ResponseRequestStudentList struct {
-	ID         int64  `json:"id"`
-	FirstName  string `json:"firstname"`
-	MiddleName string `json:"middle_name"`
-	LastName   string `json:"last_name"`
-	Email      string `json:"email"`
-	GradeLevel int    `json:"grade_level"`
-	Active     bool   `json:"active"`
-	CreatedAt  string `json:"created_at"`
-	Period     *int64 `json:"period,omitempty"`
-	SemesterId *int64 `json:"semester_id"`
-	LocationId *int64 `json:"location_id"`
+	ID         int64   `json:"id"`
+	FirstName  string  `json:"first_name"`
+	MiddleName string  `json:"middle_name"`
+	LastName   string  `json:"last_name"`
+	Email      *string `json:"email"`
+	GradeLevel int     `json:"grade_level"`
+	Active     bool    `json:"active"`
+	CreatedAt  string  `json:"created_at"`
+	Period     *int64  `json:"period,omitempty"`
+	SemesterId *int64  `json:"semester_id"`
+	LocationId *int64  `json:"location_id"`
 }
 
 type ResponseRequestStudents struct {
@@ -366,6 +366,7 @@ type RegisterTutorSession struct {
 	CreatedAt    string `json:"created_at"`
 	EditedAt     string `json:"edited_at"`
 	Duration     *int   `json:"duration"`
+	InSchool     bool   `json:"in_school"`
 }
 
 type SubjectList struct {
@@ -407,6 +408,8 @@ type ServiceSession struct {
 	SubjectName     string        `json:"subject_name"`
 	StudentCount    int64         `json:"student_count"`
 	AssessmentCount *int64        `json:"assessment_count"`
+	SubFirstName    *string       `json:"substitute_first_name"`
+	SubLastName     *string       `json:"substitute_last_name"`
 }
 
 type StudentSessions struct {
@@ -553,14 +556,14 @@ type Session struct {
 }
 
 type SessionInfoStudent struct {
-	ID         *int64 `json:"student_id"`
-	FirstName  string `json:"first_name"`
-	LastName   string `json:"last_name"`
-	Email      string `json"email"`
-	MiddleName string `json:"middle_name"`
-	Duration   *int64 `json:"duration"`
-	Period     *int64 `json:"period,omitempty"`
-	Grade      *int64 `json:"grade"`
+	ID         *int64  `json:"student_id"`
+	FirstName  string  `json:"first_name"`
+	LastName   string  `json:"last_name"`
+	Email      *string `json"email"`
+	MiddleName string  `json:"middle_name"`
+	Duration   *int64  `json:"duration"`
+	Period     *int64  `json:"period,omitempty"`
+	Grade      *int64  `json:"grade"`
 }
 
 type AssessmentInfoStudent struct {
@@ -711,4 +714,37 @@ type RemoveSubjectLocation struct {
 type ResponseSubjectLocation struct {
 	ID     *int64 `json:"id"`
 	Status string `json:"status"`
+}
+
+type RequestTutorSessions struct {
+	ID             *int64 `json:"id"`
+	Email          string `json:"email"`
+	OrganizationID *int64 `json:"organization_id"`
+	SemesterID     *int64 `json:"semester_id"`
+	LocationID     *int64 `json:"location_id"`
+}
+
+type Students struct {
+	SessionID  *int64 `json:"session_id"`
+	StudentID  *int64 `json:"student_id"`
+	FirstName  string `json:"first_name"`
+	MiddleName string `json:"middle_name"`
+	LastName   string `json:"last_name"`
+	Grade      int    `json:"grade_level"`
+}
+
+type TutorSessionsList struct {
+	SessionID    *int64     `json:"session_id"`
+	ProgramName  string     `json:"program_name"`
+	LocationID   *int64     `json:"location_id"`
+	SemesterID   *int64     `json:"semester_id"`
+	ProgramID    *int64     `json:"program_id"`
+	SessionDate  time.Time  `json:"session_date"`
+	StartTime    string     `json:"start_time"`
+	Students     []Students `json:"students"`
+	StudentCount int        `json:"student_count"`
+	InSchool     bool       `json:"in_school"`
+	Substitute   bool       `json:"substitute"`
+	Semester     string     `json:"semester"`
+	LocationName string     `json:"location_name"`
 }

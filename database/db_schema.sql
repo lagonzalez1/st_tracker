@@ -214,7 +214,11 @@ CREATE TABLE stu_tracker.Students (
     middle_name VARCHAR(255) DEFAULT NULL,
     semester_id INT REFERENCES stu_tracker.Semester(id) ON DELETE SET NULL,
     period VARCHAR(200), 
-    email VARCHAR(100) CHECK (email ~* '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$'),
+    email VARCHAR(200) CHECK (
+        email IS NULL OR 
+        email = '' OR 
+        email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+    ),,
     grade_level INT CHECK (grade_level BETWEEN 0 AND 12),
     active BOOLEAN DEFAULT TRUE,
     created_by TEXT,
@@ -235,6 +239,7 @@ CREATE TABLE stu_tracker.Sessions (
     substitute_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE SET NULL,
     semester_id INT REFERENCES stu_tracker.Semester(id) ON DELETE SET NULL,
     student_count INT,
+    in_school BOOLEAN DEFAULT FALSE, 
     start_time VARCHAR(10),
     duration INT,
     subject VARCHAR(100),
@@ -320,12 +325,14 @@ CREATE INDEX idx_tutor_location ON stu_tracker.Tutors(location_id);
 
 CREATE INDEX idx_sessions_tutor ON stu_tracker.Sessions(tutor_id);
 CREATE INDEX idx_student_semester ON stu_tracker.Sessions(semester_id);
+CREATE INDEX idx_session_date ON stu_tracker.Sessions(session_date);
+
+CREATE INDEX idx_session_assessments ON stu_tracker.Assessments_students(session_id);
 
 CREATE INDEX idx_session_students_session ON stu_tracker.Session_students(session_id);
 CREATE INDEX idx_session_students_student ON stu_tracker.Session_students(student_id);
 
 CREATE INDEX idx_student_location ON stu_tracker.Students(location_id);
-
 -- NEW SCHEMA --
 
 

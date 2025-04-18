@@ -665,3 +665,117 @@ func (h *AuthHandler) GetAssessmentGrowth(w http.ResponseWriter, r *http.Request
 	response := map[string]interface{}{"data": rows}
 	json.NewEncoder(w).Encode(response)
 }
+
+func (h *AuthHandler) GetTutorFile(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	var model models.RequestDownloadData
+	if query.Get("location_id") != "" {
+		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.LocationID = &loc_id
+	}
+	if query.Get("semester_id") != "" {
+		sem_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SemesterID = &sem_id
+	}
+	if query.Get("date") != "" {
+		DateStart, err := time.Parse("2006-01-02", query.Get("date"))
+		if err != nil {
+			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
+			return
+		}
+		model.DateStart = DateStart
+	}
+	if query.Get("end_date") != "" {
+		DateEnd, err := time.Parse("2006-01-02", query.Get("date_end"))
+		if err != nil {
+			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
+			return
+		}
+		model.DateEnd = DateEnd
+	}
+
+	file, err := h.authService.GetTutorFileData(model)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", "attachment; filename=tutor_data.xlsx")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	// Write the Excel file to the response
+	file.WriteToBuffer() // This can be an issue if the file is to large
+
+	if err := file.Write(w); err != nil {
+		http.Error(w, "Failed to write Excel file", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *AuthHandler) GetStudentFile(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	var model models.RequestDownloadData
+	if query.Get("location_id") != "" {
+		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.LocationID = &loc_id
+	}
+	if query.Get("semester_id") != "" {
+		sem_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SemesterID = &sem_id
+	}
+	if query.Get("date") != "" {
+		DateStart, err := time.Parse("2006-01-02", query.Get("date"))
+		if err != nil {
+			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
+			return
+		}
+		model.DateStart = DateStart
+	}
+	if query.Get("end_date") != "" {
+		DateEnd, err := time.Parse("2006-01-02", query.Get("date_end"))
+		if err != nil {
+			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
+			return
+		}
+		model.DateEnd = DateEnd
+	}
+
+	file, err := h.authService.GetStudentFileData(model)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", "attachment; filename=student_data.xlsx")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	// Write the Excel file to the response
+	file.WriteToBuffer() // This can be an issue if the file is to large
+
+	if err := file.Write(w); err != nil {
+		http.Error(w, "Failed to write Excel file", http.StatusInternalServerError)
+		return
+	}
+}

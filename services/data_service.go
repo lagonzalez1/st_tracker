@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"tracker/app/models"
+
+	"github.com/lib/pq"
 )
 
 /**
@@ -38,6 +40,8 @@ func (s *AuthService) SessionSearch(ss models.SearchQuery) ([]models.ServiceSess
 			&session.Location,
 			&session.Substitute,
 			&session.SubstituteId,
+			&session.SubFirstName,
+			&session.SubLastName,
 			&session.StartTime,
 			&session.Subject,
 			&session.Notes,
@@ -190,7 +194,7 @@ func (s *AuthService) TrailSessions(student_id int64) ([]models.SessionTrail, er
 	return sessionsInfo, nil
 }
 
-func (s *AuthService) SessionInfo(student_id int64) ([]models.SessionInfoStudent, error) {
+func (s *AuthService) SessionInfo(session_id int64) ([]models.SessionInfoStudent, error) {
 	query := `
 	SELECT
 		ss.duration, st.id as student_id, 
@@ -203,10 +207,10 @@ func (s *AuthService) SessionInfo(student_id int64) ([]models.SessionInfoStudent
 	ON 
 		st.id = ss.student_id 
 	WHERE 
-		ss.student_id = $1`
+		ss.session_id = $1`
 	fmt.Println(query)
 
-	rows, err := s.db.Query(query, student_id)
+	rows, err := s.db.Query(query, session_id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying Session_students: %w", err)
 	}
@@ -572,6 +576,125 @@ func (s *AuthService) QueryAssessmentGrowth(LocationID *int64, OrganizationID *i
 	return &AssessmentGrowth, nil
 }
 
+func (s *AuthService) GetSessionsTutors(ss models.RequestTutorsSessions) ([]models.TutorSessionsList, error) {
+	// Must check if semester_id is valid. Simply check if within range of current ?
+	var query string
+	query += `
+		SELECT 
+		ss.id,
+		ss.session_date::TIMESTAMP AS session_date,
+		ss.start_time,
+		ss.location_id,
+		pg.program_name,
+		pg.id,
+		ss.semester_id,
+		ss.student_count,
+		ss.in_school,
+		ss.substitute,
+		sm.title,
+		lc.name
+		FROM
+			stu_tracker.Sessions ss
+		JOIN
+			stu_tracker.Programs pg
+		ON 
+			ss.program_id = pg.id
+		JOIN
+			stu_tracker.Semester sm
+		ON 
+			ss.semester_id = sm.id
+		JOIN
+			stu_tracker.Locations lc
+		ON 
+			ss.location_id = lc.id
+		WHERE
+			ss.tutor_id = $1 AND ss.semester_id = $2 AND ss.location_id = $3
+		ORDER BY 
+			ss.session_date desc;
+		`
+	rows, err := s.db.Query(query, ss.ID, ss.SemesterID, ss.LocationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	// Can also return the student count, assessment count ...
+	var sessions []models.TutorSessionsList
+	for rows.Next() {
+		var session models.TutorSessionsList
+		err := rows.Scan(
+			&session.SessionID,
+			&session.SessionDate,
+			&session.StartTime,
+			&session.LocationID,
+			&session.ProgramName,
+			&session.ProgramID,
+			&session.SemesterID,
+			&session.StudentCount,
+			&session.InSchool,
+			&session.Substitute,
+			&session.Semester,
+			&session.LocationName,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		sessions = append(sessions, session)
+	}
+	var sessionIDs []int64
+	if len(sessions) <= 0 {
+		return []models.TutorSessionsList{}, nil
+	}
+	for i := 0; i < len(sessions); i++ {
+		sessionIDs = append(sessionIDs, *sessions[i].SessionID)
+	}
+	// For each session_id return the students associated
+	query2 := `
+		SELECT
+			ss.session_id,
+			st.first_name,
+			st.last_name,
+			st.middle_name,
+			st.grade_level,
+			st.id
+		FROM 
+			stu_tracker.Session_students ss
+		INNER JOIN
+			stu_tracker.Students st
+		ON
+			ss.student_id = st.id
+		WHERE 
+			ss.session_id = ANY($1)
+		ORDER BY
+			ss.session_id`
+
+	rows, err = s.db.Query(query2, pq.Array(sessionIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	// Can also return the student count, assessment count ...
+	studentMap := make(map[int64][]models.Students)
+	for rows.Next() {
+		var student models.Students
+		err := rows.Scan(
+			&student.SessionID,
+			&student.FirstName,
+			&student.LastName,
+			&student.MiddleName,
+			&student.Grade,
+			&student.StudentID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		studentMap[int64(*student.SessionID)] = append(studentMap[int64(*student.SessionID)], student)
+	}
+	for i := 0; i < len(sessions); i++ {
+		sessions[i].Students = studentMap[int64(*sessions[i].SessionID)]
+	}
+	return sessions, nil
+}
+
 func buildSearchQueryAssessmentGrowth(LocationID *int64, OrganizationID *int64, Assessment1ID *int64) (string, []interface{}) {
 	argIndex := 1
 	var args []interface{}
@@ -625,7 +748,15 @@ func buildSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 			ss.tutor_id, 
 			ll.name AS location_name,
 			ss.substitute, 
-			ss.substitute_id, 
+			ss.substitute_id,
+			CASE 
+				WHEN ss.substitute = true THEN sub.first_name 
+				ELSE NULL 
+			END AS substitute_first_name,
+			CASE 
+				WHEN ss.substitute = true THEN sub.last_name 
+				ELSE NULL 
+			END AS substitute_last_name, 
 			ss.start_time, 
 			COALESCE(ss.subject_id, null) AS subject_id,
 			ss.notes, 
@@ -643,7 +774,9 @@ func buildSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 		LEFT JOIN 
 			stu_tracker.Programs pg ON pg.id = ss.program_id 
 		LEFT JOIN 
-    		stu_tracker.Subjects sb ON ss.subject_id = sb.id 
+    		stu_tracker.Subjects sb ON ss.subject_id = sb.id
+		LEFT JOIN 
+    		stu_tracker.Tutors sub ON ss.substitute_id = sub.id AND ss.substitute = true 
 		`
 
 	if ss.SearchTerm != "" {

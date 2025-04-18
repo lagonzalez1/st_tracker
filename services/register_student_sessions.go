@@ -12,6 +12,13 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 	if len(req.SessionList) <= 0 {
 		return nil, fmt.Errorf("missing required fields: Session list is empty")
 	}
+	duplicate, err := s.CheckDuplicateSession(req)
+	if err != nil {
+		return nil, err
+	}
+	if duplicate {
+		return nil, fmt.Errorf("found a duplicate entry")
+	}
 	ctx := context.Background()
 	// Named parameters for better readability (if your DB driver supports it)
 	query := `
@@ -26,13 +33,14 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
         student_count, 
         organization_id,
 		semester_id,
-		duration
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
-    RETURNING id;
-`
+		duration,
+		in_school,
+		substitute_id
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+    RETURNING id;`
 	var newID int64
 	// Execute query with context
-	err := s.db.QueryRowContext(
+	err = s.db.QueryRowContext(
 		ctx,
 		query,
 		req.Session.TutorId,
@@ -46,6 +54,8 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 		req.OrganizationID,
 		req.Session.SemesterId,
 		req.Session.Duration,
+		req.Session.InSchool,
+		req.Session.SubstituteId,
 	).Scan(&newID)
 	if err != nil {
 		return nil, err
@@ -105,4 +115,24 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 		StudentCount:    int64(rowsAffected),
 		AssessmentCount: int64(assessmentsCompleted),
 	}, nil
+}
+
+func (s *AuthService) CheckDuplicateSession(req models.RegisterStudentSessionList) (bool, error) {
+	var exists bool
+	err := s.db.QueryRow(`
+    SELECT EXISTS (
+        SELECT 1 FROM stu_tracker.Sessions 
+        WHERE session_date = $1 AND start_time = $2
+    )`, req.Session.SessionDate, req.Session.StartTime).Scan(&exists)
+
+	if err != nil {
+		return true, fmt.Errorf("unable to query to check duplicate sessions: %v", err)
+	}
+	if exists {
+		return true, nil
+	}
+	if !exists {
+		return false, nil
+	}
+	return false, nil
 }

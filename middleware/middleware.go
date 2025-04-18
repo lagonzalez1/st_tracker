@@ -55,28 +55,7 @@ func validateJWT(tokenString, secret string) (jwt.MapClaims, JWTValidError) {
 		}
 		return []byte(secret), nil
 	})
-	if token == nil {
-		return nil, JWTValidError{
-			Message: "Token is nill",
-			Code:    501,
-		}
-	}
-	if token.Valid {
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok || !token.Valid {
-			return nil, JWTValidError{
-				Message: "Token invalid after claims attempt",
-				Code:    500,
-			}
-		}
-		return claims, JWTValidError{Message: "OK", Code: 0}
-	}
-	if !token.Valid {
-		return nil, JWTValidError{
-			Message: "Token invalid after claims attempt",
-			Code:    500,
-		}
-	}
+
 	// Check for token expired ?
 	if err != nil {
 		switch {
@@ -97,6 +76,16 @@ func validateJWT(tokenString, secret string) (jwt.MapClaims, JWTValidError) {
 			}
 		}
 	}
+	if token == nil {
+		return nil, JWTValidError{
+			Message: "Token is nill",
+			Code:    501,
+		}
+	}
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return claims, JWTValidError{Message: "OK", Code: 0}
+	}
+
 	return nil, JWTValidError{
 		Message: "Parse issues with given token",
 		Code:    501,
@@ -153,40 +142,16 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 				fmt.Println("Cookie claims----", cookie_claims)
 				new_access_token, err := generateJWTToken(cookie_claims)
 				if err != nil {
-					fmt.Printf("Error trying to generate new jwt token %v", err)
+					fmt.Println(err)
 					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unauthorized"))
+					w.Write([]byte("Unable to parse cookie"))
 					return
 				}
-				id, ok := cookie_claims["id"].(float64) // JWT stores numbers as float64
-				if !ok {
-					fmt.Println("Error trying to get id claims")
-					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to parse id claims id as float64"))
-					return
-				}
-				userType, ok := cookie_claims["type"].(string)
-				if !ok {
-					fmt.Println("Error trying to get type claims")
-					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to parse user type in claims"))
-					return
-				}
-				orgID, ok := cookie_claims["orgid"].(float64) // Convert orgid from float64 to int64
-				if !ok {
-					fmt.Println("Error trying to get orgid claims")
-					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to parse orgid"))
-					return
-				}
-				// Need a fast lookup like redis
-				// Attach permissions
-				// This can be faster if using redis or something in memory
-				permissions, err := GetPermissions(int64(id), userType, int64(orgID), s)
+				permissions, err := ValidateRequestPermissions(cookie_claims, s)
 				if err != nil {
-					fmt.Println("Error trying to get permissions claims")
+					fmt.Println(err)
 					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to get user permissions"))
+					w.Write([]byte("Unable to parse cookie"))
 					return
 				}
 				fmt.Println("Sending new access token ---", new_access_token)
@@ -198,33 +163,12 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 				return
 			}
 			if jwtError.Code == 0 {
-				id, ok := claims["id"].(float64) // JWT stores numbers as float64
-				if !ok {
-					fmt.Println(err)
-					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to parse id"))
-					return
-				}
-				userType, ok := claims["type"].(string)
-				if !ok {
-					fmt.Println(err)
-					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to parse user type"))
-					return
-				}
 
-				orgID, ok := claims["orgid"].(float64) // Convert orgid from float64 to int64
-				if !ok {
-					fmt.Println(err)
-					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to parse orgid"))
-					return
-				}
-				permissions, err := GetPermissions(int64(id), userType, int64(orgID), s)
+				permissions, err := ValidateRequestPermissions(claims, s)
 				if err != nil {
 					fmt.Println(err)
 					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to get user permissions"))
+					w.Write([]byte("Unable to parse cookie"))
 					return
 				}
 				claims["permissions"] = permissions
@@ -239,6 +183,29 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 			w.Write([]byte("Unauthorized"))
 		})
 	}
+}
+
+func ValidateRequestPermissions(claims jwt.MapClaims, s *services.AuthService) ([]models.PermissionsList, error) {
+	if claims == nil {
+		return nil, fmt.Errorf("unable to get request")
+	}
+	id, ok := claims["id"].(float64) // JWT stores numbers as float64
+	if !ok {
+		return nil, fmt.Errorf("unable to parse id")
+	}
+	userType, ok := claims["type"].(string)
+	if !ok {
+		return nil, fmt.Errorf("unable to parse user type")
+	}
+	orgID, ok := claims["orgid"].(float64) // Convert orgid from float64 to int64
+	if !ok {
+		return nil, fmt.Errorf("unable to parse organization id")
+	}
+	permissions, err := GetPermissions(int64(id), userType, int64(orgID), s)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get permissions from validation")
+	}
+	return permissions, nil
 }
 
 func GetPermissions(id int64, userType string, orgid int64, s *services.AuthService) ([]models.PermissionsList, error) {

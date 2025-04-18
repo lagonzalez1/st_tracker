@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"fmt"
+	"time"
 	"tracker/app/models"
 
 	"github.com/lib/pq"
@@ -558,19 +559,21 @@ func (s *AuthService) GetTutorLocations(tutor_id int64, org_id int64) ([]models.
 	var query string
 	// I can join program id to return programs as well
 	query += `
-		SELECT ls.name AS location_name, tl.location_id as id
-		FROM 
-			stu_tracker.Tutor_locations tl 
-		LEFT JOIN 
-			stu_tracker.Tutors tr 
-		ON 
-			tr.id = tl.tutor_id
-		LEFT JOIN 
-			stu_tracker.Locations ls 
-		ON 
-			ls.id = tl.location_id
-		WHERE 
-			tl.tutor_id = $1;`
+		SELECT 
+			ls.name AS location_name,
+			ls.id AS id
+		FROM stu_tracker.Tutors t
+		LEFT JOIN stu_tracker.Locations ls ON t.location_id = ls.id
+		WHERE t.id = $1 AND t.location_id IS NOT NULL
+
+		UNION
+
+		SELECT 
+			l.name AS location_name,
+			tl.location_id AS id
+		FROM stu_tracker.Tutor_locations tl
+		JOIN stu_tracker.Locations l ON tl.location_id = l.id
+		WHERE tl.tutor_id = $1;`
 
 	rows, err := s.db.Query(query, tutor_id)
 	if err != nil {
@@ -645,7 +648,7 @@ func (s *AuthService) GetTutorSchedules(tutor_id int64) ([]models.RegisterSchedu
 	return schedules, nil
 }
 
-func (s *AuthService) GetTutorSessionsAccountability(req models.RequestTutorAccountability) ([]models.TutorAccountability, error) {
+func (s *AuthService) GetTutorSessionsAccountability(req models.RequestTutorAccountability) (*models.ResponseTutorAccountability, error) {
 
 	if req.TutorID == nil || req.StartDate.IsZero() || req.EndDate.IsZero() {
 		return nil, fmt.Errorf("unable to get sessions missing params")
@@ -680,12 +683,60 @@ func (s *AuthService) GetTutorSessionsAccountability(req models.RequestTutorAcco
 			return nil, fmt.Errorf("error scanning row: %w", err)
 		}
 		tutorList = append(tutorList, session)
+		// Check for any errors encountered during iteration
+		if err = rows.Err(); err != nil {
+			return nil, fmt.Errorf("error iterating over rows: %w", err)
+		}
 	}
-	// Check for any errors encountered during iteration
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	// Find all instances where tutor does not work
+	query2 := `
+		SELECT start_date, end_date
+		FROM stu_tracker.Tutor_schedules
+		WHERE schedule_type = 'exclusion'
+		AND tutor_id = $1
+		AND (
+			(start_date <= $3 AND COALESCE(end_date, start_date) >= $2)
+		);
+	`
+	rows, err = s.db.Query(query2, req.TutorID, req.StartDate, req.EndDate)
+	if err != nil {
+		return nil, err
 	}
-	return tutorList, nil
+	defer rows.Close()
+
+	var result []time.Time
+	type Schedule struct {
+		StartDate time.Time
+		EndDate   sql.NullTime
+	}
+	for rows.Next() {
+		var s Schedule
+		if err := rows.Scan(&s.StartDate, &s.EndDate); err != nil {
+			return nil, err
+		}
+		rangeStart := s.StartDate
+		rangeEnd := s.EndDate.Time
+		if !s.EndDate.Valid {
+			rangeEnd = s.StartDate
+		}
+
+		// Clip the range to the provided window
+		if rangeStart.Before(req.StartDate) {
+			rangeStart = req.StartDate
+		}
+		if rangeEnd.After(req.EndDate) {
+			rangeEnd = req.EndDate
+		}
+
+		// Generate dates in the clipped range
+		for d := rangeStart; !d.After(rangeEnd); d = d.AddDate(0, 0, 1) {
+			result = append(result, d)
+		}
+	}
+	return &models.ResponseTutorAccountability{
+		SessionDates: tutorList,
+		NonWorkdays:  result,
+	}, nil
 }
 
 func (s *AuthService) GetOrganizationPermissions(org_id int64) ([]models.PermissionsList, error) {
@@ -863,8 +914,10 @@ func (s *AuthService) getTutorAnnouncements(loc_id []int64, org_id int64, pro_id
 		LEFT JOIN stu_tracker.Programs pr
 		ON pr.id = an.program_id
 		WHERE 
-			an.location_id = ANY($1) OR an.program_id = ANY($2) 
-		AND an.organization_id = $3`
+			(an.location_id = ANY($1) OR an.program_id = ANY($2))
+		AND an.organization_id = $3
+		ORDER BY 
+		an.created_at DESC`
 	rows, err := s.db.Query(query, pq.Array(loc_id), pq.Array(pro_id), org_id)
 	if err != nil {
 		return nil, err

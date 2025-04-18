@@ -1060,9 +1060,6 @@ func (h *AuthHandler) GetSessionAccountability(w http.ResponseWriter, r *http.Re
 	}
 	model.TutorID = &tutor_id
 	model.OrganizationID = &idd
-	fmt.Println(model.StartDate)
-	fmt.Println(model.EndDate)
-
 	rows, err := h.authService.GetTutorSessionsAccountability(model)
 	if err != nil {
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
@@ -1714,9 +1711,10 @@ func (h *AuthHandler) CreateStudentSession(w http.ResponseWriter, r *http.Reques
 	}
 	user, err := h.authService.CreateStudentSessions(models)
 	if err != nil {
-		http.Error(w, "Unable to create Admin staff", http.StatusInternalServerError)
-		fmt.Printf("Unable to insert Admin staff: %v", err)
+		issue := fmt.Sprintf("Unable to create session: %v", err)
+		http.Error(w, issue, http.StatusInternalServerError)
 		return
+
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
@@ -2063,6 +2061,50 @@ func (h *AuthHandler) GetTutorSearch(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{"data": rows}
 	json.NewEncoder(w).Encode(response)
 }
+func (h *AuthHandler) GetTutorsSessions(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	email := query.Get("email")
+	role := query.Get("role")
+	id := query.Get("id")
+	semester_id := query.Get("semester_id")
+	location_id := query.Get("location_id")
+	var ss models.RequestTutorsSessions
+	if email == "" || role == "" || id == "" || semester_id == "" {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	idd, err := strconv.ParseInt(semester_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	ss.SemesterID = &idd
+	locid, err := strconv.ParseInt(location_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	ss.LocationID = &locid
+	tid, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	ss.ID = &tid
+	rows, err := h.authService.GetSessionsTutors(ss)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in Semesters %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
 
 func (h *AuthHandler) GetSessionInfo(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
@@ -2080,12 +2122,14 @@ func (h *AuthHandler) GetSessionInfo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
 		return
 	}
+	// THIS SHOULD RETURN SESSION BASED ON TUTOR_ID
 	rows, err := h.authService.SessionInfo(idd)
 	if err != nil {
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
 		fmt.Printf("Unable to get rows in Semesters %v", err)
 		return
 	}
+	// THIS SHOULD RETURN SESSIONS BASED ON SESSIONS ABOVE
 	a_rows, err := h.authService.AssessmentInfo(idd)
 	if err != nil {
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)

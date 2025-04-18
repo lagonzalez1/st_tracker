@@ -17,7 +17,7 @@ import (
 )
 
 func hello(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello, World!")
+	fmt.Fprintf(w, "Hello, World end.!")
 }
 
 func main() {
@@ -98,6 +98,7 @@ func main() {
 	apiMiddleware.HandleFunc("/tutor_search", authHandler.GetTutorSearch).Methods("GET")
 
 	apiMiddleware.HandleFunc("/get_tutor_sessions", authHandler.GetTutorSessionAnalytics).Methods("GET")
+	apiMiddleware.HandleFunc("/get_sessions", authHandler.GetTutorsSessions).Methods("GET")
 
 	apiMiddleware.HandleFunc("/create_session", authHandler.CreateStudentSession).Methods("POST")
 	apiMiddleware.HandleFunc("/create_assessment", authHandler.CreateAssessment).Methods("POST")
@@ -127,9 +128,11 @@ func main() {
 	apiMiddleware.HandleFunc("/get_student_info", authHandler.GetStudentInfo).Methods("GET")
 
 	apiMiddleware.HandleFunc("/get_announcements", authHandler.GetAnnouncements).Methods("GET")
-
+	apiMiddleware.HandleFunc("/get_tutor_file", authHandler.GetTutorFile).Methods("GET")
+	apiMiddleware.HandleFunc("/get_student_file", authHandler.GetStudentFile).Methods("GET")
 	apiMiddleware.HandleFunc("/get_locations", authHandler.GetLocations).Methods("GET")
 
+	// Return session id as well for duplicate
 	apiMiddleware.HandleFunc("/get_session_accountability", authHandler.GetSessionAccountability).Methods("GET")
 	apiMiddleware.HandleFunc("/get_tutors", authHandler.GetTutors).Methods("GET")
 	apiMiddleware.HandleFunc("/get_schedule", authHandler.GetSchedules).Methods("GET")

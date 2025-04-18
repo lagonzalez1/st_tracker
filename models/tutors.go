@@ -3,7 +3,12 @@ package models
 import "time"
 
 type TutorAccountability struct {
-	SessionDate string `json:"session_date"`
+	SessionDate time.Time `json:"session_date"`
+}
+
+type ResponseTutorAccountability struct {
+	SessionDates []TutorAccountability `json:"session_dates"`
+	NonWorkdays  []time.Time           `json:"nonworkdays_dates"`
 }
 
 type RequestTutorAccountability struct {
