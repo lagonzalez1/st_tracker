@@ -24,7 +24,7 @@ func generateJWTToken(claims jwt.MapClaims) (string, error) {
 	// Need to create a role to return here ?
 	jwt_object := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":   claims["sub"],
-		"exp":   time.Now().Add(10 * time.Minute).Unix(),
+		"exp":   time.Now().Add(1 * time.Hour).Unix(),
 		"iat":   time.Now().Unix(),
 		"type":  claims["type"],
 		"id":    claims["id"],
@@ -112,6 +112,7 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 			jwtToken := authHeader[1]
 			// Check if valid JWT
 			claims, jwtError := validateJWT(jwtToken, env_config.JWT)
+			fmt.Println("1. Claims-", claims)
 
 			if jwtError.Code == 501 {
 				// Not valid return Unauthorized
@@ -158,7 +159,7 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 				cookie_claims["permissions"] = permissions
 				// Set the header field with new access token
 				ctx := context.WithValue(r.Context(), "props", cookie_claims)
-				w.Header().Set("X-ACCESS-TOKEN", new_access_token)
+				w.Header().Set("X-Access-Token", new_access_token)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}

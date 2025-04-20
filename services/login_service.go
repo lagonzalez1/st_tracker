@@ -213,7 +213,7 @@ func (s *AuthService) generateAccessToken(user *models.User) (string, error) {
 	}
 	claims := jwt.MapClaims{
 		"sub":   user.Email,
-		"exp":   time.Now().Add(10 * time.Minute).Unix(),
+		"exp":   time.Now().Add(1 * time.Hour).Unix(),
 		"iat":   time.Now().Unix(),
 		"type":  user.Type,
 		"id":    user.ID,
@@ -236,10 +236,10 @@ func (s *AuthService) generateRefreshToken(user *models.User) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to load config: %w", err)
 	}
-
+	// About 6 months of access until
 	claims := jwt.MapClaims{
 		"sub":   user.Email,
-		"exp":   time.Now().Add(10 * time.Hour).Unix(),
+		"exp":   time.Now().Add(4380 * time.Hour).Unix(),
 		"iat":   time.Now().Unix(),
 		"type":  user.Type,
 		"id":    user.ID,
@@ -251,11 +251,5 @@ func (s *AuthService) generateRefreshToken(user *models.User) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to sign token: %w", err)
 	}
-
-	log.Printf("Token length for %s: %d", user.Type, len(tokenString))
-	tokenSize := len(tokenString)
-	fmt.Printf("Refresh token size: %d bytes\n", tokenSize)
-	fmt.Print(time.Now().Add(5 * time.Hour).Unix())
-
 	return tokenString, nil
 }

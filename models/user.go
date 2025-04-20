@@ -63,31 +63,35 @@ type RegisterResponseAdminRoot struct {
 	OrganizationId *int64 `json:"organization_id"`
 }
 type RegisterRequestStudents struct {
-	ID         *int64  `json:"id"`
-	FirstName  string  `json:"firstname"`
-	MiddleName string  `json:"middle_name"`
-	LastName   string  `json:"last_name"`
-	Period     *int64  `json:"period,omitempty"`
-	Email      *string `json:"email"`
-	GradeLevel int     `json:"grade_level"`
-	Active     bool    `json:"active"`
-	CreatedAt  string  `json:"created_at"`
-	LocationId *int64  `json:"location_id"`
-	CreatedBy  string  `json:"created_by"`
+	ID                *int64  `json:"id"`
+	FirstName         string  `json:"firstname"`
+	MiddleName        string  `json:"middle_name"`
+	LastName          string  `json:"last_name"`
+	Period            *int64  `json:"period,omitempty"`
+	SemesterID        *int64  `json:"semester_id"`
+	Email             *string `json:"email"`
+	GradeLevel        int     `json:"grade_level"`
+	Active            bool    `json:"active"`
+	CreatedAt         string  `json:"created_at"`
+	LocationId        *int64  `json:"location_id"`
+	DirectPartnership bool    `json:"direct_partnership"`
+	TutorID           *int64  `json:"tutor_id"`
+	CreatedBy         string  `json:"created_by"`
 }
 
 type ResponseRequestStudentList struct {
-	ID         int64   `json:"id"`
-	FirstName  string  `json:"first_name"`
-	MiddleName string  `json:"middle_name"`
-	LastName   string  `json:"last_name"`
-	Email      *string `json:"email"`
-	GradeLevel int     `json:"grade_level"`
-	Active     bool    `json:"active"`
-	CreatedAt  string  `json:"created_at"`
-	Period     *int64  `json:"period,omitempty"`
-	SemesterId *int64  `json:"semester_id"`
-	LocationId *int64  `json:"location_id"`
+	ID                int64   `json:"id"`
+	FirstName         string  `json:"first_name"`
+	MiddleName        string  `json:"middle_name"`
+	LastName          string  `json:"last_name"`
+	Email             *string `json:"email"`
+	GradeLevel        int     `json:"grade_level"`
+	Active            bool    `json:"active"`
+	CreatedAt         string  `json:"created_at"`
+	Period            *int64  `json:"period,omitempty"`
+	SemesterId        *int64  `json:"semester_id"`
+	DirectPartnership bool    `json:"direct_partnership"`
+	LocationId        *int64  `json:"location_id"`
 }
 
 type ResponseRequestStudents struct {

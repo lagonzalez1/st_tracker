@@ -120,18 +120,39 @@ func (s *AuthService) GetSubjectByLocation(org_id int64, loc_id int64) ([]models
 	return subjects, nil
 }
 
-func (s *AuthService) GetStudentsByID(id int64, role string, locationId int64) ([]models.ResponseRequestStudentList, error) {
+func (s *AuthService) GetStudentsByID(id int64, role string, locationId int64, tutorId int64) ([]models.ResponseRequestStudentList, error) {
 	var query string
-	query += `
-			SELECT stu.id, stu.first_name, stu.last_name, stu.middle_name, 
-			stu.location_id, stu.email, stu.grade_level, stu.active, stu.period, 
-			stu.created_at, stu.semester_id
-			FROM stu_tracker.Students stu
-			LEFT JOIN stu_tracker.Locations loc
-			ON stu.location_id = loc.id
-			WHERE loc.organization_id = $1 AND loc.id = $2;`
+	var rows *sql.Rows
+	var err error
+	// If Admin or root return all students given organization and location id
+	if role == "ADMIN" || role == "ROOT" {
+		query += `
+		SELECT stu.id, stu.first_name, stu.last_name, stu.middle_name, 
+		stu.location_id, stu.email, stu.grade_level, stu.active, stu.period, 
+		stu.created_at, stu.semester_id, direct_partnership
+		FROM stu_tracker.Students stu
+		JOIN stu_tracker.Locations loc
+		ON stu.location_id = loc.id
+		WHERE loc.organization_id = $1 AND loc.id = $2;`
+		rows, err = s.db.Query(query, id, locationId)
+	}
+	// If tutor return all students and if tutor_id is marked return such students
+	if role == "TUTOR" {
+		query += `
+		SELECT stu.id, stu.first_name, stu.last_name, stu.middle_name, 
+		stu.location_id, stu.email, stu.grade_level, stu.active, stu.period, 
+		stu.created_at, stu.semester_id, direct_partnership
+		FROM stu_tracker.Students stu
+		JOIN stu_tracker.Locations loc
+		ON stu.location_id = loc.id
+		WHERE loc.id = $1
+		AND ( 
+			direct_partnership = FALSE 
+			OR (direct_partnership = TRUE AND tutor_id = $2)
+		);`
+		rows, err = s.db.Query(query, locationId, tutorId)
+	}
 
-	rows, err := s.db.Query(query, id, locationId)
 	if err != nil {
 		return nil, fmt.Errorf("error querying Students: %w", err)
 	}
@@ -154,11 +175,11 @@ func (s *AuthService) GetStudentsByID(id int64, role string, locationId int64) (
 			&student.Period,
 			&student.CreatedAt,
 			&student.SemesterId,
+			&student.DirectPartnership,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan row: %v", err)
 		}
-
 		// Convert nullable fields
 		if middleName.Valid {
 			student.MiddleName = middleName.String

@@ -40,8 +40,9 @@ func main() {
 		AllowedOrigins:   []string{"https://presentifyclone.click", "http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		ExposedHeaders:   []string{"X-Access-Token"},
 		AllowCredentials: true,
-		Debug:            true, // Log CORS issues
+		Debug:            false, // Log CORS issues
 	})
 	//api.ConnectSheetsAPI()
 

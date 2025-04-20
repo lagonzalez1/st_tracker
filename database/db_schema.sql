@@ -205,10 +205,12 @@ CREATE TABLE stu_tracker.Semester_Location (
 );
 
 
-/** PERIOD CHANGED TO VAR CHAR*/
+/** PERIOD CHANGED TO VAR CHAR */
+/** DIRECT-PARTNERSHIP ADDED APR 19 2025 */ 
 CREATE TABLE stu_tracker.Students (
     id SERIAL PRIMARY KEY,
     location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE SET NULL,
+    tutor_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE SET NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     middle_name VARCHAR(255) DEFAULT NULL,
@@ -221,6 +223,7 @@ CREATE TABLE stu_tracker.Students (
     ),,
     grade_level INT CHECK (grade_level BETWEEN 0 AND 12),
     active BOOLEAN DEFAULT TRUE,
+    direct_partnership BOOLEAN DEFAULT FALSE,
     created_by TEXT,
     created_by_id INT,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

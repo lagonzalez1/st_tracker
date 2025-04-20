@@ -7,11 +7,22 @@ import (
 	"strconv"
 	"time"
 	"tracker/app/models"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func (h *AuthHandler) GetSessionAnalytics(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	// Undefined variables like optional location_id
 	// Check if exist before
 	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
@@ -77,6 +88,16 @@ func (h *AuthHandler) GetTutorSessionAnalytics(w http.ResponseWriter, r *http.Re
 	query := r.URL.Query()
 	// Undefined variables like optional location_id
 	// Check if exist before
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -123,7 +144,16 @@ func (h *AuthHandler) GetTutorSessionAnalytics(w http.ResponseWriter, r *http.Re
 
 func (h *AuthHandler) GetSessionBChart(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	// Undefined variables like optional location_id
 	// Check if exist before
 	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
@@ -191,7 +221,16 @@ func (h *AuthHandler) GetSessionBChart(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) GetAssessmentBChart(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	// Undefined variables like optional location_id
 	// Check if exist before
 	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
@@ -259,7 +298,16 @@ func (h *AuthHandler) GetAssessmentBChart(w http.ResponseWriter, r *http.Request
 
 func (h *AuthHandler) GetProgramsBChart(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	// Undefined variables like optional location_id
 	// Check if exist before
 	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
@@ -327,7 +375,16 @@ func (h *AuthHandler) GetProgramsBChart(w http.ResponseWriter, r *http.Request) 
 
 func (h *AuthHandler) GetTutorsBChart(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	// Undefined variables like optional location_id
 	// Check if exist before
 	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
@@ -395,7 +452,16 @@ func (h *AuthHandler) GetTutorsBChart(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) GetAssessmentTrendLine(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	// Undefined variables like optional location_id
 	// Check if exist before
 	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
@@ -462,7 +528,16 @@ func (h *AuthHandler) GetAssessmentTrendLine(w http.ResponseWriter, r *http.Requ
 }
 func (h *AuthHandler) GetSessionTrendLine(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	// Undefined variables like optional location_id
 	// Check if exist before
 	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
@@ -530,7 +605,16 @@ func (h *AuthHandler) GetSessionTrendLine(w http.ResponseWriter, r *http.Request
 
 func (h *AuthHandler) GetSemestersVAssessmentChart(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	// Undefined variables like optional location_id
 	// Check if exist before
 	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
@@ -603,7 +687,16 @@ func (h *AuthHandler) GetSemestersVAssessmentChart(w http.ResponseWriter, r *htt
 
 func (h *AuthHandler) GetAssessmentGrowth(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	// Undefined variables like optional location_id
 	// Check if exist before
 	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
@@ -668,6 +761,16 @@ func (h *AuthHandler) GetAssessmentGrowth(w http.ResponseWriter, r *http.Request
 
 func (h *AuthHandler) GetTutorFile(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var model models.RequestDownloadData
 	if query.Get("location_id") != "" {
 		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
@@ -725,6 +828,16 @@ func (h *AuthHandler) GetTutorFile(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) GetStudentFile(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var model models.RequestDownloadData
 	if query.Get("location_id") != "" {
 		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)

@@ -194,7 +194,16 @@ func (h *AuthHandler) CreateStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:students")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var models models.RegisterRequestStudents
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -220,7 +229,16 @@ func (h *AuthHandler) UpdateStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:students")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var models models.RegisterRequestStudents
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -246,7 +264,16 @@ func (h *AuthHandler) DeleteStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "delete:students")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var models models.RemoveRequest
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -453,7 +480,7 @@ func (h *AuthHandler) DeleteProgramLocation(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	valid, err := validateRequest(claims, "delete:program")
+	valid, err := validateRequest(claims, "delete:program-location")
 	if err != nil || !valid {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
@@ -857,8 +884,8 @@ func (h *AuthHandler) CreateAdminStaff(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Unable to insert Admin staff: %v", err)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(user)
 }
 
@@ -917,6 +944,16 @@ func (h *AuthHandler) CreateTutor(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body")
 		return
 	}
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:tutors")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	fmt.Printf("Request body %s\n", string(body))
 	var models models.RegisterRequestTutor
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -941,6 +978,16 @@ func (h *AuthHandler) UpdateTutor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:tutors")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var models models.RegisterRequestTutor
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -964,6 +1011,16 @@ func (h *AuthHandler) DeleteTutor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:tutors")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var models models.RemoveRequest
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -987,8 +1044,13 @@ func (h *AuthHandler) GetLocations(w http.ResponseWriter, r *http.Request) {
 	id := query.Get("id")
 	org_id := query.Get("organization_id")
 
-	_, ok := r.Context().Value("props").(jwt.MapClaims)
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:locations")
+	if err != nil || !valid {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -1081,11 +1143,6 @@ func (h *AuthHandler) GetSubjectLocations(w http.ResponseWriter, r *http.Request
 	org_id := query.Get("organization_id")
 	loc_id := query.Get("location_id")
 
-	_, ok := r.Context().Value("props").(jwt.MapClaims)
-	if !ok {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
 	if email == "" || role == "" || id == "" || org_id == "" || loc_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -1161,6 +1218,16 @@ func (h *AuthHandler) CreateProgramLocation(w http.ResponseWriter, r *http.Reque
 		fmt.Printf("error found reading body")
 		return
 	}
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:program-location")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	fmt.Printf("Request body %s\n", string(body))
 	var models models.RegisterLocationProgram
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -1185,7 +1252,16 @@ func (h *AuthHandler) GetStudents(w http.ResponseWriter, r *http.Request) {
 	id := query.Get("id")
 	lid := query.Get("locationId")
 	org_id := query.Get("organization_id")
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:students")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if email == "" || role == "" || id == "" || lid == "" || org_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -1200,7 +1276,12 @@ func (h *AuthHandler) GetStudents(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to parse location id", http.StatusInternalServerError)
 		return
 	}
-	rows, err := h.authService.GetStudentsByID(idd, role, locationId)
+	tid, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse location id", http.StatusInternalServerError)
+		return
+	}
+	rows, err := h.authService.GetStudentsByID(idd, role, locationId, tid)
 	if err != nil {
 		fmt.Printf("Error unable to login: %v", err)
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
@@ -1220,7 +1301,16 @@ func (h *AuthHandler) GetAdmins(w http.ResponseWriter, r *http.Request) {
 	role := query.Get("role")
 	id := query.Get("id")
 	org_id := query.Get("organization_id")
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:admin")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if email == "" || role == "" || id == "" || org_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -1249,7 +1339,16 @@ func (h *AuthHandler) GetDistricts(w http.ResponseWriter, r *http.Request) {
 	role := query.Get("role")
 	id := query.Get("id")
 	org_id := query.Get("organization_id")
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:district")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if email == "" || role == "" || id == "" || org_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -1277,7 +1376,16 @@ func (h *AuthHandler) GetPrograms(w http.ResponseWriter, r *http.Request) {
 	role := query.Get("role")
 	id := query.Get("id")
 	org_id := query.Get("organization_id")
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:program")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if email == "" || role == "" || id == "" || org_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -1306,7 +1414,16 @@ func (h *AuthHandler) GetSemesterLocations(w http.ResponseWriter, r *http.Reques
 	id := query.Get("id")
 	org_id := query.Get("organization_id")
 	location_id := query.Get("location_id")
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:semester-locations")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if email == "" || role == "" || id == "" || org_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -1408,7 +1525,16 @@ func (h *AuthHandler) GetSchedules(w http.ResponseWriter, r *http.Request) {
 	id := query.Get("id")
 	tutor_id := query.Get("tutor_id")
 	org_id := query.Get("organization_id")
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:tutors")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if email == "" || role == "" || id == "" || org_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -1438,7 +1564,16 @@ func (h *AuthHandler) GetSemesters(w http.ResponseWriter, r *http.Request) {
 	role := query.Get("role")
 	id := query.Get("id")
 	org_id := query.Get("organization_id")
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:semester")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if email == "" || role == "" || id == "" || org_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -1469,7 +1604,16 @@ func (h *AuthHandler) GetAssessments(w http.ResponseWriter, r *http.Request) {
 	role := query.Get("role")
 	id := query.Get("id")
 	org_id := query.Get("organization_id")
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:assessments")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if email == "" || role == "" || id == "" || org_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -1499,7 +1643,16 @@ func (h *AuthHandler) GetSubjects(w http.ResponseWriter, r *http.Request) {
 	role := query.Get("role")
 	id := query.Get("id")
 	org_id := query.Get("organization_id")
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:subject")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if email == "" || role == "" || id == "" || org_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -1530,6 +1683,16 @@ func (h *AuthHandler) CreateTutorLocation(w http.ResponseWriter, r *http.Request
 		fmt.Printf("error found reading body")
 		return
 	}
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:tutors")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	fmt.Printf("Request body %s\n", string(body))
 	var models models.RegisterTutorLocation
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -1553,7 +1716,16 @@ func (h *AuthHandler) GetTutorLocations(w http.ResponseWriter, r *http.Request) 
 	role := query.Get("role")
 	id := query.Get("id")
 	org_id := query.Get("organization_id")
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:tutors")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if email == "" || role == "" || id == "" || org_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -1588,6 +1760,16 @@ func (h *AuthHandler) DeleteTutorLocation(w http.ResponseWriter, r *http.Request
 		fmt.Printf("error found reading body")
 		return
 	}
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:tutors")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	fmt.Printf("Request body %s\n", string(body))
 	var models models.RemoveTutorLocation
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -1609,6 +1791,16 @@ func (h *AuthHandler) DeleteSchedule(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		fmt.Printf("error found reading body")
+		return
+	}
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "delete:tutors")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
@@ -1634,6 +1826,16 @@ func (h *AuthHandler) CreateSubject(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body")
 		return
 	}
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:subject")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	fmt.Printf("Request body %s\n", string(body))
 	var models models.RegisterSubject
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -1655,6 +1857,16 @@ func (h *AuthHandler) UpdateSubject(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		fmt.Printf("error found reading body")
+		return
+	}
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:subject")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
@@ -1680,6 +1892,16 @@ func (h *AuthHandler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body")
 		return
 	}
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "delete:subject")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	fmt.Printf("Request body %s\n", string(body))
 	var models models.RemoveRequest
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -1701,6 +1923,16 @@ func (h *AuthHandler) CreateStudentSession(w http.ResponseWriter, r *http.Reques
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		fmt.Printf("error found reading body")
+		return
+	}
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
@@ -1727,6 +1959,16 @@ func (h *AuthHandler) CreateAssessment(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body")
 		return
 	}
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:assessments")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	fmt.Printf("Request body %s\n", string(body))
 	var models models.RegisterAssessment
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -1743,6 +1985,7 @@ func (h *AuthHandler) CreateAssessment(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
+
 func (h *AuthHandler) UpdateAssessment(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -1750,6 +1993,16 @@ func (h *AuthHandler) UpdateAssessment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:assessments")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var models models.RegisterAssessment
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -1772,6 +2025,16 @@ func (h *AuthHandler) DeleteAssessment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "delete:assessments")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var models models.RemoveRequest
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -1795,6 +2058,16 @@ func (h *AuthHandler) CreateAnnouncement(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:announcements")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var models models.RegisterAnnouncements
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -1818,6 +2091,16 @@ func (h *AuthHandler) DeleteAnnouncement(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "delete:announcements")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var models models.RemoveRequest
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -1841,6 +2124,16 @@ func (h *AuthHandler) UpdateAnnouncement(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:announcements")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var models models.RegisterUpdateAnnouncements
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -1860,6 +2153,16 @@ func (h *AuthHandler) UpdateAnnouncement(w http.ResponseWriter, r *http.Request)
 func (h *AuthHandler) GetSessionSearch(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	// Undefined variables like optional location_id
 	// Check if exist before
 	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
@@ -1943,7 +2246,16 @@ func (h *AuthHandler) GetSessionSearch(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) GetStudentSessionSearch(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	// Undefined variables like optional location_id
 	// Check if exist before
 	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
@@ -2028,8 +2340,16 @@ func (h *AuthHandler) GetStudentSessionSearch(w http.ResponseWriter, r *http.Req
 func (h *AuthHandler) GetTutorSearch(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
-	// Undefined variables like optional location_id
-	// Check if exist before
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") || !query.Has("search_term") {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -2061,6 +2381,7 @@ func (h *AuthHandler) GetTutorSearch(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{"data": rows}
 	json.NewEncoder(w).Encode(response)
 }
+
 func (h *AuthHandler) GetTutorsSessions(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	email := query.Get("email")
@@ -2068,6 +2389,16 @@ func (h *AuthHandler) GetTutorsSessions(w http.ResponseWriter, r *http.Request) 
 	id := query.Get("id")
 	semester_id := query.Get("semester_id")
 	location_id := query.Get("location_id")
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var ss models.RequestTutorsSessions
 	if email == "" || role == "" || id == "" || semester_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
@@ -2113,6 +2444,16 @@ func (h *AuthHandler) GetSessionInfo(w http.ResponseWriter, r *http.Request) {
 	id := query.Get("id")
 	org_id := query.Get("organization_id")
 	session_id := query.Get("session_id")
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if email == "" || role == "" || id == "" || org_id == "" || session_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -2152,7 +2493,16 @@ func (h *AuthHandler) GetStudentInfo(w http.ResponseWriter, r *http.Request) {
 	id := query.Get("id")
 	org_id := query.Get("organization_id")
 	student_id := query.Get("student_id")
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if email == "" || role == "" || id == "" || org_id == "" || student_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -2196,7 +2546,16 @@ func (h *AuthHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
 	role := query.Get("role")
 	org_id := query.Get("organization_id")
 	id := query.Get("id")
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:permissions")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if email == "" || role == "" || org_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -2230,7 +2589,16 @@ func (h *AuthHandler) GetOrganizationPermissions(w http.ResponseWriter, r *http.
 	email := query.Get("email")
 	role := query.Get("role")
 	org_id := query.Get("organization_id")
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:permissions")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if email == "" || role == "" || org_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
@@ -2263,7 +2631,16 @@ func (h *AuthHandler) GetAnnouncements(w http.ResponseWriter, r *http.Request) {
 	location_ids := query.Get("location_ids")
 	program_ids := query.Get("program_ids")
 	org_id := query.Get("organization_id")
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:announcements")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	oid, err := strconv.ParseInt(org_id, 10, 64)
 	if err != nil {
 		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
@@ -2313,7 +2690,16 @@ func (h *AuthHandler) CreateSubjectLocation(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:subject-location")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var models models.RegisterSubjectLocation
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -2339,7 +2725,16 @@ func (h *AuthHandler) DeleteSubjectLocation(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	fmt.Printf("Request body %s\n", string(body))
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "delete:subject-location")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var models models.RemoveSubjectLocation
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
