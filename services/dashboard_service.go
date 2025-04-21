@@ -13,7 +13,7 @@ func (s *AuthService) GetLocationsByID(id int64, role string) ([]models.Response
 	var query string
 	query += `
 		SELECT loc.id, loc.name, loc.address, loc.city, loc.state, loc.zip_code, loc.created_at, loc.district_id
-		FROM stu_tracker.Locations loc where loc.organization_id = $1;`
+		FROM stu_tracker.Locations loc WHERE loc.organization_id = $1;`
 	rows, err := s.db.Query(query, id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying locations: %w", err)

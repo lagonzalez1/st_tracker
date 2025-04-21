@@ -26,7 +26,7 @@ INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_
 
 -- Permissions for semester
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:semester', 'Permission to delete semester', 'root', 'admin');
-INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:semester', 'Permission to view semester', 'root', 'admin');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:semester', 'Permission to view semester', 'tutor', 'admin');
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:semester', 'Permission to write semester', 'root', 'admin');
 
 -- Permissions for students
@@ -81,19 +81,19 @@ INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_
 
 -- Student data permissions
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:student-data', 'write big student data', 'root', 'admin');
-INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:student-data', 'view big student data', 'root', 'admin');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:student-data', 'view big student data', 'tutor', 'admin');
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:student-data', 'delete big student data', 'root', 'admin');
 
 
 -- Semester locations
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:semester-location', 'Write semester locations', 'root', 'admin');
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:semester-location', 'Delete semester locations','root', 'admin');
-INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:semester-location', 'View semester locations', 'root', 'admin');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:semester-location', 'View semester locations', 'tutor', 'admin');
 
 -- Subject locations
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:subject-location', 'Write subject locations', 'root', 'admin');
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:subject-location', 'Delete subject locations','root', 'admin');
-INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:subject-location', 'View subject locations', 'root', 'admin');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:subject-location', 'View subject locations', 'tutor', 'admin');
 
 
 -- Password
