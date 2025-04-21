@@ -13,6 +13,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type CookieSettings struct {
+}
+
 type UserFinder interface {
 	FindByEmail(email string) (*models.User, error)
 	GetPermissions(userID, orgID int64) ([]string, error)

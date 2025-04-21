@@ -65,7 +65,6 @@ CREATE TABLE stu_tracker.Locations (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     district_id INT REFERENCES stu_tracker.District(id) ON DELETE SET NULL,
-    admin_id INT REFERENCES stu_tracker.Admin_root(id) ON DELETE SET NULL,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     address VARCHAR(255) NOT NULL,
     city VARCHAR(255) NOT NULL,

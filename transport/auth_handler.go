@@ -1148,7 +1148,7 @@ func (h *AuthHandler) GetLocations(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := h.authService.GetLocationsByID(idd, role)
 	if err != nil {
-		fmt.Errorf("getLocationsByID: error: %v", err)
+		fmt.Printf("getLocationsByID: error: %v", err)
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
 		return
 	}
