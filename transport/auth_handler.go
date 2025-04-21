@@ -79,11 +79,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error unable to login: %v", err)
 		return
 	}
+	expiresAt := time.Now().Add(4380 * time.Hour)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "_auth",
 		Value:    *user.RefreshToken,
 		Path:     "/",
-		MaxAge:   3600 * 5,
+		Expires:  expiresAt,
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
