@@ -36,12 +36,11 @@ func (s *AuthService) GetLocationsByID(id int64, role string) ([]models.Response
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
 		}
+		// Check for any errors encountered during iteration
+		if err = rows.Err(); err != nil {
+			return nil, fmt.Errorf("error iterating over rows: %w", err)
+		}
 		locations = append(locations, location)
-	}
-
-	// Check for any errors encountered during iteration
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating over rows: %w", err)
 	}
 
 	return locations, nil

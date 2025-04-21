@@ -104,7 +104,7 @@ type ResponseRequestLocations struct {
 	Address    string `json:"address"`
 	City       string `json:"city"`
 	State      string `json:"state"`
-	ZipCode    int64  `json:"zip_code"`
+	ZipCode    string `json:"zip_code"`
 	CreatedAt  string `json:"created_at"`
 	DistrictId *int64 `json:"district_id"`
 }
