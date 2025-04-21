@@ -506,7 +506,7 @@ func (s *AuthService) GetAssessmentsById(id int64, role string) ([]models.Respon
 func (s *AuthService) GetProgramsByLocation(locId int64, org_id int64) ([]models.ResponseRequestProgramList, error) {
 	var query string
 	query += `
-		SELECT p.id, p.program_name, p.created_at
+		SELECT p.id, p.program_name, p.created_at, lp.location_id
 		FROM stu_tracker.Location_programs lp
 		JOIN stu_tracker.Programs p ON lp.program_id = p.id
 		WHERE lp.location_id = $1 AND p.organization_id = $2`
@@ -524,6 +524,7 @@ func (s *AuthService) GetProgramsByLocation(locId int64, org_id int64) ([]models
 			&program.ID,
 			&program.ProgramName,
 			&program.CreatedAt,
+			&program.LocationID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)

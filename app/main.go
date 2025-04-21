@@ -42,7 +42,7 @@ func main() {
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		ExposedHeaders:   []string{"X-Access-Token"},
 		AllowCredentials: true,
-		Debug:            false, // Log CORS issues
+		Debug:            true, // Log CORS issues
 	})
 	//api.ConnectSheetsAPI()
 

@@ -73,12 +73,12 @@ func (s *AuthService) CreateProgramLocation(req models.RegisterLocationProgram) 
 
 func (s *AuthService) DeleteProgramLocation(req models.RemoveLocationProgram) (*models.RemoveResponse, error) {
 	// Input validation
-	if req.LocationId == nil || req.OrganizationID == nil || req.ProgramId == nil {
+	if req.LocationId == nil || req.ProgramId == nil {
 		return nil, fmt.Errorf("missing required fields: ID")
 	}
-	query := `DELETE FROM stu_tracker.Location_programs WHERE location_id = $1, program_id = $2, organization_id = $3;`
+	query := `DELETE FROM stu_tracker.Location_programs WHERE location_id = $1 AND program_id = $2`
 
-	_, err := s.db.Exec(query, req.LocationId, req.ProgramId, req.OrganizationID)
+	_, err := s.db.Exec(query, req.LocationId, req.ProgramId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}

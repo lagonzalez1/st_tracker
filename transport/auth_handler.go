@@ -1179,12 +1179,16 @@ func (h *AuthHandler) GetLocationPrograms(w http.ResponseWriter, r *http.Request
 	org_id := query.Get("organization_id")
 	loc_id := query.Get("location_id")
 
-	_, ok := r.Context().Value("props").(jwt.MapClaims)
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	//fmt.Print(props["sub"].(string))
+	valid, err := validateRequest(claims, "view:program-location")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if email == "" || role == "" || id == "" || org_id == "" || loc_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return

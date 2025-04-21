@@ -41,7 +41,7 @@ INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_
 
 -- Permissions for tutors
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:tutors', 'Permission to delete tutors', 'root', 'admin');
-INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:tutors', 'Permission to view tutors', 'root', 'admin');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:tutors', 'Permission to view tutors', 'tutor', 'admin');
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:tutors', 'Permission to write tutors', 'root', 'admin');
 
 -- Permissions for tutor-locations

@@ -160,6 +160,7 @@ type ResponseRequestDistrictList struct {
 
 type ResponseRequestProgramList struct {
 	ID          int64  `json:"id"`
+	LocationID  *int64 `json:"location_id"`
 	ProgramName string `json:"program_name"`
 	CreatedAt   string `json:"created_at"`
 }
