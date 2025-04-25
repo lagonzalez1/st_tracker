@@ -1724,6 +1724,42 @@ func (h *AuthHandler) GetAssessments(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (h *AuthHandler) GetAssessmentQuestions(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	ast_id := query.Get("assessment_id")
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:assessments")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if ast_id == "" {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	idd, err := strconv.ParseInt(ast_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	rows, err := h.authService.GetAssessmentsQuestionsChoice(idd)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in Semesters %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
 func (h *AuthHandler) GetSubjects(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	email := query.Get("email")

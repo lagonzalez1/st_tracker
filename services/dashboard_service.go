@@ -455,7 +455,7 @@ func (s *AuthService) GetAssessmentsById(id int64, role string) ([]models.Respon
 			COALESCE(sb.title, 'NA') AS subject_name, 
 			COALESCE(pg.program_name, 'NA') AS program_name, 
 			pg.id as program_id,
-			aas.version, aas.pre, aas.mid, aas.post, aas.visible
+			aas.version, aas.pre, aas.mid, aas.post, aas.visible, aas.easy_score
 			FROM stu_tracker.Assessments aas 
 			LEFT JOIN stu_tracker.Subjects sb
 			ON sb.id = aas.subject_id
@@ -490,6 +490,7 @@ func (s *AuthService) GetAssessmentsById(id int64, role string) ([]models.Respon
 			&assessment.Mid,
 			&assessment.Post,
 			&assessment.Visible,
+			&assessment.EasyScore,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -500,6 +501,62 @@ func (s *AuthService) GetAssessmentsById(id int64, role string) ([]models.Respon
 		return nil, fmt.Errorf("error scanning for districts")
 	}
 	return assessments, nil
+}
+
+func (s *AuthService) GetAssessmentsQuestionsChoice(assessment_id int64) ([]models.ResponseAssessmentQuestionsChoice, error) {
+	query := `
+		SELECT 
+			q.id as question_id,
+			q.assessment_id,
+			q.image_url,
+			q.question_text,
+			q.question_type,
+			q.points,
+			q.order_number,
+			c.id as choice_id,
+			c.choice_text,
+			CAST(c.is_correct AS TEXT) as is_correct,
+			COALESCE(c.order_number, 0) as choice_order
+		FROM 
+			stu_tracker.Questions q
+		LEFT JOIN 
+			stu_tracker.Choices c ON c.question_id = q.id
+		WHERE q.assessment_id = $1
+		ORDER BY q.order_number ASC, c.order_number ASC;`
+	rows, err := s.db.Query(query, assessment_id)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var results []models.ResponseAssessmentQuestionsChoice
+
+	for rows.Next() {
+		var r models.ResponseAssessmentQuestionsChoice
+		err := rows.Scan(
+			&r.QuestionID,
+			&r.AssessmentID,
+			&r.ImageURL,
+			&r.QuestionText,
+			&r.QuestionType,
+			&r.Points,
+			&r.OrderNumber,
+			&r.ChoiceID,
+			&r.ChoiceText,
+			&r.IsCorrect,
+			&r.ChoiceOrderNumber,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		results = append(results, r)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("row iteration error: %w", err)
+	}
+
+	return results, nil
 }
 
 func (s *AuthService) GetProgramsByLocation(locId int64, org_id int64) ([]models.ResponseRequestProgramList, error) {
@@ -915,6 +972,7 @@ func (s *AuthService) getAdminAnnouncements(org_id int64) ([]models.Announcement
 	return announcements, nil
 
 }
+
 func (s *AuthService) getTutorAnnouncements(loc_id []int64, org_id int64, pro_id []int64) ([]models.AnnouncementsList, error) {
 	var query string
 	query += `

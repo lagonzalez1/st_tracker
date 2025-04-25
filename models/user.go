@@ -350,9 +350,15 @@ type ResponseRegisterOrganization struct {
 }
 
 type RegisterStudentSessionList struct {
-	Session        RegisterTutorSession     `json:"session"`
-	SessionList    []RegisterStudentSession `json:"student_sessions"`
-	OrganizationID *int64                   `json:"organization_id"`
+	Session        RegisterTutorSession          `json:"session"`
+	SessionList    []RegisterStudentSession      `json:"student_sessions"`
+	Assessments    map[string]*AssessmentPayload `json:"assessments"`
+	OrganizationID *int64                        `json:"organization_id"`
+}
+
+type AssessmentPayload struct {
+	AssessmentID *int64         `json:"assessment_id"`
+	Choices      map[string]int `json:"choices,omitempty"`
 }
 
 type RegisterTutorSession struct {
@@ -441,6 +447,7 @@ type RegisterStudentSession struct {
 	SubjectId       *int64 `json:"subject_id"`
 	AssessmentId    *int64 `json:"assessment_id"`
 	AssessmentScore *int64 `json:"score"`
+	EasyScoreID     bool   `json:"easy_score"`
 }
 
 type StudentList struct {
@@ -479,27 +486,63 @@ type ResponseAssessmentList struct {
 	Pre             bool    `json:"pre"`
 	Mid             bool    `json:"mid"`
 	Post            bool    `json:"post"`
+	EasyScore       bool    `json:"easy_score"`
+}
+
+type ResponseAssessmentQuestionsChoice struct {
+	QuestionID        *int64 `json:"question_id"`
+	AssessmentID      *int64 `json:"assessment_id"`
+	ImageURL          string `json:"image_url"`
+	QuestionText      string `json:"question_text"`
+	QuestionType      string `json:"question_type"`
+	Points            int    `json:"points"`
+	OrderNumber       int    `json:"order_number"`
+	ChoiceID          *int64 `json:"choice_id"`
+	ChoiceText        string `json:"choice_text"`
+	IsCorrect         bool   `json:"is_correct"`
+	ChoiceOrderNumber int    `json:"choice_order"`
 }
 
 type RegisterAssessment struct {
-	ID              *int64  `json:"id"`
-	Title           string  `json:"title"`
-	Description     string  `json:"description,omitempty"`
-	Letter          string  `json:"letter"`
-	Cycle           *int64  `json:"cycle"`
-	Visible         bool    `json:"visible"`
-	AlphaIdentifier string  `json:"alpha_identifier,omitempty"`
-	ExternalLink    string  `json:"external_link,omitempty"`
-	MaxScore        *int64  `json:"max_score,omitempty"`
-	SubjectId       *int64  `json:"subject_id,omitempty"`
-	OrganizationID  *int64  `json:"organization_id"`
-	MaterialID      *int    `json:"material_id,omitempty"`
-	ProgramId       *int64  `json:"program_id"`
-	CreatedAt       string  `json:"created_at"`
-	Version         float64 `json:"version"`
-	Pre             bool    `json:"pre"`
-	Mid             bool    `json:"mid"`
-	Post            bool    `json:"post"`
+	ID              *int64                `json:"id"`
+	Title           string                `json:"title"`
+	Description     string                `json:"description,omitempty"`
+	Letter          string                `json:"letter"`
+	Cycle           *int64                `json:"cycle"`
+	Visible         bool                  `json:"visible"`
+	AlphaIdentifier string                `json:"alpha_identifier,omitempty"`
+	ExternalLink    string                `json:"external_link,omitempty"`
+	MaxScore        *int64                `json:"max_score,omitempty"`
+	SubjectId       *int64                `json:"subject_id,omitempty"`
+	OrganizationID  *int64                `json:"organization_id"`
+	MaterialID      *int                  `json:"material_id,omitempty"`
+	ProgramId       *int64                `json:"program_id"`
+	CreatedAt       string                `json:"created_at"`
+	Version         float64               `json:"version"`
+	Pre             bool                  `json:"pre"`
+	Mid             bool                  `json:"mid"`
+	Post            bool                  `json:"post"`
+	EasyScore       bool                  `json:"easy_score"`
+	Questions       []AssessmentQuestions `json:"questions"`
+	RemoveQuestions []int64               `json:"remove_questions"`
+}
+
+type AssessmentQuestions struct {
+	QuestionID   *int64              `json:"question_id"`
+	ImageURL     string              `json:"image_url"`
+	Required     bool                `json:"is_required"`
+	OrderNumber  int                 `json:"order_number"`
+	Points       int                 `json:"points"`
+	QuestionText string              `json:"question_text"`
+	QuestionType string              `json:"question_type"`
+	Choice       []AssessmentChoices `json:"choices"`
+}
+
+type AssessmentChoices struct {
+	ChoiceID    *int64 `json:"choice_id"`
+	ChoiceText  string `json:"choice_text"`
+	IsCorrect   bool   `json:"is_correct"`
+	OrderNumber int    `json:"order_number"`
 }
 
 type RegisterResponseAssessment struct {

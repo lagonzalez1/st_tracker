@@ -159,6 +159,7 @@ CREATE TABLE stu_tracker.Materials (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Added easy_score boolean for Question support
 CREATE TABLE stu_tracker.Assessments (
     id SERIAL PRIMARY KEY,
     title VARCHAR(100) NOT NULL,
@@ -176,6 +177,7 @@ CREATE TABLE stu_tracker.Assessments (
     post BOOLEAN DEFAULT FALSE,
     visible BOOLEAN DEFAULT FALSE,
     version DECIMAL,
+    easy_score BOOLEAN DEFAULT FALSE,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     edited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -266,7 +268,7 @@ CREATE TABLE stu_tracker.Session_students (
 );
 
 
-
+-- Create a start and end time?
 CREATE TABLE stu_tracker.Assessments_students (
     id SERIAL PRIMARY KEY,
     session_id INT NOT NULL,
@@ -349,4 +351,37 @@ CREATE TABLE stu_tracker.Tutor_schedules (
     recurrence_pattern JSONB, -- For complex recurrence rules
     notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE stu_tracker.Questions (
+    id SERIAL PRIMARY KEY,
+    assessment_id INT REFERENCES stu_tracker.Assessments(id) ON DELETE CASCADE,
+    image_url TEXT,
+    question_text TEXT NOT NULL,
+    question_type VARCHAR(50) NOT NULL, -- e.g., 'multiple_choice', 'true_false', 'short_answer'
+    points INT DEFAULT 1,
+    order_number INT, -- optional, if you want to sort questions
+    is_required BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE stu_tracker.Choices (
+    id SERIAL PRIMARY KEY,
+    question_id INT REFERENCES stu_tracker.Questions(id) ON DELETE CASCADE,
+    choice_text TEXT NOT NULL,
+    is_correct BOOLEAN DEFAULT FALSE,
+    order_number INT, -- useful for displaying options in order
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE stu_tracker.Assessment_answers (
+    id SERIAL PRIMARY KEY,
+    assessment_student_id INT NOT NULL REFERENCES stu_tracker.Assessments_students(id) ON DELETE CASCADE,
+    question_id INT NOT NULL REFERENCES stu_tracker.Questions(id) ON DELETE CASCADE,
+    choice_id INT REFERENCES stu_tracker.Choices(id) ON DELETE SET NULL,
+    answer_text TEXT, -- for short_answer type
+    is_correct BOOLEAN,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (assessment_student_id, question_id)
 );

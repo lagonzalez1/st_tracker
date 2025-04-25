@@ -136,6 +136,7 @@ func main() {
 	// Return session id as well for duplicate
 	apiMiddleware.HandleFunc("/get_session_accountability", authHandler.GetSessionAccountability).Methods("GET")
 	apiMiddleware.HandleFunc("/get_tutors", authHandler.GetTutors).Methods("GET")
+	apiMiddleware.HandleFunc("/get_assessment_questions", authHandler.GetAssessmentQuestions).Methods("GET")
 	apiMiddleware.HandleFunc("/get_schedule", authHandler.GetSchedules).Methods("GET")
 	apiMiddleware.HandleFunc("/get_materials", authHandler.GetMaterials).Methods("GET")
 	apiMiddleware.HandleFunc("/get_programs", authHandler.GetPrograms).Methods("GET")

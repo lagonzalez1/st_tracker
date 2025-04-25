@@ -2,8 +2,10 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
+	"strconv"
 	"tracker/app/models"
 )
 
@@ -61,10 +63,8 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 		return nil, err
 	}
 	values := []interface{}{}
-	assessment_values := []interface{}{}
 	studentQuery := `INSERT INTO stu_tracker.Session_students(session_id, student_id, duration, subject_id) VALUES`
-	studentPlaceHolderIdx, assessmentPlaceHolderIdx := 1, 1
-
+	studentPlaceHolderIdx := 1
 	for i, student := range req.SessionList {
 		if i > 0 {
 			studentQuery += ", "
@@ -83,30 +83,83 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 		log.Fatalf("Rows affected error: %v", err)
 	}
 	assessmentsCompleted := 0
+	assessmentsAnswersCompleted := 0
 	// If there are sessions available log each session to each student.
+	// Will need to return an Assessments_students ID
+
+	//INSERT ID
+
 	if len(req.SessionList) > 0 {
-		assessmentQuery := `INSERT INTO stu_tracker.Assessments_students(session_id, student_id, score, assessment_id, subject_id) VALUES`
-		for i, student := range req.SessionList {
+		for _, student := range req.SessionList {
 			if student.AssessmentId != nil {
-				if i > 0 {
-					assessmentQuery += ", "
+				var score int
+				var questionEntires []models.AnswerFeedback
+				// If easy score is turned on then grade the assessment
+				if student.EasyScoreID {
+					studentIdstr := strconv.Itoa(int(*student.ID))
+					// Find the choices based on student_id
+					if choices, ok := req.Assessments[studentIdstr]; ok {
+						assessmentScores, err := s.ComputeScore(choices.AssessmentID, choices.Choices)
+						if err != nil {
+							return nil, err
+						}
+						score = assessmentScores.Points
+						questionEntires = assessmentScores.QuestionEntries
+					}
+				} else {
+					score = int(*student.AssessmentScore)
 				}
-				assessmentQuery += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d)", assessmentPlaceHolderIdx, assessmentPlaceHolderIdx+1, assessmentPlaceHolderIdx+2, assessmentPlaceHolderIdx+3, assessmentPlaceHolderIdx+4)
-				assessment_values = append(assessment_values, newID, &student.ID, &student.AssessmentScore, &student.AssessmentId, &student.SubjectId)
-				assessmentPlaceHolderIdx += 5
+				var insertedID int
+				var insertedAssessmentAnswers int
+				// Compute score if needed to based on student.EasyScoreId
+				query := `
+					INSERT INTO stu_tracker.Assessments_students
+					(session_id, student_id, score, assessment_id, subject_id)
+					VALUES ($1, $2, $3, $4, $5)
+					ON CONFLICT (student_id, assessment_id, session_id) DO NOTHING
+					RETURNING id
+				`
+				err := s.db.QueryRowContext(
+					ctx,
+					query,
+					newID,
+					student.ID,
+					score,
+					student.AssessmentId,
+					student.SubjectId,
+				).Scan(&insertedID)
+
+				if err != nil && err != sql.ErrNoRows {
+					return nil, fmt.Errorf("failed to insert individual assessment session: %w", err)
+				}
+				if len(questionEntires) > 0 {
+					for j := 0; j < len(questionEntires); j++ {
+						query2 := `
+						INSERT INTO stu_tracker.Assessment_answers
+						(assessment_student_id, question_id, choice_id, is_correct)
+						VALUES ($1, $2, $3, $4)`
+						err := s.db.QueryRowContext(
+							ctx,
+							query2,
+							insertedID,
+							questionEntires[j].QuestionID,
+							questionEntires[j].ChoiceID,
+							questionEntires[j].IsCorrect,
+						).Scan(&insertedAssessmentAnswers)
+
+						if err != nil && err != sql.ErrNoRows {
+							return nil, fmt.Errorf("failed to insert individual assessment session: %w", err)
+						}
+					}
+				}
+				if insertedID != 0 {
+					assessmentsCompleted++
+				}
+				if insertedAssessmentAnswers != 0 {
+					assessmentsAnswersCompleted++
+				}
+
 			}
-		}
-		if len(assessment_values) > 0 {
-			assessmentQuery += ` ON CONFLICT (student_id, assessment_id, session_id) DO NOTHING`
-			assessmentResult, err := s.db.Exec(assessmentQuery, assessment_values...)
-			if err != nil {
-				return nil, fmt.Errorf("failed to assessment session students query: %w", err)
-			}
-			assessmentChanges, err := assessmentResult.RowsAffected()
-			if err != nil {
-				log.Fatalf("Rows affected error assessment: %v", err)
-			}
-			assessmentsCompleted += int(assessmentChanges)
 		}
 	}
 
@@ -119,20 +172,68 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 
 func (s *AuthService) CheckDuplicateSession(req models.RegisterStudentSessionList) (bool, error) {
 	var exists bool
+	// Check if the same submission has been made for the same location and tutor at the same time.
 	err := s.db.QueryRow(`
     SELECT EXISTS (
         SELECT 1 FROM stu_tracker.Sessions 
-        WHERE session_date = $1 AND start_time = $2
-    )`, req.Session.SessionDate, req.Session.StartTime).Scan(&exists)
+        WHERE session_date = $1 AND start_time = $2 AND tutor_id = $3 AND location_id = $4)`,
+		req.Session.SessionDate, req.Session.StartTime, req.Session.TutorId, req.Session.LocationId).Scan(&exists)
 
 	if err != nil {
 		return true, fmt.Errorf("unable to query to check duplicate sessions: %v", err)
 	}
 	if exists {
-		return true, nil
+		return true, fmt.Errorf("duplicate session found")
 	}
 	if !exists {
 		return false, nil
 	}
 	return false, nil
+}
+
+func (s *AuthService) insertAssessmentStudent(
+	ctx context.Context,
+	sessionID int64,
+	student models.RegisterStudentSession,
+	score int,
+) (int, error) {
+	var insertedID int
+	query := `
+		INSERT INTO stu_tracker.Assessments_students
+		(session_id, student_id, score, assessment_id, subject_id)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (student_id, assessment_id, session_id) DO NOTHING
+		RETURNING id`
+	err := s.db.QueryRowContext(ctx, query,
+		sessionID, student.ID, score, student.AssessmentId, student.SubjectId,
+	).Scan(&insertedID)
+
+	if err != nil && err != sql.ErrNoRows {
+		return 0, fmt.Errorf("failed to insert assessment student: %w", err)
+	}
+	return insertedID, nil
+}
+
+func (s *AuthService) insertAssessmentAnswers(
+	ctx context.Context,
+	assessmentStudentID int,
+	answers []models.AnswerFeedback,
+) error {
+	for _, ans := range answers {
+		query := `
+			INSERT INTO stu_tracker.Assessment_answers
+			(assessment_student_id, question_id, choice_id, is_correct)
+			VALUES ($1, $2, $3, $4)
+		`
+		_, err := s.db.ExecContext(ctx, query,
+			assessmentStudentID,
+			ans.QuestionID,
+			ans.ChoiceID,
+			ans.IsCorrect,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to insert assessment answer: %w", err)
+		}
+	}
+	return nil
 }
