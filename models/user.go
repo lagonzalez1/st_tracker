@@ -193,11 +193,12 @@ type PermissionsMap struct {
 }
 
 type RegisterPermissionRequest struct {
-	ID             *int64   `json:"id"`
-	Role           string   `json:"role"`
-	User           string   `json:"user"`
-	Permissions    []string `json:"permissions"`
-	OrganizationId *int64   `json:"organization_id"`
+	ID                *int64   `json:"id"`
+	Role              string   `json:"role"`
+	User              string   `json:"user"`
+	Permissions       []string `json:"permissions"`
+	UpdatePermissions []string `json:"updatePermissions"`
+	OrganizationId    *int64   `json:"organization_id"`
 }
 type RegisterPermissionResponse struct {
 	Status string `json:"status"`
@@ -409,7 +410,7 @@ type ServiceSession struct {
 	ProgramId       sql.NullInt64 `json:"program_id"`
 	ProgramName     string        `json:"program_name"`
 	Notes           string        `json:"notes"`
-	SessionDate     string        `json:"session_date"`
+	SessionDate     time.Time     `json:"session_date"`
 	StartTime       string        `json:"start_time"`
 	Subject         sql.NullInt32 `json:"subject"`
 	Substitute      sql.NullBool  `json:"substitute"`
@@ -658,6 +659,7 @@ type SessionTrail struct {
 	Substitute      bool      `json:"substitute"`
 	Absent          bool      `json:"absent"`
 	StudentDuration int       `json:"student_duration"`
+	SubstituteName  string    `json:"substitute_name,omitempty"`
 }
 
 type TutorLocationList struct {

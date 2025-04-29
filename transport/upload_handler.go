@@ -1,17 +1,22 @@
 package transport
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/xuri/excelize/v2"
 )
 
 func (h *AuthHandler) UploadTutorBigData(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
 	r.ParseMultipartForm(10 << 20) // Limit upload size to 10MB
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -53,9 +58,19 @@ func (h *AuthHandler) UploadTutorBigData(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "Error reading sheet", http.StatusInternalServerError)
 		return
 	}
-	returnFile, response, err := h.authService.RegisterMultipleTutors(rows, &oid)
+	returnFile, response, err := h.authService.RegisterMultipleTutors(ctx, rows, &oid)
 	if err != nil {
-		http.Error(w, "Error return file RegisterMultipleTutors", http.StatusInternalServerError)
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		// 6. You could also inspect SQL errors here if you like.
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -74,6 +89,9 @@ func (h *AuthHandler) UploadTutorBigData(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *AuthHandler) UploadStudentBigData(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
 	r.ParseMultipartForm(10 << 20) // Limit upload size to 10MB
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -120,15 +138,6 @@ func (h *AuthHandler) UploadStudentBigData(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	defer tempFile.Close()
-	/*
-		Dont think this is needed, just process the file and move along
-		_, err = io.Copy(tempFile, file)
-		if err != nil {
-			http.Error(w, "Error saving file", http.StatusInternalServerError)
-			return
-		}
-	*/
-	// Process Excel file
 	excelFile, err := excelize.OpenFile(tempFile.Name())
 	if err != nil {
 		http.Error(w, "Error opening Excel file", http.StatusInternalServerError)
@@ -140,10 +149,19 @@ func (h *AuthHandler) UploadStudentBigData(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Error reading sheet", http.StatusInternalServerError)
 		return
 	}
-	response, err := h.authService.RegisterMultipleStudents(rows, &oid, sid, lid)
+	response, err := h.authService.RegisterMultipleStudents(ctx, rows, &oid, sid, lid)
 	if err != nil {
-		fmt.Printf("Error on RegisterMultipleStudents %v", err)
-		http.Error(w, "Error RegisterMultipleTutors", http.StatusInternalServerError)
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		// 6. You could also inspect SQL errors here if you like.
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)

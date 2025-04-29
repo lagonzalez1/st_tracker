@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"tracker/app/models"
 )
@@ -13,7 +14,7 @@ import (
 
 **/
 
-func (s *AuthService) AddSchedule(req models.RegisterSchedule) (*models.RegisterScheduleResponse, error) {
+func (s *AuthService) AddSchedule(c context.Context, req models.RegisterSchedule) (*models.RegisterScheduleResponse, error) {
 	// Input validation
 	if req.TutorID == nil || req.ScheduleType == "" || req.StartDate.IsZero() {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, or email")
@@ -24,7 +25,7 @@ func (s *AuthService) AddSchedule(req models.RegisterSchedule) (*models.Register
 	var newID int64
 	query, args := buildScheduleQuery(&req)
 	fmt.Println(query)
-	err := s.db.QueryRow(query, args...).Scan(&newID)
+	err := s.db.QueryRowContext(c, query, args...).Scan(&newID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}
@@ -62,12 +63,12 @@ func buildScheduleQuery(req *models.RegisterSchedule) (string, []interface{}) {
 	return query, args
 }
 
-func (s *AuthService) DeleteSchedule(req models.RemoveSchedule) (*models.RegisterScheduleResponse, error) {
+func (s *AuthService) DeleteSchedule(c context.Context, req models.RemoveSchedule) (*models.RegisterScheduleResponse, error) {
 	if req.ID == nil {
 		return nil, fmt.Errorf("missing delete schedule")
 	}
 	query := `DELETE FROM stu_tracker.tutor_schedules WHERE id = $1;`
-	_, err := s.db.Exec(query, req.ID)
+	_, err := s.db.ExecContext(c, query, req.ID)
 	if err != nil {
 		return nil, fmt.Errorf("unable to delete staff: %w", err)
 

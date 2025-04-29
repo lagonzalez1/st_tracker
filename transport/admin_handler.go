@@ -1,7 +1,9 @@
 package transport
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -451,6 +453,8 @@ func (h *AuthHandler) GetTutorsBChart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) GetAssessmentTrendLine(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
 	query := r.URL.Query()
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -513,10 +517,19 @@ func (h *AuthHandler) GetAssessmentTrendLine(w http.ResponseWriter, r *http.Requ
 		model.EndDate = end_date
 	}
 
-	rows, err := h.authService.GetAssessmentTrendLine(model)
+	rows, err := h.authService.GetAssessmentTrendLine(ctx, model)
 	if err != nil {
-		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
-		fmt.Printf("Unable to get rows in GetAssessmentTrendLine %v", err)
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		// 6. You could also inspect SQL errors here if you like.
+		http.Error(w, "Unable to get assessments trend line", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -760,6 +773,8 @@ func (h *AuthHandler) GetAssessmentGrowth(w http.ResponseWriter, r *http.Request
 }
 
 func (h *AuthHandler) GetTutorFile(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
 	query := r.URL.Query()
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -807,10 +822,19 @@ func (h *AuthHandler) GetTutorFile(w http.ResponseWriter, r *http.Request) {
 		model.DateEnd = DateEnd
 	}
 
-	file, err := h.authService.GetTutorFileData(model)
+	file, err := h.authService.GetTutorFileData(ctx, model)
 	if err != nil {
-		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
-		fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		// 6. You could also inspect SQL errors here if you like.
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
 		return
 	}
 
@@ -827,6 +851,8 @@ func (h *AuthHandler) GetTutorFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) GetStudentFile(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
 	query := r.URL.Query()
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -874,10 +900,19 @@ func (h *AuthHandler) GetStudentFile(w http.ResponseWriter, r *http.Request) {
 		model.DateEnd = DateEnd
 	}
 
-	file, err := h.authService.GetStudentFileData(model)
+	file, err := h.authService.GetStudentFileData(ctx, model)
 	if err != nil {
-		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
-		fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		// 6. You could also inspect SQL errors here if you like.
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
 		return
 	}
 

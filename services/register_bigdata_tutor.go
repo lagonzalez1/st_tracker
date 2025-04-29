@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strconv"
@@ -73,14 +74,14 @@ func buildPermissionQueryTutors(permissionIDs []int, tutorID int) (string, []int
 	return query, args
 }
 
-func (s *AuthService) RegisterMultipleTutors(rows [][]string, organizationID *int64) (*excelize.File, *models.ResponseMultipleRegister, error) {
+func (s *AuthService) RegisterMultipleTutors(c context.Context, rows [][]string, organizationID *int64) (*excelize.File, *models.ResponseMultipleRegister, error) {
 	// Input validation
 	if organizationID == nil {
 		return nil, nil, fmt.Errorf("organization_id is null")
 	}
 	var responseList []*models.ResponseMultipleRegisterUser
 	// Prepare SQL statement for inserting tutors
-	stmt, err := s.db.Prepare(`
+	stmt, err := s.db.PrepareContext(c, `
 		INSERT INTO stu_tracker.Tutors 
 		(first_name, last_name, email, password_hash,location_id, organization_id, active) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7) 
@@ -152,7 +153,7 @@ func (s *AuthService) RegisterMultipleTutors(rows [][]string, organizationID *in
 			continue
 		}
 		permissionQuery, args := buildPermissionQueryTutors(permissionIDs, int(tutorID))
-		_, err = s.db.Query(permissionQuery, args...)
+		_, err = s.db.QueryContext(c, permissionQuery, args...)
 		if err != nil {
 			fmt.Printf("Row %d: Failed to assign permissions: %v\n", i+1, err)
 			continue

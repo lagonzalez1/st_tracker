@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"tracker/app/models"
@@ -21,10 +22,10 @@ tutor_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 **/
 
-func (s *AuthService) SessionSearch(ss models.SearchQuery) ([]models.ServiceSession, error) {
+func (s *AuthService) SessionSearch(c context.Context, ss models.SearchQuery) ([]models.ServiceSession, error) {
 	query, args := buildSearchQuery(ss)
 	fmt.Println(query)
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.QueryContext(c, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error querying locations: %w", err)
 	}
@@ -50,6 +51,7 @@ func (s *AuthService) SessionSearch(ss models.SearchQuery) ([]models.ServiceSess
 			&session.ProgramName,
 			&session.SubjectName,
 			&session.StudentCount,
+			&session.SessionDate,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -63,7 +65,7 @@ func (s *AuthService) SessionSearch(ss models.SearchQuery) ([]models.ServiceSess
 	return sessions, nil
 }
 
-func (s *AuthService) TutorSearch(query models.SearchQueryTutor) ([]models.ResponseRequestTutorsList, error) {
+func (s *AuthService) TutorSearch(c context.Context, query models.SearchQueryTutor) ([]models.ResponseRequestTutorsList, error) {
 	if query.SearchTerm == "" || query.OrganizationID == nil {
 		return nil, fmt.Errorf("Organization or search term cannot be empty")
 	}
@@ -75,7 +77,7 @@ func (s *AuthService) TutorSearch(query models.SearchQueryTutor) ([]models.Respo
 			  AND 
 			  	to_tsvector('english', first_name || ' ' || last_name) @@ to_tsquery('english', $2 || ':*'); `
 
-	rows, err := s.db.Query(q, *query.OrganizationID, query.SearchTerm)
+	rows, err := s.db.QueryContext(c, q, *query.OrganizationID, query.SearchTerm)
 	if err != nil {
 		return nil, fmt.Errorf("error querying tutors: %w", err)
 	}
@@ -98,10 +100,10 @@ func (s *AuthService) TutorSearch(query models.SearchQueryTutor) ([]models.Respo
 	return tutors, nil
 }
 
-func (s *AuthService) StudentSessionSearch(ss models.SearchQuery) ([]models.StudentSessions, error) {
+func (s *AuthService) StudentSessionSearch(c context.Context, ss models.SearchQuery) ([]models.StudentSessions, error) {
 	query, args := buildStudentSearchQuery(ss)
 	fmt.Println(query)
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.QueryContext(c, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error querying locations: %w", err)
 	}
@@ -128,7 +130,230 @@ func (s *AuthService) StudentSessionSearch(ss models.SearchQuery) ([]models.Stud
 	return sessions, nil
 }
 
-func (s *AuthService) TrailSessions(student_id int64) ([]models.SessionTrail, error) {
+func (s *AuthService) GetSessionsTutors(c context.Context, ss models.RequestTutorsSessions) ([]models.TutorSessionsList, error) {
+	// Must check if semester_id is valid. Simply check if within range of current ?
+	var query string
+	query += `
+		SELECT 
+		ss.id,
+		ss.session_date::TIMESTAMP AS session_date,
+		ss.start_time,
+		ss.location_id,
+		pg.program_name,
+		pg.id,
+		ss.semester_id,
+		ss.student_count,
+		ss.in_school,
+		ss.substitute,
+		sm.title,
+		lc.name
+		FROM
+			stu_tracker.Sessions ss
+		JOIN
+			stu_tracker.Programs pg
+		ON 
+			ss.program_id = pg.id
+		JOIN
+			stu_tracker.Semester sm
+		ON 
+			ss.semester_id = sm.id
+		JOIN
+			stu_tracker.Locations lc
+		ON 
+			ss.location_id = lc.id
+		WHERE
+			ss.tutor_id = $1 AND ss.semester_id = $2 AND ss.location_id = $3
+		ORDER BY 
+			ss.session_date desc;
+		`
+	rows, err := s.db.QueryContext(c, query, ss.ID, ss.SemesterID, ss.LocationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	// Can also return the student count, assessment count ...
+	var sessions []models.TutorSessionsList
+	for rows.Next() {
+		var session models.TutorSessionsList
+		err := rows.Scan(
+			&session.SessionID,
+			&session.SessionDate,
+			&session.StartTime,
+			&session.LocationID,
+			&session.ProgramName,
+			&session.ProgramID,
+			&session.SemesterID,
+			&session.StudentCount,
+			&session.InSchool,
+			&session.Substitute,
+			&session.Semester,
+			&session.LocationName,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		sessions = append(sessions, session)
+	}
+	var sessionIDs []int64
+	if len(sessions) <= 0 {
+		return []models.TutorSessionsList{}, nil
+	}
+	for i := 0; i < len(sessions); i++ {
+		sessionIDs = append(sessionIDs, *sessions[i].SessionID)
+	}
+	// For each session_id return the students associated
+	query2 := `
+		SELECT
+			ss.session_id,
+			st.first_name,
+			st.last_name,
+			st.middle_name,
+			st.grade_level,
+			st.id
+		FROM 
+			stu_tracker.Session_students ss
+		INNER JOIN
+			stu_tracker.Students st
+		ON
+			ss.student_id = st.id
+		WHERE 
+			ss.session_id = ANY($1)
+		ORDER BY
+			ss.session_id`
+
+	rows, err = s.db.Query(query2, pq.Array(sessionIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	// Can also return the student count, assessment count ...
+	studentMap := make(map[int64][]models.Students)
+	for rows.Next() {
+		var student models.Students
+		err := rows.Scan(
+			&student.SessionID,
+			&student.FirstName,
+			&student.LastName,
+			&student.MiddleName,
+			&student.Grade,
+			&student.StudentID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		studentMap[int64(*student.SessionID)] = append(studentMap[int64(*student.SessionID)], student)
+	}
+	for i := 0; i < len(sessions); i++ {
+		sessions[i].Students = studentMap[int64(*sessions[i].SessionID)]
+	}
+	return sessions, nil
+}
+
+func (s *AuthService) AssessmentInfo(c context.Context, session_id int64) ([]models.AssessmentInfoStudent, error) {
+	query := `
+	SELECT ats.title, ats.letter,
+	ats.cycle, ats.max_score, aas.score, aas.created_at, st.id
+	FROM 
+		stu_tracker.Assessments_students aas
+	JOIN 
+		stu_tracker.Students st 
+	ON 
+		st.id = aas.student_id
+	JOIN 
+		stu_tracker.Assessments ats 
+	ON 
+		ats.id = aas.assessment_id
+	WHERE 
+		aas.session_id = $1;`
+	rows, err := s.db.QueryContext(c, query, session_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying AssessmentInfo: %w", err)
+	}
+	defer rows.Close()
+	var assessmentInfo []models.AssessmentInfoStudent
+	for rows.Next() {
+		var assessment models.AssessmentInfoStudent
+		err := rows.Scan(
+			&assessment.Title,
+			&assessment.Letter,
+			&assessment.Cycle,
+			&assessment.MaxScore,
+			&assessment.Score,
+			&assessment.CreatedAt,
+			&assessment.StudentID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		assessmentInfo = append(assessmentInfo, assessment)
+	}
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+	return assessmentInfo, nil
+}
+
+func (s *AuthService) StudentAssessmentInfo(c context.Context, student_id int64, organization_id int64) ([]models.StudentAssessmentInfo, error) {
+	query := `
+		SELECT
+		ast.created_at,
+		ast.score,
+		ast.session_id,
+		a.title,
+		a.max_score,
+		a.pre,
+		a.post,
+		a.mid,
+		a.cycle,
+		a.letter,
+		a.version
+		FROM 
+			stu_tracker.Assessments_students ast
+		LEFT JOIN 
+			stu_tracker.Students ss
+		ON	
+			ast.session_id = ss.id
+		JOIN
+			stu_tracker.Assessments a
+		ON
+			a.id = ast.assessment_id
+		WHERE 
+			ast.student_id = $1`
+	rows, err := s.db.QueryContext(c, query, student_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying AssessmentInfo: %w", err)
+	}
+	defer rows.Close()
+	var assessmentInfo []models.StudentAssessmentInfo
+	for rows.Next() {
+		var assessment models.StudentAssessmentInfo
+		err := rows.Scan(
+			&assessment.CreatedAt,
+			&assessment.Score,
+			&assessment.SessionID,
+			&assessment.Title,
+			&assessment.MaxScore,
+			&assessment.Pre,
+			&assessment.Post,
+			&assessment.Mid,
+			&assessment.Cycle,
+			&assessment.Letter,
+			&assessment.Version,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		assessmentInfo = append(assessmentInfo, assessment)
+	}
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+	return assessmentInfo, nil
+}
+
+func (s *AuthService) TrailSessions(c context.Context, student_id int64) ([]models.SessionTrail, error) {
 	query := `
 		SELECT
 			ss.id,
@@ -142,7 +367,8 @@ func (s *AuthService) TrailSessions(student_id int64) ([]models.SessionTrail, er
 			ss.student_count,
 			ss.substitute,
 			sst.absent,
-			sst.duration as student_duration
+			sst.duration as student_duration,
+			COALESCE(sub.first_name || ' ' || sub.last_name, '') AS substitute_name
 		FROM 
 			stu_tracker.Session_students sst 
 		LEFT JOIN 
@@ -157,10 +383,14 @@ func (s *AuthService) TrailSessions(student_id int64) ([]models.SessionTrail, er
 			stu_tracker.Programs p
 		ON 
 			p.id = ss.program_id
+		LEFT JOIN
+  			stu_tracker.Tutors sub 
+		ON 
+			sub.id = ss.substitute_id 
 		WHERE 
 			sst.student_id = $1`
 
-	rows, err := s.db.Query(query, student_id)
+	rows, err := s.db.QueryContext(c, query, student_id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying Session_students: %w", err)
 	}
@@ -181,6 +411,7 @@ func (s *AuthService) TrailSessions(student_id int64) ([]models.SessionTrail, er
 			&session.Substitute,
 			&session.Absent,
 			&session.StudentDuration,
+			&session.SubstituteName,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -288,51 +519,6 @@ func (s *AuthService) StudentInfo(student_id int64) ([]models.SessionInfoStudent
 	return sessionsInfo, nil
 }
 
-func (s *AuthService) AssessmentInfo(session_id int64) ([]models.AssessmentInfoStudent, error) {
-	query := `
-	SELECT ats.title, ats.letter,
-	ats.cycle, ats.max_score, aas.score, aas.created_at, st.id
-	FROM 
-		stu_tracker.Assessments_students aas
-	JOIN 
-		stu_tracker.Students st 
-	ON 
-		st.id = aas.student_id
-	JOIN 
-		stu_tracker.Assessments ats 
-	ON 
-		ats.id = aas.assessment_id
-	WHERE 
-		aas.session_id = $1;`
-	rows, err := s.db.Query(query, session_id)
-	if err != nil {
-		return nil, fmt.Errorf("error querying AssessmentInfo: %w", err)
-	}
-	defer rows.Close()
-	var assessmentInfo []models.AssessmentInfoStudent
-	for rows.Next() {
-		var assessment models.AssessmentInfoStudent
-		err := rows.Scan(
-			&assessment.Title,
-			&assessment.Letter,
-			&assessment.Cycle,
-			&assessment.MaxScore,
-			&assessment.Score,
-			&assessment.CreatedAt,
-			&assessment.StudentID,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("error scanning row: %w", err)
-		}
-		assessmentInfo = append(assessmentInfo, assessment)
-	}
-	// Check for any errors encountered during iteration
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating over rows: %w", err)
-	}
-	return assessmentInfo, nil
-}
-
 func (s *AuthService) StudentSessionInfo(student_id int64, organization_id int64) ([]models.StudentSessionInfo, error) {
 	query := `
 	SELECT
@@ -358,65 +544,6 @@ func (s *AuthService) StudentSessionInfo(student_id int64, organization_id int64
 			&assessment.Absent,
 			&assessment.SubjectID,
 			&assessment.Duration,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("error scanning row: %w", err)
-		}
-		assessmentInfo = append(assessmentInfo, assessment)
-	}
-	// Check for any errors encountered during iteration
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating over rows: %w", err)
-	}
-	return assessmentInfo, nil
-}
-
-func (s *AuthService) StudentAssessmentInfo(student_id int64, organization_id int64) ([]models.StudentAssessmentInfo, error) {
-	query := `
-		SELECT
-		ast.created_at,
-		ast.score,
-		ast.session_id,
-		a.title,
-		a.max_score,
-		a.pre,
-		a.post,
-		a.mid,
-		a.cycle,
-		a.letter,
-		a.version
-		FROM 
-			stu_tracker.Assessments_students ast
-		LEFT JOIN 
-			stu_tracker.Students ss
-		ON	
-			ast.session_id = ss.id
-		JOIN
-			stu_tracker.Assessments a
-		ON
-			a.id = ast.assessment_id
-		WHERE 
-			ast.student_id = $1`
-	rows, err := s.db.Query(query, student_id)
-	if err != nil {
-		return nil, fmt.Errorf("error querying AssessmentInfo: %w", err)
-	}
-	defer rows.Close()
-	var assessmentInfo []models.StudentAssessmentInfo
-	for rows.Next() {
-		var assessment models.StudentAssessmentInfo
-		err := rows.Scan(
-			&assessment.CreatedAt,
-			&assessment.Score,
-			&assessment.SessionID,
-			&assessment.Title,
-			&assessment.MaxScore,
-			&assessment.Pre,
-			&assessment.Post,
-			&assessment.Mid,
-			&assessment.Cycle,
-			&assessment.Letter,
-			&assessment.Version,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -576,125 +703,6 @@ func (s *AuthService) QueryAssessmentGrowth(LocationID *int64, OrganizationID *i
 	return &AssessmentGrowth, nil
 }
 
-func (s *AuthService) GetSessionsTutors(ss models.RequestTutorsSessions) ([]models.TutorSessionsList, error) {
-	// Must check if semester_id is valid. Simply check if within range of current ?
-	var query string
-	query += `
-		SELECT 
-		ss.id,
-		ss.session_date::TIMESTAMP AS session_date,
-		ss.start_time,
-		ss.location_id,
-		pg.program_name,
-		pg.id,
-		ss.semester_id,
-		ss.student_count,
-		ss.in_school,
-		ss.substitute,
-		sm.title,
-		lc.name
-		FROM
-			stu_tracker.Sessions ss
-		JOIN
-			stu_tracker.Programs pg
-		ON 
-			ss.program_id = pg.id
-		JOIN
-			stu_tracker.Semester sm
-		ON 
-			ss.semester_id = sm.id
-		JOIN
-			stu_tracker.Locations lc
-		ON 
-			ss.location_id = lc.id
-		WHERE
-			ss.tutor_id = $1 AND ss.semester_id = $2 AND ss.location_id = $3
-		ORDER BY 
-			ss.session_date desc;
-		`
-	rows, err := s.db.Query(query, ss.ID, ss.SemesterID, ss.LocationID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	// Can also return the student count, assessment count ...
-	var sessions []models.TutorSessionsList
-	for rows.Next() {
-		var session models.TutorSessionsList
-		err := rows.Scan(
-			&session.SessionID,
-			&session.SessionDate,
-			&session.StartTime,
-			&session.LocationID,
-			&session.ProgramName,
-			&session.ProgramID,
-			&session.SemesterID,
-			&session.StudentCount,
-			&session.InSchool,
-			&session.Substitute,
-			&session.Semester,
-			&session.LocationName,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("error scanning row: %w", err)
-		}
-		sessions = append(sessions, session)
-	}
-	var sessionIDs []int64
-	if len(sessions) <= 0 {
-		return []models.TutorSessionsList{}, nil
-	}
-	for i := 0; i < len(sessions); i++ {
-		sessionIDs = append(sessionIDs, *sessions[i].SessionID)
-	}
-	// For each session_id return the students associated
-	query2 := `
-		SELECT
-			ss.session_id,
-			st.first_name,
-			st.last_name,
-			st.middle_name,
-			st.grade_level,
-			st.id
-		FROM 
-			stu_tracker.Session_students ss
-		INNER JOIN
-			stu_tracker.Students st
-		ON
-			ss.student_id = st.id
-		WHERE 
-			ss.session_id = ANY($1)
-		ORDER BY
-			ss.session_id`
-
-	rows, err = s.db.Query(query2, pq.Array(sessionIDs))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	// Can also return the student count, assessment count ...
-	studentMap := make(map[int64][]models.Students)
-	for rows.Next() {
-		var student models.Students
-		err := rows.Scan(
-			&student.SessionID,
-			&student.FirstName,
-			&student.LastName,
-			&student.MiddleName,
-			&student.Grade,
-			&student.StudentID,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("error scanning row: %w", err)
-		}
-		studentMap[int64(*student.SessionID)] = append(studentMap[int64(*student.SessionID)], student)
-	}
-	for i := 0; i < len(sessions); i++ {
-		sessions[i].Students = studentMap[int64(*sessions[i].SessionID)]
-	}
-	return sessions, nil
-}
-
 func buildSearchQueryAssessmentGrowth(LocationID *int64, OrganizationID *int64, Assessment1ID *int64) (string, []interface{}) {
 	argIndex := 1
 	var args []interface{}
@@ -764,7 +772,8 @@ func buildSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 			ss.created_at,
 			COALESCE(pg.program_name, 'No program') AS program_name,
     		COALESCE(sb.title, 'No Subject') AS subject_name,
-			ss.student_count
+			ss.student_count,
+			ss.session_date
 		FROM 
 			stu_tracker.Sessions ss
 		JOIN 
@@ -836,13 +845,13 @@ func buildStudentSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 			s.last_name,
 			COUNT(DISTINCT ss.session_id) AS session_count,
 			COUNT(DISTINCT a.assessment_id) AS assessment_count
-		FROM stu_tracker.Students s
-		LEFT JOIN stu_tracker.Session_students ss ON s.id = ss.student_id
+		FROM stu_tracker.Session_students ss 
+		LEFT JOIN stu_tracker.Students s ON s.id = ss.student_id
 		LEFT JOIN stu_tracker.Sessions st ON st.id = ss.session_id
 		LEFT JOIN stu_tracker.Assessments_students a ON s.id = a.student_id `
 
 	if ss.SearchTerm != "" {
-		conditions = append(conditions, fmt.Sprintf("st.first_name ILIKE $%d OR st.last_name ILIKE $%d", argIndex, argIndex+1))
+		conditions = append(conditions, fmt.Sprintf("s.first_name ILIKE $%d OR s.last_name ILIKE $%d", argIndex, argIndex+1))
 		args = append(args, "%"+ss.SearchTerm+"%", "%"+ss.SearchTerm+"%")
 		argIndex += 2
 	}

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -21,7 +22,7 @@ type UserFinder interface {
 	GetPermissions(userID, orgID int64) ([]string, error)
 }
 
-func (s *AuthService) LoginAction(req models.LoginRequest) (*models.LoginResponse, error) {
+func (s *AuthService) LoginAction(c context.Context, req models.LoginRequest) (*models.LoginResponse, error) {
 	var user *models.User
 	var err error
 	var locations_list []models.TutorLocationList
@@ -29,12 +30,11 @@ func (s *AuthService) LoginAction(req models.LoginRequest) (*models.LoginRespons
 
 	switch req.Type {
 	case "ROOT":
-		// PERMISSIONS MIGHT BE WONKY
-		user, err = s.findRootUser(req.Email)
+		user, err = s.findRootUser(c, req.Email)
 	case "ADMIN":
-		user, err = s.findAdminUser(req.Email)
+		user, err = s.findAdminUser(c, req.Email)
 	case "TUTOR":
-		user, locations_list, program_list, err = s.findTutorUser(req.Email)
+		user, locations_list, program_list, err = s.findTutorUser(c, req.Email)
 	default:
 		return nil, errors.New("login type was not specified")
 	}
@@ -54,7 +54,6 @@ func (s *AuthService) LoginAction(req models.LoginRequest) (*models.LoginRespons
 	if err != nil {
 		return nil, fmt.Errorf("unable to create refresh token: %w", err)
 	}
-
 	return &models.LoginResponse{
 		Token:        &token,
 		RefreshToken: &refreshToken,
@@ -78,10 +77,10 @@ func (s *AuthService) LoginAction(req models.LoginRequest) (*models.LoginRespons
 }
 
 // Helper functions HARD CODEDE
-func (s *AuthService) findRootUser(email string) (*models.User, error) {
+func (s *AuthService) findRootUser(c context.Context, email string) (*models.User, error) {
 	query := `SELECT id, email, password_hash, organization_id, fullname FROM stu_tracker.Admin_root WHERE email = $1`
 	user := &models.User{Type: "ROOT"}
-	err := s.db.QueryRow(query, email).Scan(
+	err := s.db.QueryRowContext(c, query, email).Scan(
 		&user.ID,
 		&user.Email,
 		&user.Password,
@@ -98,10 +97,10 @@ func (s *AuthService) findRootUser(email string) (*models.User, error) {
 	return user, nil
 }
 
-func (s *AuthService) findAdminUser(email string) (*models.User, error) {
+func (s *AuthService) findAdminUser(c context.Context, email string) (*models.User, error) {
 	query := `SELECT id, email, password_hash, organization_id, fullname FROM stu_tracker.Admin_staff WHERE email = $1`
 	user := &models.User{Type: "ADMIN"}
-	err := s.db.QueryRow(query, email).Scan(
+	err := s.db.QueryRowContext(c, query, email).Scan(
 		&user.ID,
 		&user.Email,
 		&user.Password,
@@ -114,7 +113,7 @@ func (s *AuthService) findAdminUser(email string) (*models.User, error) {
 		}
 		return nil, fmt.Errorf("database error: %w", err)
 	}
-	user.Permissions, err = s.getAdminPermissions(user.ID)
+	user.Permissions, err = s.getAdminPermissions(c, user.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get permissions: %w", err)
 	}
@@ -122,7 +121,7 @@ func (s *AuthService) findAdminUser(email string) (*models.User, error) {
 	return user, nil
 }
 
-func (s *AuthService) findTutorUser(email string) (*models.User, []models.TutorLocationList, []models.ResponseRequestProgramList, error) {
+func (s *AuthService) findTutorUser(c context.Context, email string) (*models.User, []models.TutorLocationList, []models.ResponseRequestProgramList, error) {
 	query := `SELECT id, email, password_hash, organization_id, first_name, last_name FROM stu_tracker.Tutors WHERE email = $1`
 	user := &models.User{Type: "TUTOR"}
 	err := s.db.QueryRow(query, email).Scan(
@@ -141,13 +140,13 @@ func (s *AuthService) findTutorUser(email string) (*models.User, []models.TutorL
 	}
 
 	// Get permissions
-	user.Permissions, err = s.getTutorPermissions(user.ID)
+	user.Permissions, err = s.getTutorPermissions(c, user.ID)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get permissions: %w", err)
 	}
 
 	// Get locations and programs
-	locations, err := s.GetTutorLocations(user.ID, user.OrganizationId)
+	locations, err := s.GetTutorLocations(c, user.ID, user.OrganizationId)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get tutor locations: %w", err)
 	}
@@ -159,7 +158,7 @@ func (s *AuthService) findTutorUser(email string) (*models.User, []models.TutorL
 			locationIDs[i] = loc.ID
 		}
 
-		programs, err = s.GetProgramsByIds(locationIDs, user.OrganizationId)
+		programs, err = s.GetProgramsByIds(c, locationIDs, user.OrganizationId)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("failed to get programs: %w", err)
 		}
@@ -168,26 +167,26 @@ func (s *AuthService) findTutorUser(email string) (*models.User, []models.TutorL
 	return user, locations, programs, nil
 }
 
-func (s *AuthService) getAdminPermissions(userID int64) ([]string, error) {
+func (s *AuthService) getAdminPermissions(c context.Context, userID int64) ([]string, error) {
 	query := `SELECT name FROM stu_tracker.Permissions p 
               INNER JOIN stu_tracker.Admin_permissions ad 
               ON p.id = ad.permission_id 
               WHERE ad.admin_id = $1;`
 
-	return s.queryPermissions(query, userID)
+	return s.queryPermissions(c, query, userID)
 }
 
-func (s *AuthService) getTutorPermissions(id int64) ([]string, error) {
+func (s *AuthService) getTutorPermissions(c context.Context, id int64) ([]string, error) {
 	query := `SELECT name FROM stu_tracker.Permissions p 
               LEFT JOIN stu_tracker.Tutor_permissions tp 
               ON p.id = tp.permission_id
 		  	  WHERE tp.tutor_id = $1;`
 
-	return s.queryPermissions(query, id)
+	return s.queryPermissions(c, query, id)
 }
 
-func (s *AuthService) queryPermissions(query string, args ...interface{}) ([]string, error) {
-	rows, err := s.db.Query(query, args...)
+func (s *AuthService) queryPermissions(c context.Context, query string, args ...interface{}) ([]string, error) {
+	rows, err := s.db.QueryContext(c, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query error: %w", err)
 	}
@@ -227,7 +226,6 @@ func (s *AuthService) generateAccessToken(user *models.User) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to sign token: %w", err)
 	}
-
 	log.Printf("Generated access token for %s (type: %s)", user.Email, user.Type)
 	log.Printf("Token length for %s: %d", user.Type, len(tokenString))
 

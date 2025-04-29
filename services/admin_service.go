@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"tracker/app/models"
@@ -472,7 +473,7 @@ func (s *AuthService) GetTutorsBChart(req models.RequestSessionBChart) ([]models
 	return programs, nil
 }
 
-func (s *AuthService) GetAssessmentTrendLine(req models.RequestSessionBChart) ([]models.ResponseAssessmentTrendline, error) {
+func (s *AuthService) GetAssessmentTrendLine(ctx context.Context, req models.RequestSessionBChart) ([]models.ResponseAssessmentTrendline, error) {
 	if req.OrganizationID == nil {
 		return nil, fmt.Errorf("unable to serach missing org id")
 	}
@@ -500,7 +501,7 @@ func (s *AuthService) GetAssessmentTrendLine(req models.RequestSessionBChart) ([
 		ORDER BY
 			YEAR`
 
-	rows, err := s.db.Query(base, req.OrganizationID)
+	rows, err := s.db.QueryContext(ctx, base, req.OrganizationID)
 	if err != nil {
 		return nil, err
 	}

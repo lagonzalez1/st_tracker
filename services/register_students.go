@@ -1,11 +1,12 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"tracker/app/models"
 )
 
-func (s *AuthService) AddStudent(req models.RegisterRequestStudents) (*models.ResponseRequestStudents, error) {
+func (s *AuthService) AddStudent(ctx context.Context, req models.RegisterRequestStudents) (*models.ResponseRequestStudents, error) {
 	// Input validation
 	println(req.LastName)
 	if req.FirstName == "" || req.LastName == "" {
@@ -25,7 +26,7 @@ func (s *AuthService) AddStudent(req models.RegisterRequestStudents) (*models.Re
 	}, nil
 }
 
-func (s *AuthService) UpdateStudent(req models.RegisterRequestStudents) (*models.ResponseUpdate, error) {
+func (s *AuthService) UpdateStudent(ctx context.Context, req models.RegisterRequestStudents) (*models.ResponseUpdate, error) {
 	// Input validation
 	println(req.LastName)
 	if req.ID == nil || req.LastName == "" {
@@ -34,7 +35,7 @@ func (s *AuthService) UpdateStudent(req models.RegisterRequestStudents) (*models
 	query := `UPDATE stu_tracker.Students SET first_name = $1, last_name = $2, middle_name = $3, email = $4, grade_level = $5, active = $6, location_id = $7, period = $8, direct_partnership = $9, tutor_id = $10, semester_id = $11
               WHERE id = $12`
 
-	_, err := s.db.Exec(query, req.FirstName, req.LastName, req.MiddleName, req.Email, req.GradeLevel, req.Active, req.LocationId, req.Period, req.DirectPartnership, req.TutorID, req.SemesterID, req.ID)
+	_, err := s.db.ExecContext(ctx, query, req.FirstName, req.LastName, req.MiddleName, req.Email, req.GradeLevel, req.Active, req.LocationId, req.Period, req.DirectPartnership, req.TutorID, req.SemesterID, req.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update student: %w", err)
 	}
@@ -43,14 +44,14 @@ func (s *AuthService) UpdateStudent(req models.RegisterRequestStudents) (*models
 	}, nil
 }
 
-func (s *AuthService) DeleteStudent(req models.RemoveRequest) (*models.RemoveResponse, error) {
+func (s *AuthService) DeleteStudent(ctx context.Context, req models.RemoveRequest) (*models.RemoveResponse, error) {
 	// Input validation
 	if req.ID == nil {
 		return nil, fmt.Errorf("missing required fields: id")
 	}
 	query := `DELETE FROM stu_tracker.Students WHERE id = $1`
 
-	_, err := s.db.Exec(query, req.ID)
+	_, err := s.db.ExecContext(ctx, query, req.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete student: %w", err)
 	}

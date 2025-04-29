@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -9,12 +10,12 @@ import (
 	"github.com/lib/pq"
 )
 
-func (s *AuthService) GetLocationsByID(id int64, role string) ([]models.ResponseRequestLocations, error) {
+func (s *AuthService) GetLocationsByID(ctx context.Context, id int64, role string) ([]models.ResponseRequestLocations, error) {
 	var query string
 	query += `
 		SELECT loc.id, loc.name, loc.address, loc.city, loc.state, loc.zip_code, loc.created_at, loc.district_id
 		FROM stu_tracker.Locations loc WHERE loc.organization_id = $1;`
-	rows, err := s.db.Query(query, id)
+	rows, err := s.db.QueryContext(ctx, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying locations: %w", err)
 	}
@@ -46,12 +47,12 @@ func (s *AuthService) GetLocationsByID(id int64, role string) ([]models.Response
 	return locations, nil
 }
 
-func (s *AuthService) GetSubjectById(id int64, role string) ([]models.SubjectList, error) {
+func (s *AuthService) GetSubjectById(ctx context.Context, id int64, role string) ([]models.SubjectList, error) {
 	var query string
 	query += `
 		SELECT sb.id, sb.title, sb.description, sb.organization_id, sb.created_at
 		FROM stu_tracker.Subjects sb WHERE sb.organization_id = $1;`
-	rows, err := s.db.Query(query, id)
+	rows, err := s.db.QueryContext(ctx, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying locations: %w", err)
 	}
@@ -81,7 +82,7 @@ func (s *AuthService) GetSubjectById(id int64, role string) ([]models.SubjectLis
 	return subjects, nil
 }
 
-func (s *AuthService) GetSubjectByLocation(org_id int64, loc_id int64) ([]models.SubjectList, error) {
+func (s *AuthService) GetSubjectByLocation(ctx context.Context, org_id int64, loc_id int64) ([]models.SubjectList, error) {
 	var query string
 	query += `
 		SELECT s.id, s.title, s.description, s.organization_id, s.created_at
@@ -89,7 +90,7 @@ func (s *AuthService) GetSubjectByLocation(org_id int64, loc_id int64) ([]models
 		LEFT JOIN stu_tracker.Subjects s 
 		ON s.id = ls.subject_id
 		WHERE ls.location_id = $1 AND s.organization_id = $2;`
-	rows, err := s.db.Query(query, loc_id, org_id)
+	rows, err := s.db.QueryContext(ctx, query, loc_id, org_id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying locations: %w", err)
 	}
@@ -119,7 +120,7 @@ func (s *AuthService) GetSubjectByLocation(org_id int64, loc_id int64) ([]models
 	return subjects, nil
 }
 
-func (s *AuthService) GetStudentsByID(id int64, role string, locationId int64, tutorId int64) ([]models.ResponseRequestStudentList, error) {
+func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, locationId int64, tutorId int64) ([]models.ResponseRequestStudentList, error) {
 	var query string
 	var rows *sql.Rows
 	var err error
@@ -133,7 +134,7 @@ func (s *AuthService) GetStudentsByID(id int64, role string, locationId int64, t
 		JOIN stu_tracker.Locations loc
 		ON stu.location_id = loc.id
 		WHERE loc.organization_id = $1 AND loc.id = $2;`
-		rows, err = s.db.Query(query, id, locationId)
+		rows, err = s.db.QueryContext(c, query, id, locationId)
 	}
 	// If tutor return all students and if tutor_id is marked return such students
 	if role == "TUTOR" {
@@ -149,7 +150,7 @@ func (s *AuthService) GetStudentsByID(id int64, role string, locationId int64, t
 			direct_partnership = FALSE 
 			OR (direct_partnership = TRUE AND tutor_id = $2)
 		);`
-		rows, err = s.db.Query(query, locationId, tutorId)
+		rows, err = s.db.QueryContext(c, query, locationId, tutorId)
 	}
 
 	if err != nil {
@@ -196,13 +197,13 @@ func (s *AuthService) GetStudentsByID(id int64, role string, locationId int64, t
 	return students, nil
 }
 
-func (s *AuthService) GetAdminStaffById(id int64, role string) ([]models.ResponseRequestAdminList, error) {
+func (s *AuthService) GetAdminStaffById(c context.Context, id int64, role string) ([]models.ResponseRequestAdminList, error) {
 	var query string
 	query += `SELECT id,fullname, email, region, state 
 			  FROM stu_tracker.Admin_staff
 			  WHERE organization_id = $1;`
 
-	rows, err := s.db.Query(query, id)
+	rows, err := s.db.QueryContext(c, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying Admin: %w", err)
 	}
@@ -229,11 +230,11 @@ func (s *AuthService) GetAdminStaffById(id int64, role string) ([]models.Respons
 	return admins, nil
 }
 
-func (s *AuthService) GetDistrictsById(id int64, role string) ([]models.ResponseRequestDistrictList, error) {
+func (s *AuthService) GetDistrictsById(c context.Context, id int64, role string) ([]models.ResponseRequestDistrictList, error) {
 	var query string
 	query += `SELECT id, name, city ,state, region, created_at
 			  FROM stu_tracker.district ds WHERE ds.organization_id = $1;`
-	rows, err := s.db.Query(query, id)
+	rows, err := s.db.QueryContext(c, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("error quering get districts by id %w", err)
 	}
@@ -260,12 +261,12 @@ func (s *AuthService) GetDistrictsById(id int64, role string) ([]models.Response
 	return locations, nil
 }
 
-func (s *AuthService) GetProgramsId(id int64, role string) ([]models.ResponseRequestProgramList, error) {
+func (s *AuthService) GetProgramsId(c context.Context, id int64, role string) ([]models.ResponseRequestProgramList, error) {
 	var query string
 	query += `SELECT id, program_name
 			  FROM stu_tracker.programs pg
 			  WHERE pg.organization_id = $1;`
-	rows, err := s.db.Query(query, id)
+	rows, err := s.db.QueryContext(c, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("error quering get districts by id %w", err)
 	}
@@ -288,12 +289,12 @@ func (s *AuthService) GetProgramsId(id int64, role string) ([]models.ResponseReq
 	return programs, nil
 }
 
-func (s *AuthService) GetMaterialsById(id int64, role string) ([]models.ResponseRequestMaterialsList, error) {
+func (s *AuthService) GetMaterialsById(c context.Context, id int64, role string) ([]models.ResponseRequestMaterialsList, error) {
 	var query string
 	query += `SELECT id, title, external_link, description, version, pre, mid, post, visible, created_at, program_id
 			  FROM stu_tracker.materials mt
 			  WHERE mt.organization_id = $1;`
-	rows, err := s.db.Query(query, id)
+	rows, err := s.db.QueryContext(c, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("error quering get districts by id %w", err)
 	}
@@ -325,7 +326,7 @@ func (s *AuthService) GetMaterialsById(id int64, role string) ([]models.Response
 	return materials, nil
 }
 
-func (s *AuthService) GetTutorsById(id int64, role string, locid int64) ([]models.ResponseRequestTutorsList, error) {
+func (s *AuthService) GetTutorsById(c context.Context, id int64, role string, locid int64) ([]models.ResponseRequestTutorsList, error) {
 	var query string
 	var args []interface{}
 	if locid <= 0 {
@@ -344,7 +345,7 @@ func (s *AuthService) GetTutorsById(id int64, role string, locid int64) ([]model
 
 		args = append(args, locid, locid)
 	}
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.QueryContext(c, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error quering get districts by id %w", err)
 	}
@@ -371,12 +372,12 @@ func (s *AuthService) GetTutorsById(id int64, role string, locid int64) ([]model
 	return tutors, nil
 }
 
-func (s *AuthService) GetSemestersById(id int64, role string) ([]models.ResponseRequestSemesterList, error) {
+func (s *AuthService) GetSemestersById(ctx context.Context, id int64, role string) ([]models.ResponseRequestSemesterList, error) {
 	var query string
 	query += `SELECT id, year, title, date_start, date_end, active
 			  FROM stu_tracker.Semester sm
 			  WHERE sm.organization_id = $1;`
-	rows, err := s.db.Query(query, id)
+	rows, err := s.db.QueryContext(ctx, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("error quering get districts by id %w", err)
 	}
@@ -403,7 +404,7 @@ func (s *AuthService) GetSemestersById(id int64, role string) ([]models.Response
 	return semesters, nil
 }
 
-func (s *AuthService) GetSemesterLocationById(role string, location_id int64, idd int64) ([]models.ResponseRequestSemesterLocationList, error) {
+func (s *AuthService) GetSemesterLocationById(c context.Context, role string, location_id int64, idd int64) ([]models.ResponseRequestSemesterLocationList, error) {
 	var query string
 	query += `SELECT 
 				sl.location_id, sl.semester_id,
@@ -417,7 +418,7 @@ func (s *AuthService) GetSemesterLocationById(role string, location_id int64, id
 			  	ss.id = sl.semester_id
 			  WHERE 
 			  	sl.organization_id = $1 AND sl.location_id = $2;`
-	rows, err := s.db.Query(query, idd, location_id)
+	rows, err := s.db.QueryContext(c, query, idd, location_id)
 	if err != nil {
 		return nil, fmt.Errorf("error quering get districts by id %w", err)
 	}
@@ -445,7 +446,7 @@ func (s *AuthService) GetSemesterLocationById(role string, location_id int64, id
 	return semesters, nil
 }
 
-func (s *AuthService) GetAssessmentsById(id int64, role string) ([]models.ResponseAssessmentList, error) {
+func (s *AuthService) GetAssessmentsById(c context.Context, id int64, role string) ([]models.ResponseAssessmentList, error) {
 	var query string
 	query += `SELECT 
 			aas.id, aas.title, aas.description, aas.letter,
@@ -462,7 +463,7 @@ func (s *AuthService) GetAssessmentsById(id int64, role string) ([]models.Respon
 			LEFT JOIN stu_tracker.Programs pg
 			ON pg.id = aas.program_id
 			WHERE aas.organization_id = $1;`
-	rows, err := s.db.Query(query, id)
+	rows, err := s.db.QueryContext(c, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("error quering get districts by id %w", err)
 	}
@@ -503,7 +504,7 @@ func (s *AuthService) GetAssessmentsById(id int64, role string) ([]models.Respon
 	return assessments, nil
 }
 
-func (s *AuthService) GetAssessmentsQuestionsChoice(assessment_id int64) ([]models.ResponseAssessmentQuestionsChoice, error) {
+func (s *AuthService) GetAssessmentsQuestionsChoice(c context.Context, assessment_id int64) ([]models.ResponseAssessmentQuestionsChoice, error) {
 	query := `
 		SELECT 
 			q.id as question_id,
@@ -523,7 +524,7 @@ func (s *AuthService) GetAssessmentsQuestionsChoice(assessment_id int64) ([]mode
 			stu_tracker.Choices c ON c.question_id = q.id
 		WHERE q.assessment_id = $1
 		ORDER BY q.order_number ASC, c.order_number ASC;`
-	rows, err := s.db.Query(query, assessment_id)
+	rows, err := s.db.QueryContext(c, query, assessment_id)
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
 	}
@@ -559,7 +560,7 @@ func (s *AuthService) GetAssessmentsQuestionsChoice(assessment_id int64) ([]mode
 	return results, nil
 }
 
-func (s *AuthService) GetProgramsByLocation(locId int64, org_id int64) ([]models.ResponseRequestProgramList, error) {
+func (s *AuthService) GetProgramsByLocation(c context.Context, locId int64, org_id int64) ([]models.ResponseRequestProgramList, error) {
 	var query string
 	query += `
 		SELECT p.id, p.program_name, p.created_at, lp.location_id
@@ -567,7 +568,7 @@ func (s *AuthService) GetProgramsByLocation(locId int64, org_id int64) ([]models
 		JOIN stu_tracker.Programs p ON lp.program_id = p.id
 		WHERE lp.location_id = $1 AND p.organization_id = $2`
 
-	rows, err := s.db.Query(query, locId, org_id)
+	rows, err := s.db.QueryContext(c, query, locId, org_id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying program: %w", err)
 	}
@@ -596,7 +597,7 @@ func (s *AuthService) GetProgramsByLocation(locId int64, org_id int64) ([]models
 	return programs, nil
 }
 
-func (s *AuthService) GetProgramsByIds(locId []int64, org_id int64) ([]models.ResponseRequestProgramList, error) {
+func (s *AuthService) GetProgramsByIds(c context.Context, locId []int64, org_id int64) ([]models.ResponseRequestProgramList, error) {
 	var query string
 	query += `
 		SELECT p.id, p.program_name, p.created_at
@@ -605,7 +606,7 @@ func (s *AuthService) GetProgramsByIds(locId []int64, org_id int64) ([]models.Re
 		ON lp.program_id = p.id
 		WHERE lp.location_id = ANY($1) AND p.organization_id = $2`
 
-	rows, err := s.db.Query(query, pq.Array(locId), org_id)
+	rows, err := s.db.QueryContext(c, query, pq.Array(locId), org_id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying program: %w", err)
 	}
@@ -633,7 +634,7 @@ func (s *AuthService) GetProgramsByIds(locId []int64, org_id int64) ([]models.Re
 	return programs, nil
 }
 
-func (s *AuthService) GetTutorLocations(tutor_id int64, org_id int64) ([]models.TutorLocationList, error) {
+func (s *AuthService) GetTutorLocations(c context.Context, tutor_id int64, org_id int64) ([]models.TutorLocationList, error) {
 	var query string
 	// I can join program id to return programs as well
 	query += `
@@ -653,7 +654,7 @@ func (s *AuthService) GetTutorLocations(tutor_id int64, org_id int64) ([]models.
 		JOIN stu_tracker.Locations l ON tl.location_id = l.id
 		WHERE tl.tutor_id = $1;`
 
-	rows, err := s.db.Query(query, tutor_id)
+	rows, err := s.db.QueryContext(c, query, tutor_id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying Tutor_locations: %w", err)
 	}
@@ -679,7 +680,8 @@ func (s *AuthService) GetTutorLocations(tutor_id int64, org_id int64) ([]models.
 
 	return tutors_locations, nil
 }
-func (s *AuthService) GetTutorSchedules(tutor_id int64) ([]models.RegisterScheduleList, error) {
+
+func (s *AuthService) GetTutorSchedules(c context.Context, tutor_id int64) ([]models.RegisterScheduleList, error) {
 	var query string
 	// I can join program id to return programs as well
 	query += `
@@ -692,7 +694,7 @@ func (s *AuthService) GetTutorSchedules(tutor_id int64) ([]models.RegisterSchedu
 		WHERE ts.tutor_id = $1;
 		`
 
-	rows, err := s.db.Query(query, tutor_id)
+	rows, err := s.db.QueryContext(c, query, tutor_id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying Tutor_locations: %w", err)
 	}
@@ -726,7 +728,7 @@ func (s *AuthService) GetTutorSchedules(tutor_id int64) ([]models.RegisterSchedu
 	return schedules, nil
 }
 
-func (s *AuthService) GetTutorSessionsAccountability(req models.RequestTutorAccountability) (*models.ResponseTutorAccountability, error) {
+func (s *AuthService) GetTutorSessionsAccountability(c context.Context, req models.RequestTutorAccountability) (*models.ResponseTutorAccountability, error) {
 
 	if req.TutorID == nil || req.StartDate.IsZero() || req.EndDate.IsZero() {
 		return nil, fmt.Errorf("unable to get sessions missing params")
@@ -745,7 +747,7 @@ func (s *AuthService) GetTutorSessionsAccountability(req models.RequestTutorAcco
 			$2	
 		AND
 			$3;`
-	rows, err := s.db.Query(query, req.TutorID, req.StartDate, req.EndDate)
+	rows, err := s.db.QueryContext(c, query, req.TutorID, req.StartDate, req.EndDate)
 	if err != nil {
 		return nil, fmt.Errorf("error querying Tutor_locations: %w", err)
 	}
@@ -817,9 +819,9 @@ func (s *AuthService) GetTutorSessionsAccountability(req models.RequestTutorAcco
 	}, nil
 }
 
-func (s *AuthService) GetOrganizationPermissions(org_id int64) ([]models.PermissionsList, error) {
+func (s *AuthService) GetOrganizationPermissions(c context.Context, org_id int64) ([]models.PermissionsList, error) {
 	query := `SELECT p.id, p.name, p.description FROM stu_tracker.Permissions p;`
-	rows, err := s.db.Query(query)
+	rows, err := s.db.QueryContext(c, query)
 	if err != nil {
 		return nil, fmt.Errorf("error querying permissions: %w", err)
 	}
@@ -844,7 +846,7 @@ func (s *AuthService) GetOrganizationPermissions(org_id int64) ([]models.Permiss
 	return permissions, nil
 }
 
-func (s *AuthService) GetPermissionsById(org_id int64, role string, id int64) ([]models.PermissionsList, error) {
+func (s *AuthService) GetPermissionsById(c context.Context, org_id int64, role string, id int64) ([]models.PermissionsList, error) {
 	var query string
 	var rows *sql.Rows
 	var err error
@@ -853,7 +855,7 @@ func (s *AuthService) GetPermissionsById(org_id int64, role string, id int64) ([
 		query = `
 			SELECT p.id, p.name, p.description
 			FROM stu_tracker.Permissions p;`
-		rows, err = s.db.Query(query)
+		rows, err = s.db.QueryContext(c, query)
 	case "TUTOR":
 		query = `
 			SELECT tp.permission_id, p.name, p.description
@@ -861,7 +863,7 @@ func (s *AuthService) GetPermissionsById(org_id int64, role string, id int64) ([
 			LEFT JOIN stu_tracker.Permissions p
 			ON p.id = tp.permission_id
 			WHERE tp.tutor_id = $1;`
-		rows, err = s.db.Query(query, id)
+		rows, err = s.db.QueryContext(c, query, id)
 
 	case "ADMIN":
 		query = `
@@ -870,7 +872,7 @@ func (s *AuthService) GetPermissionsById(org_id int64, role string, id int64) ([
 			JOIN stu_tracker.Permissions p
 			ON p.id = tp.permission_id
 			WHERE tp.admin_id = $1;`
-		rows, err = s.db.Query(query, id)
+		rows, err = s.db.QueryContext(c, query, id)
 	default:
 		return nil, fmt.Errorf("invalid role: %s", role)
 	}
@@ -900,16 +902,16 @@ func (s *AuthService) GetPermissionsById(org_id int64, role string, id int64) ([
 	return permissions, nil
 }
 
-func (s *AuthService) GetAnnouncements(req models.AnnouncementRequest) ([]models.AnnouncementsList, error) {
+func (s *AuthService) GetAnnouncements(c context.Context, req models.AnnouncementRequest) ([]models.AnnouncementsList, error) {
 	if req.Role == "ROOT" || req.Role == "ADMIN" {
-		announcements, err := s.getAdminAnnouncements(int64(req.OrganizationID))
+		announcements, err := s.getAdminAnnouncements(c, int64(req.OrganizationID))
 		if err != nil {
 			return nil, fmt.Errorf("error on adminAnnouncements %w", err)
 		}
 		return announcements, nil
 	}
 	if req.Role == "TUTOR" {
-		announcements, err := s.getTutorAnnouncements(req.LocationIDs, int64(req.OrganizationID), req.ProgramID)
+		announcements, err := s.getTutorAnnouncements(c, req.LocationIDs, int64(req.OrganizationID), req.ProgramID)
 		if err != nil {
 			return nil, err
 		}
@@ -918,7 +920,7 @@ func (s *AuthService) GetAnnouncements(req models.AnnouncementRequest) ([]models
 	return []models.AnnouncementsList{}, nil
 }
 
-func (s *AuthService) getAdminAnnouncements(org_id int64) ([]models.AnnouncementsList, error) {
+func (s *AuthService) getAdminAnnouncements(c context.Context, org_id int64) ([]models.AnnouncementsList, error) {
 	var query string
 	query += `SELECT 
 		an.id, an.title, an.body, 
@@ -938,7 +940,7 @@ func (s *AuthService) getAdminAnnouncements(org_id int64) ([]models.Announcement
 		LEFT JOIN stu_tracker.Programs pr
 		ON pr.id = an.program_id
 		WHERE an.organization_id = $1`
-	rows, err := s.db.Query(query, org_id)
+	rows, err := s.db.QueryContext(c, query, org_id)
 	if err != nil {
 		return nil, err
 	}
@@ -973,7 +975,7 @@ func (s *AuthService) getAdminAnnouncements(org_id int64) ([]models.Announcement
 
 }
 
-func (s *AuthService) getTutorAnnouncements(loc_id []int64, org_id int64, pro_id []int64) ([]models.AnnouncementsList, error) {
+func (s *AuthService) getTutorAnnouncements(c context.Context, loc_id []int64, org_id int64, pro_id []int64) ([]models.AnnouncementsList, error) {
 	var query string
 	query += `
 		SELECT an.id, an.title, an.body, 
@@ -997,7 +999,7 @@ func (s *AuthService) getTutorAnnouncements(loc_id []int64, org_id int64, pro_id
 		AND an.organization_id = $3
 		ORDER BY 
 		an.created_at DESC`
-	rows, err := s.db.Query(query, pq.Array(loc_id), pq.Array(pro_id), org_id)
+	rows, err := s.db.QueryContext(c, query, pq.Array(loc_id), pq.Array(pro_id), org_id)
 	if err != nil {
 		return nil, err
 	}

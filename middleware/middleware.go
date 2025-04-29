@@ -96,6 +96,8 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 	env_config, err := config.LoadConfig()
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+			defer cancel()
 			if err != nil {
 				w.WriteHeader(http.StatusUnauthorized)
 				w.Write([]byte("Unable to load config files."))
@@ -148,7 +150,7 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 					w.Write([]byte("Unable to parse cookie"))
 					return
 				}
-				permissions, err := ValidateRequestPermissions(cookie_claims, s)
+				permissions, err := ValidateRequestPermissions(ctx, cookie_claims, s)
 				if err != nil {
 					fmt.Println(err)
 					w.WriteHeader(http.StatusUnauthorized)
@@ -164,8 +166,7 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 				return
 			}
 			if jwtError.Code == 0 {
-
-				permissions, err := ValidateRequestPermissions(claims, s)
+				permissions, err := ValidateRequestPermissions(ctx, claims, s)
 				if err != nil {
 					fmt.Println(err)
 					w.WriteHeader(http.StatusUnauthorized)
@@ -186,7 +187,7 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 	}
 }
 
-func ValidateRequestPermissions(claims jwt.MapClaims, s *services.AuthService) ([]models.PermissionsList, error) {
+func ValidateRequestPermissions(c context.Context, claims jwt.MapClaims, s *services.AuthService) ([]models.PermissionsList, error) {
 	if claims == nil {
 		return nil, fmt.Errorf("unable to get request")
 	}
@@ -202,15 +203,15 @@ func ValidateRequestPermissions(claims jwt.MapClaims, s *services.AuthService) (
 	if !ok {
 		return nil, fmt.Errorf("unable to parse organization id")
 	}
-	permissions, err := GetPermissions(int64(id), userType, int64(orgID), s)
+	permissions, err := GetPermissions(c, int64(id), userType, int64(orgID), s)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get permissions from validation")
 	}
 	return permissions, nil
 }
 
-func GetPermissions(id int64, userType string, orgid int64, s *services.AuthService) ([]models.PermissionsList, error) {
-	rows, err := s.GetPermissionsById(orgid, userType, id)
+func GetPermissions(c context.Context, id int64, userType string, orgid int64, s *services.AuthService) ([]models.PermissionsList, error) {
+	rows, err := s.GetPermissionsById(c, orgid, userType, id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying permissions: %w", err)
 	}

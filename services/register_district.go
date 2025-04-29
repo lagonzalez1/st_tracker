@@ -1,11 +1,12 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"tracker/app/models"
 )
 
-func (s *AuthService) AddDistrict(req models.RegisterRequestDistrict) (*models.ResponseRequestDistrict, error) {
+func (s *AuthService) AddDistrict(ctx context.Context, req models.RegisterRequestDistrict) (*models.ResponseRequestDistrict, error) {
 	// Input validation
 	if req.Name == "" || req.Region == "" || req.OrganizationId == nil {
 		return nil, fmt.Errorf("missing required fields: Name, Adminid, Region")
@@ -23,13 +24,13 @@ func (s *AuthService) AddDistrict(req models.RegisterRequestDistrict) (*models.R
 	}, nil
 }
 
-func (s *AuthService) UpdateDistrict(req models.RegisterRequestDistrict) (*models.ResponseUpdate, error) {
+func (s *AuthService) UpdateDistrict(ctx context.Context, req models.RegisterRequestDistrict) (*models.ResponseUpdate, error) {
 	// Input validation
 	if req.Name == "" || req.Region == "" || req.OrganizationId == nil {
 		return nil, fmt.Errorf("missing required fields: Name, Region, Orgid")
 	}
 	query := `UPDATE stu_tracker.District SET name = $1, city = $2, region = $3, state = $4, organization_id = $5 WHERE id = $6`
-	_, err := s.db.Exec(query, req.Name, req.City, req.Region, req.State, *req.OrganizationId, *req.ID)
+	_, err := s.db.ExecContext(ctx, query, req.Name, req.City, req.Region, req.State, *req.OrganizationId, *req.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}
@@ -38,13 +39,13 @@ func (s *AuthService) UpdateDistrict(req models.RegisterRequestDistrict) (*model
 	}, nil
 }
 
-func (s *AuthService) DeleteDistrict(req models.RemoveRequest) (*models.RemoveResponse, error) {
+func (s *AuthService) DeleteDistrict(ctx context.Context, req models.RemoveRequest) (*models.RemoveResponse, error) {
 	// Input validation
 	if req.ID == nil {
 		return nil, fmt.Errorf("missing required fields: ID")
 	}
 	query := `DELETE FROM stu_tracker.District WHERE id = $1`
-	_, err := s.db.Exec(query, *req.ID)
+	_, err := s.db.ExecContext(ctx, query, *req.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}

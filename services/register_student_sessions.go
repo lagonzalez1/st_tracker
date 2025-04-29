@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"strconv"
 	"tracker/app/models"
 )
@@ -80,7 +79,7 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.Fatalf("Rows affected error: %v", err)
+		return nil, err
 	}
 	assessmentsCompleted := 0
 	assessmentsAnswersCompleted := 0

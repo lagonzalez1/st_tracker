@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"tracker/app/models"
@@ -15,7 +16,7 @@ import (
 
 **/
 
-func (s *AuthService) AddAnnouncement(req models.RegisterAnnouncements) (*models.ResponseAnnouncement, error) {
+func (s *AuthService) AddAnnouncement(c context.Context, req models.RegisterAnnouncements) (*models.ResponseAnnouncement, error) {
 	// Input validation
 	if req.Title == "" || req.Body == "" || req.OrganizationID == 0 {
 		return nil, fmt.Errorf("missing required fields: title, body, admin_id, or organization_id")
@@ -50,7 +51,7 @@ func (s *AuthService) AddAnnouncement(req models.RegisterAnnouncements) (*models
 		values = append(values, req.Title, req.Body, nil, req.Severity, req.OrganizationID, req.ProgramID, req.AdminID, req.StaffID)
 	}
 
-	result, err := s.db.Exec(query, values...)
+	result, err := s.db.ExecContext(c, query, values...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to session students query: %w", err)
 	}
@@ -66,7 +67,7 @@ func (s *AuthService) AddAnnouncement(req models.RegisterAnnouncements) (*models
 	}, nil
 }
 
-func (s *AuthService) UpdateAnnouncement(req models.RegisterUpdateAnnouncements) (*models.ResponseAnnouncement, error) {
+func (s *AuthService) UpdateAnnouncement(c context.Context, req models.RegisterUpdateAnnouncements) (*models.ResponseAnnouncement, error) {
 	if req.ID == nil || req.Title == "" || req.Body == "" || req.OrganizationID == 0 {
 		return nil, fmt.Errorf("missing required fields: id, title, body, admin_id, or organization_id")
 	}
@@ -92,7 +93,8 @@ func (s *AuthService) UpdateAnnouncement(req models.RegisterUpdateAnnouncements)
 			staff_id = $8
 		WHERE id = $9;`
 
-	result, err := s.db.Exec(
+	result, err := s.db.ExecContext(
+		c,
 		query,
 		req.Title,
 		req.Body,
@@ -119,12 +121,12 @@ func (s *AuthService) UpdateAnnouncement(req models.RegisterUpdateAnnouncements)
 	}, nil
 }
 
-func (s *AuthService) DeleteAnnouncement(req models.RemoveRequest) (*models.RemoveResponse, error) {
+func (s *AuthService) DeleteAnnouncement(c context.Context, req models.RemoveRequest) (*models.RemoveResponse, error) {
 	if req.ID == nil {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, or email")
 	}
 	query := `DELETE FROM stu_tracker.Announcements WHERE id = $1;`
-	_, err := s.db.Exec(query, req.ID)
+	_, err := s.db.ExecContext(c, query, req.ID)
 	if err != nil {
 		return nil, fmt.Errorf("unable to delete staff: %w", err)
 

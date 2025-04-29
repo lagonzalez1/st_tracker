@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"tracker/app/models"
 
@@ -29,7 +30,7 @@ CREATE TABLE stu_tracker.Choices (
 );
 */
 
-func (s *AuthService) AddAssessment(req models.RegisterAssessment) (*models.RegisterResponseAssessment, error) {
+func (s *AuthService) AddAssessment(c context.Context, req models.RegisterAssessment) (*models.RegisterResponseAssessment, error) {
 	// Input validation
 	if req.Title == "" || req.MaxScore == nil || req.OrganizationID == nil {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, email, password")
@@ -39,7 +40,7 @@ func (s *AuthService) AddAssessment(req models.RegisterAssessment) (*models.Regi
 			(title, description, letter, cycle, alpha_identifier, external_link, max_score, subject_id, material_id, 
 			organization_id, visible, program_id, version, pre, post, mid, easy_score) 
 			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id;`
-	err := s.db.QueryRow(query, req.Title, req.Description, req.Letter,
+	err := s.db.QueryRowContext(c, query, req.Title, req.Description, req.Letter,
 		req.Cycle, req.AlphaIdentifier, req.ExternalLink, req.MaxScore,
 		req.SubjectId, req.MaterialID, req.OrganizationID, req.Visible,
 		req.ProgramId, req.Version, req.Pre, req.Post, req.Mid, req.EasyScore).Scan(&newID)
@@ -54,7 +55,8 @@ func (s *AuthService) AddAssessment(req models.RegisterAssessment) (*models.Regi
 				(assessment_id, image_url, question_text, question_type, points, order_number)
 				VALUES ($1, $2, $3, $4, $5, $6)
 				RETURNING id;`
-			err := s.db.QueryRow(
+			err := s.db.QueryRowContext(
+				c,
 				questionQuery,
 				newID,
 				question.ImageURL,
@@ -72,7 +74,8 @@ func (s *AuthService) AddAssessment(req models.RegisterAssessment) (*models.Regi
 				choiceQuery := ` INSERT INTO stu_tracker.Choices 
 					(question_id, choice_text, is_correct, order_number)
 					VALUES ($1, $2, $3, $4);`
-				_, err := s.db.Exec(
+				_, err := s.db.ExecContext(
+					c,
 					choiceQuery,
 					questionID,
 					choice.ChoiceText,
@@ -92,7 +95,7 @@ func (s *AuthService) AddAssessment(req models.RegisterAssessment) (*models.Regi
 	}, nil
 }
 
-func (s *AuthService) UpdateAssessment(req models.RegisterAssessment) (*models.RegisterResponseAssessment, error) {
+func (s *AuthService) UpdateAssessment(c context.Context, req models.RegisterAssessment) (*models.RegisterResponseAssessment, error) {
 	// Input validation
 	if req.Title == "" || req.MaxScore == nil || req.OrganizationID == nil {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, email, password")
@@ -101,7 +104,7 @@ func (s *AuthService) UpdateAssessment(req models.RegisterAssessment) (*models.R
 	cycle = $4, alpha_identifier = $5, external_link = $6, max_score = $7, subject_id = $8, 
 	material_id = $9, organization_id = $10, visible = $11, program_id = $12, version = $13, pre = $14, post = $15, mid = $16, easy_score = $17 
 	WHERE id = $18;`
-	_, err := s.db.Exec(query, req.Title, req.Description, req.Letter, req.Cycle,
+	_, err := s.db.ExecContext(c, query, req.Title, req.Description, req.Letter, req.Cycle,
 		req.AlphaIdentifier, req.ExternalLink, req.MaxScore, req.SubjectId, req.MaterialID,
 		req.OrganizationID, req.Visible, req.ProgramId, req.Version, req.Pre, req.Post, req.Mid,
 		req.EasyScore, req.ID)
@@ -124,7 +127,8 @@ func (s *AuthService) UpdateAssessment(req models.RegisterAssessment) (*models.R
 						order_number = $6
 					WHERE id = $7;`
 
-				_, err := s.db.Exec(
+				_, err := s.db.ExecContext(
+					c,
 					updateQuery,
 					req.ID,
 					question.ImageURL,
@@ -146,7 +150,8 @@ func (s *AuthService) UpdateAssessment(req models.RegisterAssessment) (*models.R
 								order_number = $3
 							WHERE id = $4;`
 
-						_, err := s.db.Exec(
+						_, err := s.db.ExecContext(
+							c,
 							updateChoiceQuery,
 							choice.ChoiceText,
 							choice.IsCorrect,
@@ -162,7 +167,8 @@ func (s *AuthService) UpdateAssessment(req models.RegisterAssessment) (*models.R
 							(question_id, choice_text, is_correct, order_number)
 							VALUES ($1, $2, $3, $4);`
 
-						_, err := s.db.Exec(
+						_, err := s.db.ExecContext(
+							c,
 							insertChoiceQuery,
 							question.QuestionID,
 							choice.ChoiceText,
@@ -182,7 +188,8 @@ func (s *AuthService) UpdateAssessment(req models.RegisterAssessment) (*models.R
 				(assessment_id, image_url, question_text, question_type, points, order_number)
 				VALUES ($1, $2, $3, $4, $5, $6)
 				RETURNING id;`
-				err := s.db.QueryRow(
+				err := s.db.QueryRowContext(
+					c,
 					questionQuery,
 					req.ID,
 					question.ImageURL,
@@ -199,7 +206,8 @@ func (s *AuthService) UpdateAssessment(req models.RegisterAssessment) (*models.R
 					choiceQuery := ` INSERT INTO stu_tracker.Choices 
 					(question_id, choice_text, is_correct, order_number)
 					VALUES ($1, $2, $3, $4);`
-					_, err := s.db.Exec(
+					_, err := s.db.ExecContext(
+						c,
 						choiceQuery,
 						questionID,
 						choice.ChoiceText,
@@ -216,7 +224,7 @@ func (s *AuthService) UpdateAssessment(req models.RegisterAssessment) (*models.R
 	// Remove any questions from array of ids
 	if len(req.RemoveQuestions) > 0 {
 		query := `DELETE FROM stu_tracker.Questions WHERE id = ANY($1)`
-		_, err := s.db.Exec(query, pq.Array(req.RemoveQuestions))
+		_, err := s.db.ExecContext(c, query, pq.Array(req.RemoveQuestions))
 		if err != nil {
 			return nil, fmt.Errorf("failed to delete questions: %w", err)
 		}
@@ -228,13 +236,13 @@ func (s *AuthService) UpdateAssessment(req models.RegisterAssessment) (*models.R
 	}, nil
 }
 
-func (s *AuthService) DeleteAssessment(req models.RemoveRequest) (*models.RemoveResponse, error) {
+func (s *AuthService) DeleteAssessment(c context.Context, req models.RemoveRequest) (*models.RemoveResponse, error) {
 	// Input validation
 	if req.ID == nil {
 		return nil, fmt.Errorf("missing required fields: id")
 	}
 	query := `DELETE FROM stu_tracker.Assessments WHERE id = $1`
-	_, err := s.db.Exec(query, *req.ID)
+	_, err := s.db.ExecContext(c, query, *req.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert Locations: %w", err)
 	}

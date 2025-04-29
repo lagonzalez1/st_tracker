@@ -1,19 +1,20 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"tracker/app/models"
 )
 
-func (s *AuthService) RegisterMultipleStudents(rows [][]string, organizationID *int64, semesterID int64, locationID int64) (*models.ResponseMultipleRegisterStudents, error) {
+func (s *AuthService) RegisterMultipleStudents(c context.Context, rows [][]string, organizationID *int64, semesterID int64, locationID int64) (*models.ResponseMultipleRegisterStudents, error) {
 	// Input validation
 	if organizationID == nil {
 		return nil, fmt.Errorf("organization_id is null")
 	}
 	var responseList []*models.UploadStudentRegister
 	// Prepare SQL statement for inserting tutors
-	stmt, err := s.db.Prepare(`
+	stmt, err := s.db.PrepareContext(c, `
 		INSERT INTO stu_tracker.Students 
 		(first_name, middle_name , last_name, grade_level, email, active, location_id, semester_id) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;`)

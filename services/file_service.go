@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -17,9 +18,9 @@ import (
 // AND
 // Return each assessment under such session
 
-func (s *AuthService) GetTutorFileData(ss models.RequestDownloadData) (*excelize.File, error) {
+func (s *AuthService) GetTutorFileData(c context.Context, ss models.RequestDownloadData) (*excelize.File, error) {
 	query, args := buildSessionQueryTutorData(ss)
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.QueryContext(c, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error querying locations: %w", err)
 	}
@@ -65,10 +66,10 @@ func (s *AuthService) GetTutorFileData(ss models.RequestDownloadData) (*excelize
 	return f, nil
 }
 
-func (s *AuthService) GetStudentFileData(ss models.RequestDownloadData) (*excelize.File, error) {
+func (s *AuthService) GetStudentFileData(c context.Context, ss models.RequestDownloadData) (*excelize.File, error) {
 	// Get all SQL session ids by params
 	query, args := buildSessionQuery(ss)
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.QueryContext(c, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error querying locations: %w", err)
 	}
@@ -92,20 +93,14 @@ func (s *AuthService) GetStudentFileData(ss models.RequestDownloadData) (*exceli
 	if len(sessionIDs) <= 0 {
 		return nil, nil
 	}
-	// THIS MIGHT BE WRONG, STUDENTS UNDER THIS LIST MUST BE ON ASSESSMENT_LIST NOT VICE VERSA
-	studentSessions, err := s.queryStudentsSessions(sessionIDs)
+	studentSessions, err := s.queryStudentsSessions(c, sessionIDs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to query student sessions %v", err)
 	}
-	// THIS IS RETURNING THE CORRECT ASSESSMENTS UNDER SUCH FIRST SESSION ID CONDITIONS
-	assessmentSessions, err := s.queryAssessmentSessions(sessionIDs)
+	assessmentSessions, err := s.queryAssessmentSessions(c, sessionIDs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to query student sessions %v", err)
 	}
-	fmt.Println("SessionIDs: ", sessionIDs)
-	fmt.Println("SessionID size: ", len(sessionIDs))
-	fmt.Println("QueryStudentSessions size: ", len(studentSessions))
-	fmt.Println("QueryAssessmentsSessions size: ", len(assessmentSessions))
 
 	// If file has some len build and return
 	f, err := buildStudentSessionFile(&studentSessions, &assessmentSessions)
@@ -168,7 +163,7 @@ func (s *AuthService) querySessionsTutors(sessions []int64) ([]models.Assessment
 }
 
 // Get assessments per session given session ids
-func (s *AuthService) queryAssessmentSessions(sessions []int64) ([]models.AssessmentsData, error) {
+func (s *AuthService) queryAssessmentSessions(c context.Context, sessions []int64) ([]models.AssessmentsData, error) {
 	query := `
 	SELECT a.title, a.max_score, ast.score, 
 	ast.created_at, a.letter, a.cycle, 
@@ -186,7 +181,7 @@ func (s *AuthService) queryAssessmentSessions(sessions []int64) ([]models.Assess
 	WHERE 
 		ast.session_id = ANY($1);`
 
-	rows, err := s.db.Query(query, pq.Array(sessions))
+	rows, err := s.db.QueryContext(c, query, pq.Array(sessions))
 	if err != nil {
 		return nil, fmt.Errorf("error querying locations: %w", err)
 	}
@@ -220,7 +215,7 @@ func (s *AuthService) queryAssessmentSessions(sessions []int64) ([]models.Assess
 }
 
 // Get all session from a student given sessionid
-func (s *AuthService) queryStudentsSessions(sessions []int64) ([]models.StudentSession, error) {
+func (s *AuthService) queryStudentsSessions(c context.Context, sessions []int64) ([]models.StudentSession, error) {
 	query := `
 		SELECT ss.session_id, 
 		st.id,
@@ -246,7 +241,7 @@ func (s *AuthService) queryStudentsSessions(sessions []int64) ([]models.StudentS
 			sj.id = ss.subject_id
 		WHERE 
 			ss.session_id = ANY($1);`
-	rows, err := s.db.Query(query, pq.Array(sessions))
+	rows, err := s.db.QueryContext(c, query, pq.Array(sessions))
 	if err != nil {
 		return nil, fmt.Errorf("error querying locations: %w", err)
 	}
@@ -435,9 +430,10 @@ func buildStudentSessionFile(studentSessions *[]models.StudentSession, studentAs
 	if err := f.SetSheetName("Sheet1", sheet); err != nil {
 		return nil, fmt.Errorf("failed to rename sheet: %v", err)
 	}
+	fmt.Println("StudentSession Size: ", len(*studentSessions))
 	// Col values A , B, C, D ...
 	headers := []string{"SID", "First name", "Last name", "Session id", "Subject",
-		"Duration", "Start time", "Session Date", "Absent", "Notes", "Grade", "Assessment title", "Letter", "Cycle", "Pre", "Mid", "Post", "Version", "Score", "Max score"}
+		"Duration", "Session Date", "Absent", "Notes", "Grade", "Assessment title", "Letter", "Cycle", "Pre", "Mid", "Post", "Version", "Score", "Max score"}
 	for i, header := range headers {
 		cell := fmt.Sprintf("%c1", 'A'+i)
 		if err := f.SetCellValue(sheet, cell, header); err != nil {
@@ -447,7 +443,10 @@ func buildStudentSessionFile(studentSessions *[]models.StudentSession, studentAs
 	for i, sessions := range *studentSessions {
 		rowNum := i + 2
 		if i == 0 {
-			if err := f.SetColWidth(sheet, "G", "G", 20); err != nil {
+			if err := f.SetColWidth(sheet, "E", "E", 20); err != nil {
+				return nil, fmt.Errorf("failed to set column width: %v", err)
+			}
+			if err := f.SetColWidth(sheet, "H", "H", 20); err != nil {
 				return nil, fmt.Errorf("failed to set column width: %v", err)
 			}
 			if err := f.SetColWidth(sheet, "L", "L", 20); err != nil {
@@ -461,11 +460,10 @@ func buildStudentSessionFile(studentSessions *[]models.StudentSession, studentAs
 			fmt.Sprintf("D%d", rowNum): *sessions.SessionID,
 			fmt.Sprintf("E%d", rowNum): sessions.Subject,
 			fmt.Sprintf("F%d", rowNum): sessions.Duration,
-			fmt.Sprintf("G%d", rowNum): sessions.StartTime,
-			fmt.Sprintf("H%d", rowNum): formatSessionDate(sessions.SessionDate),
-			fmt.Sprintf("I%d", rowNum): sessions.Absent,
-			fmt.Sprintf("J%d", rowNum): sessions.Notes,
-			fmt.Sprintf("K%d", rowNum): sessions.Grade,
+			fmt.Sprintf("G%d", rowNum): formatSessionDate(sessions.SessionDate),
+			fmt.Sprintf("H%d", rowNum): sessions.Absent,
+			fmt.Sprintf("I%d", rowNum): sessions.Notes,
+			fmt.Sprintf("J%d", rowNum): sessions.Grade,
 		}
 		// check each cell for errors and insert
 		for cell, value := range cells {

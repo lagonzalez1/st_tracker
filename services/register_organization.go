@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"tracker/app/config"
 	"tracker/app/models"
@@ -8,7 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func (s *AuthService) AddOrganization(req models.RegisterOrganization) (*models.RegisterOrganizationResponse, error) {
+func (s *AuthService) AddOrganization(c context.Context, req models.RegisterOrganization) (*models.RegisterOrganizationResponse, error) {
 	// Input validation
 	env_config, err := config.LoadConfig()
 	if err != nil {
@@ -23,7 +24,7 @@ func (s *AuthService) AddOrganization(req models.RegisterOrganization) (*models.
 		query := `INSERT INTO stu_tracker.Organization(title, address, zip_code, state, city) 
 			  VALUES ($1, $2, $3, $4, $5) RETURNING id;`
 
-		err = s.db.QueryRow(query, req.OrganizationName, req.Address, req.ZipCode, req.State, req.City).Scan(&orgID)
+		err = s.db.QueryRowContext(c, query, req.OrganizationName, req.Address, req.ZipCode, req.State, req.City).Scan(&orgID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert student: %w", err)
 		}

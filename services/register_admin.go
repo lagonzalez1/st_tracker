@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"tracker/app/models"
 
@@ -21,7 +22,7 @@ const (
 	Tutor = "tutor"
 )
 
-func (s *AuthService) AddAdminStaff(req models.RegisterRequestAdmin) (*models.ResponseRequestAdmin, error) {
+func (s *AuthService) AddAdminStaff(c context.Context, req models.RegisterRequestAdmin) (*models.ResponseRequestAdmin, error) {
 	// Input validation
 	if req.Fullname == "" || req.Password == "" || req.Email == "" || req.OrganizationId == nil {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, or email")
@@ -34,7 +35,7 @@ func (s *AuthService) AddAdminStaff(req models.RegisterRequestAdmin) (*models.Re
 	var newID int64
 	query := `INSERT INTO stu_tracker.Admin_staff(fullname, email, password_hash, region, state, organization_id) 
 			  VALUES ($1, $2, $3, $4, $5, $6) RETURNING id;`
-	err = s.db.QueryRow(query, req.Fullname, req.Email, string(hash_password), req.Region, req.State, *req.OrganizationId).Scan(&newID)
+	err = s.db.QueryRowContext(c, query, req.Fullname, req.Email, string(hash_password), req.Region, req.State, *req.OrganizationId).Scan(&newID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}
@@ -45,7 +46,7 @@ func (s *AuthService) AddAdminStaff(req models.RegisterRequestAdmin) (*models.Re
 	}, nil
 }
 
-func (s *AuthService) UpdateAdminStaff(req models.RegisterRequestAdmin) (*models.ResponseUpdateAdmin, error) {
+func (s *AuthService) UpdateAdminStaff(c context.Context, req models.RegisterRequestAdmin) (*models.ResponseUpdateAdmin, error) {
 	if req.ID == nil || req.Email == "" || req.OrganizationId == nil {
 		return nil, fmt.Errorf("missing required fields: id, email, org_id")
 	}
@@ -65,7 +66,7 @@ func (s *AuthService) UpdateAdminStaff(req models.RegisterRequestAdmin) (*models
 	} else {
 		query := `UPDATE stu_tracker.Admin_staff SET fullname = $1, admin_id = $2, email = $3, region = $4, state = $5, organization_id = $6 
 		WHERE id = $7;`
-		_, err := s.db.Exec(query, req.Fullname, req.RootId, req.Email, req.Region, req.State, *req.OrganizationId, req.ID)
+		_, err := s.db.ExecContext(c, query, req.Fullname, req.RootId, req.Email, req.Region, req.State, *req.OrganizationId, req.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert admin: %w", err)
 		}
@@ -76,12 +77,12 @@ func (s *AuthService) UpdateAdminStaff(req models.RegisterRequestAdmin) (*models
 	}, nil
 }
 
-func (s *AuthService) DeleteAdminStaff(req models.RemoveAdmin) (*models.RemoveResponse, error) {
+func (s *AuthService) DeleteAdminStaff(c context.Context, req models.RemoveAdmin) (*models.RemoveResponse, error) {
 	if req.ID == nil {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, or email")
 	}
 	query := `DELETE FROM stu_tracker.Admin_staff WHERE id = $1;`
-	_, err := s.db.Exec(query, req.ID)
+	_, err := s.db.ExecContext(c, query, req.ID)
 	if err != nil {
 		return nil, fmt.Errorf("unable to delete staff: %w", err)
 

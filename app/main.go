@@ -26,7 +26,6 @@ func main() {
 		log.Fatalf("Database connection failed: %v", db_err)
 	}
 	defer db.Close()
-
 	r := mux.NewRouter()
 
 	authService := services.NewAuthService(db)
@@ -37,7 +36,7 @@ func main() {
 
 	// Testing allow different cors http://localhost:3000
 	corsOptions := cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://presentifyclone.click", "http://localhost:3000"},
+		AllowedOrigins:   []string{"https://presentifyclone.click"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		ExposedHeaders:   []string{"X-Access-Token"},
@@ -162,7 +161,6 @@ func main() {
 	apiMiddleware.HandleFunc("/get_session_trend", authHandler.GetSessionTrendLine).Methods("GET")
 	apiMiddleware.HandleFunc("/get_semester_assessments_data", authHandler.GetSemestersVAssessmentChart).Methods("GET")
 	apiMiddleware.HandleFunc("/get_assessments_growth_data", authHandler.GetAssessmentGrowth).Methods("GET")
-
 	apiMiddleware.HandleFunc("/tutor_big_data", authHandler.UploadTutorBigData).Methods("POST")
 	apiMiddleware.HandleFunc("/student_big_data", authHandler.UploadStudentBigData).Methods("POST")
 

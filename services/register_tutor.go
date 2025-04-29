@@ -1,13 +1,14 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"tracker/app/models"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-func (s *AuthService) AddTutor(req models.RegisterRequestTutor) (*models.ResponseRequestTutor, error) {
+func (s *AuthService) AddTutor(c context.Context, req models.RegisterRequestTutor) (*models.ResponseRequestTutor, error) {
 	// Input validation
 	if req.FirstName == "" || req.LastName == "" || req.Password == "" || req.Email == "" || req.OrganizationId == nil {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, email, password")
@@ -21,7 +22,7 @@ func (s *AuthService) AddTutor(req models.RegisterRequestTutor) (*models.Respons
 	query := `INSERT INTO stu_tracker.Tutors(first_name, last_name, email, password_hash, organization_id, location_id) 
 			  VALUES ($1, $2, $3, $4, $5, $6) RETURNING id;`
 
-	err = s.db.QueryRow(query, req.FirstName, req.LastName, req.Email, hash_password, *req.OrganizationId, req.LocationId).Scan(&newID)
+	err = s.db.QueryRowContext(c, query, req.FirstName, req.LastName, req.Email, hash_password, *req.OrganizationId, req.LocationId).Scan(&newID)
 	if err != nil {
 		return nil, err
 	}
@@ -41,14 +42,14 @@ func (s *AuthService) AddTutor(req models.RegisterRequestTutor) (*models.Respons
 	}, nil
 }
 
-func (s *AuthService) AddTutorLocation(req models.RegisterTutorLocation) (*models.RegisterTutorResponse, error) {
+func (s *AuthService) AddTutorLocation(c context.Context, req models.RegisterTutorLocation) (*models.RegisterTutorResponse, error) {
 	// Input validation
 	if req.LocationId == nil || req.TutorId == nil || req.OrganizationID == nil {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, email, password")
 	}
 	query := `INSERT INTO stu_tracker.Tutor_locations (tutor_id, location_id, organization_id) 
 			  VALUES ($1, $2, $3) ON CONFLICT (tutor_id, location_id, organization_id) DO NOTHING;`
-	_, err := s.db.Exec(query, *req.TutorId, *req.LocationId, *req.OrganizationID)
+	_, err := s.db.ExecContext(c, query, *req.TutorId, *req.LocationId, *req.OrganizationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}
@@ -57,7 +58,7 @@ func (s *AuthService) AddTutorLocation(req models.RegisterTutorLocation) (*model
 	}, nil
 }
 
-func (s *AuthService) UpdateTutor(req models.RegisterRequestTutor) (*models.ResponseUpdate, error) {
+func (s *AuthService) UpdateTutor(c context.Context, req models.RegisterRequestTutor) (*models.ResponseUpdate, error) {
 	// Input validation
 	if req.FirstName == "" || req.LastName == "" || req.Email == "" || req.OrganizationId == nil {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, email, password")
@@ -95,7 +96,7 @@ func (s *AuthService) UpdateTutor(req models.RegisterRequestTutor) (*models.Resp
 		}
 		query += " WHERE id = $5"
 		values = append(values, req.ID)
-		_, err := s.db.Exec(query, values...)
+		_, err := s.db.ExecContext(c, query, values...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert student: %w", err)
 		}
@@ -106,7 +107,7 @@ func (s *AuthService) UpdateTutor(req models.RegisterRequestTutor) (*models.Resp
 	}, nil
 }
 
-func (s *AuthService) DeleteTutor(req models.RemoveRequest) (*models.RemoveResponse, error) {
+func (s *AuthService) DeleteTutor(c context.Context, req models.RemoveRequest) (*models.RemoveResponse, error) {
 	if req.ID == nil {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, email, password")
 	}
@@ -117,7 +118,7 @@ func (s *AuthService) DeleteTutor(req models.RemoveRequest) (*models.RemoveRespo
 		return nil, fmt.Errorf("failed to remove tutor: %w", err)
 	}
 	queryLocation := `DELETE FROM stu_tracker.Tutor_locations WHERE tutor_id = $1`
-	_, err = s.db.Exec(queryLocation, req.ID)
+	_, err = s.db.ExecContext(c, queryLocation, req.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to remove tutor locations: %w", err)
 	}
@@ -127,7 +128,7 @@ func (s *AuthService) DeleteTutor(req models.RemoveRequest) (*models.RemoveRespo
 	}, nil
 }
 
-func (s *AuthService) DeleteTutorLocation(req models.RemoveTutorLocation) (*models.RemoveResponse, error) {
+func (s *AuthService) DeleteTutorLocation(c context.Context, req models.RemoveTutorLocation) (*models.RemoveResponse, error) {
 	// Input validation
 	if req.LocationId == nil || req.TutorId == nil || req.OrganizationID == nil {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, email, password")
@@ -136,7 +137,7 @@ func (s *AuthService) DeleteTutorLocation(req models.RemoveTutorLocation) (*mode
 			  WHERE tutor_id = $1 
 			  AND location_id = $2 
 			  AND organization_id = $3;`
-	_, err := s.db.Exec(query, *req.TutorId, *req.LocationId, *req.OrganizationID)
+	_, err := s.db.ExecContext(c, query, *req.TutorId, *req.LocationId, *req.OrganizationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}
