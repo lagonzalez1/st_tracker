@@ -98,12 +98,52 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 					studentIdstr := strconv.Itoa(int(*student.ID))
 					// Find the choices based on student_id
 					if choices, ok := req.Assessments[studentIdstr]; ok {
-						assessmentScores, err := s.ComputeScore(choices.AssessmentID, choices.Choices)
-						if err != nil {
-							return nil, err
+						// Is choice map empty, if so then fetch from assessment session
+						// If choice map is not empty, then get from choice obj given by user
+						var isEmpty bool = isMapTrulyEmpty(choices.Choices)
+						fmt.Println("Is choice object empty", isEmpty)
+						if !isEmpty {
+							// Compute score if the tutor has input the assessment values
+							assessmentScores, err := s.ComputeScore(choices.AssessmentID, choices.Choices, choices.Grader)
+							if err != nil {
+								return nil, err
+							}
+							fmt.Println("Question entries: ", len(assessmentScores.QuestionEntries))
+							fmt.Println("Question points: ", assessmentScores.Points)
+							fmt.Println("Question MaxScore: ", assessmentScores.MaxScore)
+
+							score = assessmentScores.Points
+							questionEntires = assessmentScores.QuestionEntries
+
+						} else {
+							choiceList, err := s.GetAssessmentChoicesByStudent(ctx, choices.AssessmentID, student.ID, req.SessionToken)
+							if err != nil {
+								return nil, err
+							}
+							fmt.Println("Is not empty, GetAssessmentChoicesByStudent: ", choiceList)
+							choicesMap := make(map[string]interface{})
+							for i := 0; i < len(choiceList); i++ {
+								questionID := strconv.Itoa(int(*choiceList[i].QuestionID))
+								if choiceList[i].ChoiceID != nil {
+									choicesMap[questionID] = *choiceList[i].ChoiceID
+								} else {
+									choicesMap[questionID] = *choiceList[i].AnswerText
+								}
+							}
+							fmt.Println("Is not empty, ChoicesMap Created: ", choicesMap)
+
+							assessmentScores, err := s.ComputeScore(choices.AssessmentID, choicesMap, choices.Grader)
+							if err != nil {
+								return nil, err
+							}
+							fmt.Println("Question entries: ", len(assessmentScores.QuestionEntries))
+							fmt.Println("Question points: ", assessmentScores.Points)
+							fmt.Println("Question MaxScore: ", assessmentScores.MaxScore)
+							score = assessmentScores.Points
+							questionEntires = assessmentScores.QuestionEntries
+
 						}
-						score = assessmentScores.Points
-						questionEntires = assessmentScores.QuestionEntries
+
 					}
 				} else {
 					score = int(*student.AssessmentScore)
@@ -135,8 +175,8 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 					for j := 0; j < len(questionEntires); j++ {
 						query2 := `
 						INSERT INTO stu_tracker.Assessment_answers
-						(assessment_student_id, question_id, choice_id, is_correct)
-						VALUES ($1, $2, $3, $4)`
+						(assessment_student_id, question_id, choice_id, is_correct, answer_text)
+						VALUES ($1, $2, $3, $4, $5);`
 						err := s.db.QueryRowContext(
 							ctx,
 							query2,
@@ -144,6 +184,7 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 							questionEntires[j].QuestionID,
 							questionEntires[j].ChoiceID,
 							questionEntires[j].IsCorrect,
+							questionEntires[j].AnswerText,
 						).Scan(&insertedAssessmentAnswers)
 
 						if err != nil && err != sql.ErrNoRows {
@@ -159,6 +200,19 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 				}
 
 			}
+		}
+	}
+
+	if req.SessionToken != nil {
+		assessmentQueryRemove := `DELETE FROM stu_tracker.Assessment_sessions WHERE session_token = $1`
+		sessionQueryRemove := `DELETE FROM stu_tracker.Session_answers WHERE session_token = $1`
+		_, err = s.db.ExecContext(ctx, assessmentQueryRemove, req.SessionToken)
+		if err != nil {
+			return nil, err
+		}
+		_, err = s.db.ExecContext(ctx, sessionQueryRemove, req.SessionToken)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -235,4 +289,42 @@ func (s *AuthService) insertAssessmentAnswers(
 		}
 	}
 	return nil
+}
+
+func isMapTrulyEmpty(m map[string]interface{}) bool {
+	if len(m) == 0 {
+		return true
+	}
+
+	// Check if all values are empty maps/interfaces
+	for _, v := range m {
+		switch val := v.(type) {
+		case map[string]interface{}:
+			if !isMapTrulyEmpty(val) {
+				return false
+			}
+		default:
+			// If any non-map, non-zero value exists
+			if val != nil {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (s *AuthService) removeActiveSessions(tutor_id *int64, c context.Context) (bool, error) {
+	query := `DELTE FROM stu_tracker.Assessment_sessions WHERE tutor_id = $1;`
+	r, err := s.db.ExecContext(c, query, tutor_id)
+	if err != nil {
+		return false, err
+	}
+	changed, err := r.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	if changed > 0 {
+		return true, nil
+	}
+	return false, nil
 }

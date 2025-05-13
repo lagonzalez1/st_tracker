@@ -129,10 +129,15 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 		query += `
 		SELECT stu.id, stu.first_name, stu.last_name, stu.middle_name, 
 		stu.location_id, stu.email, stu.grade_level, stu.active, stu.period, 
-		stu.created_at, stu.semester_id, direct_partnership
+		stu.created_at, stu.semester_id, stu.direct_partnership,
+		COALESCE(stu.created_by, 'NA') AS created_by,
+		stu.teacher_id,
+		COALESCE(lt.name, '') AS teacher_name
 		FROM stu_tracker.Students stu
 		JOIN stu_tracker.Locations loc
 		ON stu.location_id = loc.id
+		LEFT JOIN stu_tracker.Locations_teachers lt
+		ON lt.id = stu.teacher_id
 		WHERE loc.organization_id = $1 AND loc.id = $2;`
 		rows, err = s.db.QueryContext(c, query, id, locationId)
 	}
@@ -141,18 +146,22 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 		query += `
 		SELECT stu.id, stu.first_name, stu.last_name, stu.middle_name, 
 		stu.location_id, stu.email, stu.grade_level, stu.active, stu.period, 
-		stu.created_at, stu.semester_id, direct_partnership
+		stu.created_at, stu.semester_id, stu.direct_partnership, 
+		COALESCE(stu.created_by, 'NA') AS created_by, stu.teacher_id,
+		COALESCE(lt.name, '') AS teacher_name
 		FROM stu_tracker.Students stu
 		JOIN stu_tracker.Locations loc
 		ON stu.location_id = loc.id
+		LEFT JOIN stu_tracker.Locations_teachers lt
+		ON lt.id = stu.teacher_id
 		WHERE loc.id = $1
 		AND ( 
-			direct_partnership = FALSE 
-			OR (direct_partnership = TRUE AND tutor_id = $2)
+			stu.direct_partnership = FALSE 
+			OR (stu.direct_partnership = TRUE AND stu.tutor_id = $2)
 		);`
 		rows, err = s.db.QueryContext(c, query, locationId, tutorId)
 	}
-
+	fmt.Println(query)
 	if err != nil {
 		return nil, fmt.Errorf("error querying Students: %w", err)
 	}
@@ -176,6 +185,9 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 			&student.CreatedAt,
 			&student.SemesterId,
 			&student.DirectPartnership,
+			&student.CreatedBy,
+			&student.TeacherID,
+			&student.TeacherName,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan row: %v", err)
@@ -634,6 +646,43 @@ func (s *AuthService) GetProgramsByIds(c context.Context, locId []int64, org_id 
 	return programs, nil
 }
 
+func (s *AuthService) GetTeachers(c context.Context, location_id *int64) ([]models.ResponseTeachers, error) {
+	var query string
+	query += `
+		SELECT id, name, room, grade_level, location_id, substitute
+		FROM stu_tracker.Locations_teachers WHERE location_id = $1;`
+
+	rows, err := s.db.QueryContext(c, query, location_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying program: %w", err)
+	}
+	defer rows.Close()
+
+	var teachers []models.ResponseTeachers
+	for rows.Next() {
+		var teacher models.ResponseTeachers
+		err := rows.Scan(
+			&teacher.ID,
+			&teacher.Name,
+			&teacher.Room,
+			&teacher.GradeLevel,
+			&teacher.LocationID,
+			&teacher.Substitute,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		teachers = append(teachers, teacher)
+	}
+
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+
+	return teachers, nil
+}
+
 func (s *AuthService) GetTutorLocations(c context.Context, tutor_id int64, org_id int64) ([]models.TutorLocationList, error) {
 	var query string
 	// I can join program id to return programs as well
@@ -644,9 +693,7 @@ func (s *AuthService) GetTutorLocations(c context.Context, tutor_id int64, org_i
 		FROM stu_tracker.Tutors t
 		LEFT JOIN stu_tracker.Locations ls ON t.location_id = ls.id
 		WHERE t.id = $1 AND t.location_id IS NOT NULL
-
 		UNION
-
 		SELECT 
 			l.name AS location_name,
 			tl.location_id AS id

@@ -443,13 +443,16 @@ func buildStudentSessionFile(studentSessions *[]models.StudentSession, studentAs
 	for i, sessions := range *studentSessions {
 		rowNum := i + 2
 		if i == 0 {
+			if err := f.SetColWidth(sheet, "G", "G", 20); err != nil {
+				return nil, fmt.Errorf("failed to set column width: %v", err)
+			}
 			if err := f.SetColWidth(sheet, "E", "E", 20); err != nil {
 				return nil, fmt.Errorf("failed to set column width: %v", err)
 			}
-			if err := f.SetColWidth(sheet, "H", "H", 20); err != nil {
+			if err := f.SetColWidth(sheet, "L", "L", 20); err != nil {
 				return nil, fmt.Errorf("failed to set column width: %v", err)
 			}
-			if err := f.SetColWidth(sheet, "L", "L", 20); err != nil {
+			if err := f.SetColWidth(sheet, "K", "K", 20); err != nil {
 				return nil, fmt.Errorf("failed to set column width: %v", err)
 			}
 		}
@@ -503,15 +506,15 @@ func buildStudentSessionFile(studentSessions *[]models.StudentSession, studentAs
 		if studentAssessmentsData, exist := studentAssessmentsMap[compositeKey]; exist {
 			rowNum := i + 1
 			cells := map[string]interface{}{
-				fmt.Sprintf("L%d", rowNum): studentAssessmentsData.Title,
-				fmt.Sprintf("M%d", rowNum): studentAssessmentsData.Letter,
-				fmt.Sprintf("N%d", rowNum): studentAssessmentsData.Cycle,
-				fmt.Sprintf("O%d", rowNum): studentAssessmentsData.Pre,
-				fmt.Sprintf("P%d", rowNum): studentAssessmentsData.Mid,
-				fmt.Sprintf("Q%d", rowNum): studentAssessmentsData.Post,
-				fmt.Sprintf("R%d", rowNum): studentAssessmentsData.Version,
-				fmt.Sprintf("S%d", rowNum): studentAssessmentsData.Score,
-				fmt.Sprintf("T%d", rowNum): studentAssessmentsData.MaxScore,
+				fmt.Sprintf("K%d", rowNum): studentAssessmentsData.Title,
+				fmt.Sprintf("L%d", rowNum): studentAssessmentsData.Letter,
+				fmt.Sprintf("M%d", rowNum): studentAssessmentsData.Cycle,
+				fmt.Sprintf("N%d", rowNum): studentAssessmentsData.Pre,
+				fmt.Sprintf("O%d", rowNum): studentAssessmentsData.Mid,
+				fmt.Sprintf("P%d", rowNum): studentAssessmentsData.Post,
+				fmt.Sprintf("Q%d", rowNum): studentAssessmentsData.Version,
+				fmt.Sprintf("R%d", rowNum): studentAssessmentsData.Score,
+				fmt.Sprintf("S%d", rowNum): studentAssessmentsData.MaxScore,
 			}
 			// check each cell for errors and insert
 			for cell, value := range cells {

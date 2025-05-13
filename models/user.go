@@ -76,6 +76,7 @@ type RegisterRequestStudents struct {
 	LocationId        *int64  `json:"location_id"`
 	DirectPartnership bool    `json:"direct_partnership"`
 	TutorID           *int64  `json:"tutor_id"`
+	TeacherID         *int64  `json:"teacher_id"`
 	CreatedBy         string  `json:"created_by"`
 }
 
@@ -88,9 +89,12 @@ type ResponseRequestStudentList struct {
 	GradeLevel        int     `json:"grade_level"`
 	Active            bool    `json:"active"`
 	CreatedAt         string  `json:"created_at"`
+	CreatedBy         string  `json:"created_by"`
 	Period            *int64  `json:"period,omitempty"`
 	SemesterId        *int64  `json:"semester_id"`
 	DirectPartnership bool    `json:"direct_partnership"`
+	TeacherID         *int64  `json:"teacher_id"`
+	TeacherName       *string `json:"teacher_name"`
 	LocationId        *int64  `json:"location_id"`
 }
 
@@ -354,12 +358,14 @@ type RegisterStudentSessionList struct {
 	Session        RegisterTutorSession          `json:"session"`
 	SessionList    []RegisterStudentSession      `json:"student_sessions"`
 	Assessments    map[string]*AssessmentPayload `json:"assessments"`
+	SessionToken   *string                       `json:"session_token"`
 	OrganizationID *int64                        `json:"organization_id"`
 }
 
 type AssessmentPayload struct {
-	AssessmentID *int64         `json:"assessment_id"`
-	Choices      map[string]int `json:"choices,omitempty"`
+	AssessmentID *int64                 `json:"assessment_id"`
+	Choices      map[string]interface{} `json:"choices,omitempty"`
+	Grader       map[string]bool        `json:"grader,omitempty"`
 }
 
 type RegisterTutorSession struct {
@@ -428,6 +434,7 @@ type StudentSessions struct {
 	ID              *int64 `json:"id"`
 	FirstName       string `json:"first_name"`
 	LastName        string `json:"last_name"`
+	MiddleName      string `json:"middle_name"`
 	SessionCount    *int64 `json:"session_count"`
 	AssessmentCount *int64 `json:"assessment_count"`
 }
@@ -633,6 +640,7 @@ type StudentSessionInfo struct {
 }
 
 type StudentAssessmentInfo struct {
+	ID        *int64    `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 	Score     *int64    `json:"score"`
 	MaxScore  *int64    `json:"max_score"`
@@ -797,4 +805,39 @@ type TutorSessionsList struct {
 	Substitute   bool       `json:"substitute"`
 	Semester     string     `json:"semester"`
 	LocationName string     `json:"location_name"`
+}
+
+type StudentAssessmentSearch struct {
+	QuestionID   *int64  `json:"question_id"`
+	Question     *string `json:"question"`
+	QuestionType *string `json:"question_type"`
+	Points       int     `json:"points"`
+	MaxPoints    int     `json:"max_points"`
+	IsCorrect    bool    `json:"is_correct"`
+	ChoiceID     *int64  `json:"choice_id"`
+	AnswerText   *string `json:"answer_text"`
+	ChoiceText   *string `json:"choice_text"`
+}
+
+type RegisterTeacher struct {
+	ID         *int64 `json:"id"`
+	Name       string `json:"name"`
+	Room       string `json:"room"`
+	GradeLevel int64  `json:"grade_level"`
+	Substitute bool   `json:"substitute"`
+	LocationID *int64 `json:"location_id"`
+}
+
+type RegisterTeacherResponse struct {
+	Status string `json:"status"`
+	ID     *int64 `json:"id"`
+}
+
+type ResponseTeachers struct {
+	ID         *int64 `json:"id"`
+	Name       string `json:"name"`
+	Room       string `json:"room"`
+	GradeLevel int64  `json:"grade_level"`
+	Substitute bool   `json:"substitute"`
+	LocationID *int64 `json:"location_id"`
 }

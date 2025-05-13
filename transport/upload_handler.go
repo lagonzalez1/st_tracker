@@ -25,10 +25,6 @@ func (h *AuthHandler) UploadTutorBigData(w http.ResponseWriter, r *http.Request)
 	}
 	defer file.Close()
 	organization_id := r.FormValue("organization_id")
-	if err != nil {
-		http.Error(w, "Error retrieving organization_id", http.StatusBadRequest)
-		return
-	}
 	oid, err := strconv.ParseInt(organization_id, 10, 64)
 	if err != nil {
 		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
@@ -100,10 +96,6 @@ func (h *AuthHandler) UploadStudentBigData(w http.ResponseWriter, r *http.Reques
 	}
 	defer file.Close()
 	organization_id := r.FormValue("organization_id")
-	if err != nil {
-		http.Error(w, "Error retrieving organization_id", http.StatusBadRequest)
-		return
-	}
 	oid, err := strconv.ParseInt(organization_id, 10, 64)
 	if err != nil {
 		http.Error(w, "Unable to parse oid", http.StatusInternalServerError)
@@ -111,10 +103,6 @@ func (h *AuthHandler) UploadStudentBigData(w http.ResponseWriter, r *http.Reques
 	}
 
 	location_id := r.FormValue("location_id")
-	if err != nil {
-		http.Error(w, "Error retrieving organization_id", http.StatusBadRequest)
-		return
-	}
 	lid, err := strconv.ParseInt(location_id, 10, 64)
 	if err != nil {
 		http.Error(w, "Unable to parse lid", http.StatusInternalServerError)
@@ -122,10 +110,6 @@ func (h *AuthHandler) UploadStudentBigData(w http.ResponseWriter, r *http.Reques
 	}
 
 	semester_id := r.FormValue("semester_id")
-	if err != nil {
-		http.Error(w, "Error retrieving organization_id", http.StatusBadRequest)
-		return
-	}
 	sid, err := strconv.ParseInt(semester_id, 10, 64)
 	if err != nil {
 		http.Error(w, "Unable to parse sid", http.StatusInternalServerError)
@@ -138,8 +122,14 @@ func (h *AuthHandler) UploadStudentBigData(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	defer tempFile.Close()
+	_, err = io.Copy(tempFile, file)
+	if err != nil {
+		http.Error(w, "Error saving uploaded file", http.StatusInternalServerError)
+		return
+	}
 	excelFile, err := excelize.OpenFile(tempFile.Name())
 	if err != nil {
+		fmt.Println(err)
 		http.Error(w, "Error opening Excel file", http.StatusInternalServerError)
 		return
 	}

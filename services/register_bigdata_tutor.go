@@ -83,7 +83,7 @@ func (s *AuthService) RegisterMultipleTutors(c context.Context, rows [][]string,
 	// Prepare SQL statement for inserting tutors
 	stmt, err := s.db.PrepareContext(c, `
 		INSERT INTO stu_tracker.Tutors 
-		(first_name, last_name, email, password_hash,location_id, organization_id, active) 
+		(first_name, last_name, email, password_hash, location_id, organization_id, active) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7) 
 		RETURNING id;
 	`)

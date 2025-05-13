@@ -1,5 +1,13 @@
 CREATE SCHEMA stu_tracker;
 
+CREATE TABLE stu_tracker.Permissions (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    primary_role TEXT,
+    secondary_role TEXT,
+    description TEXT
+);
+
 CREATE TABLE stu_tracker.Organization(
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) UNIQUE,
@@ -19,14 +27,6 @@ CREATE TABLE stu_tracker.Admin_root (
     stripe_id VARCHAR(100) DEFAULT NULL,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     organization_name VARCHAR(255) DEFAULT NULL
-);
-
-CREATE TABLE stu_tracker.Permissions (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL UNIQUE,
-    primary_role TEXT,
-    secondary_role TEXT,
-    description TEXT
 );
 
 CREATE TABLE stu_tracker.Admin_staff (
@@ -95,6 +95,8 @@ CREATE TABLE stu_tracker.Programs (
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+
 CREATE TABLE stu_tracker.Tutors(
     id SERIAL PRIMARY KEY,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
@@ -221,7 +223,7 @@ CREATE TABLE stu_tracker.Students (
         email IS NULL OR 
         email = '' OR 
         email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
-    ),,
+    ),
     grade_level INT CHECK (grade_level BETWEEN 0 AND 12),
     active BOOLEAN DEFAULT TRUE,
     direct_partnership BOOLEAN DEFAULT FALSE,
@@ -234,11 +236,11 @@ CREATE TABLE stu_tracker.Students (
 
 CREATE TABLE stu_tracker.Sessions (
     id SERIAL PRIMARY KEY,
-    tutor_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
+    tutor_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE SET NULL,
     session_date TIMESTAMP NOT NULL,
-    location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE SET NULL,
+    location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE CASCADE,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE SET NULL,
-    program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE SET NULL,
+    program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE CASCADE,
     substitute BOOLEAN DEFAULT FALSE,
     substitute_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE SET NULL,
     semester_id INT REFERENCES stu_tracker.Semester(id) ON DELETE SET NULL,
@@ -307,7 +309,7 @@ CREATE TABLE stu_tracker.Announcements (
     staff_id INT REFERENCES stu_tracker.Admin_staff(id) ON DELETE CASCADE
 );
 
-CREATE TABLE stu_tracker.User_Acknowledgments (
+CREATE TABLE stu_tracker.User_Acknowledgments(
     id SERIAL PRIMARY KEY,
     tutor_id INT NOT NULL,
     announcement_id INT NOT NULL,
@@ -318,6 +320,51 @@ CREATE TABLE stu_tracker.User_Acknowledgments (
     FOREIGN KEY (tutor_id) REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
     FOREIGN KEY (announcement_id) REFERENCES stu_tracker.Announcements(id) ON DELETE CASCADE,
     UNIQUE (tutor_id, announcement_id)
+);
+
+CREATE TABLE stu_tracker.Tutor_schedules (
+    id SERIAL PRIMARY KEY,
+    tutor_id INTEGER NOT NULL REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
+    program_id INTEGER NOT NULL REFERENCES stu_tracker.Programs(id),
+    schedule_type VARCHAR(20) NOT NULL CHECK (schedule_type IN ('inclusion', 'exclusion')),
+    start_date DATE NOT NULL,
+    end_date DATE,
+    recurring BOOLEAN DEFAULT FALSE,
+    recurrence_pattern JSONB,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE stu_tracker.Questions (
+    id SERIAL PRIMARY KEY,
+    assessment_id INT REFERENCES stu_tracker.Assessments(id) ON DELETE CASCADE,
+    image_url TEXT,
+    question_text TEXT NOT NULL,
+    question_type VARCHAR(50),
+    points INT DEFAULT 1,
+    order_number INT,
+    is_required BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE stu_tracker.Choices (
+    id SERIAL PRIMARY KEY,
+    question_id INT REFERENCES stu_tracker.Questions(id) ON DELETE CASCADE,
+    choice_text TEXT NOT NULL,
+    is_correct BOOLEAN DEFAULT FALSE,
+    order_number INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE stu_tracker.Assessment_answers (
+    id SERIAL PRIMARY KEY,
+    assessment_student_id INT NOT NULL REFERENCES stu_tracker.Assessments_students(id) ON DELETE CASCADE,
+    question_id INT NOT NULL REFERENCES stu_tracker.Questions(id) ON DELETE CASCADE,
+    choice_id INT REFERENCES stu_tracker.Choices(id) ON DELETE SET NULL,
+    answer_text TEXT,
+    is_correct BOOLEAN,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (assessment_student_id, question_id)
 );
 
 
@@ -340,48 +387,48 @@ CREATE INDEX idx_student_location ON stu_tracker.Students(location_id);
 -- NEW SCHEMA --
 
 
-CREATE TABLE stu_tracker.Tutor_schedules (
+-- April 29 --  -- NEW -- NEW -- NEW -- NEW
+CREATE INDEX idx_student_semester_id ON stu_tracker.Students(semester_id);
+
+CREATE TABLE stu_tracker.Assessment_sessions (
     id SERIAL PRIMARY KEY,
-    tutor_id INTEGER NOT NULL REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
-    program_id INTEGER NOT NULL REFERENCES stu_tracker.Programs(id),
-    schedule_type VARCHAR(20) NOT NULL CHECK (schedule_type IN ('inclusion', 'exclusion')),
-    start_date DATE NOT NULL,
-    end_date DATE,
-    recurring BOOLEAN DEFAULT FALSE,
-    recurrence_pattern JSONB, -- For complex recurrence rules
-    notes TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    tutor_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
+    student_id INT REFERENCES stu_tracker.Students(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    first_name TEXT,
+    last_name TEXT,
+    assessment_id INT REFERENCES stu_tracker.Assessments(id) ON DELETE CASCADE,
+    semester_id INT REFERENCES stu_tracker.Semester(id) ON DELETE CASCADE,
+    session_token UUID NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    completed BOOLEAN DEFAULT FALSE,
+    grade_assessment BOOLEAN DEFAULT FALSE
 );
 
-
-CREATE TABLE stu_tracker.Questions (
+CREATE TABLE stu_tracker.Session_answers (
     id SERIAL PRIMARY KEY,
     assessment_id INT REFERENCES stu_tracker.Assessments(id) ON DELETE CASCADE,
-    image_url TEXT,
-    question_text TEXT NOT NULL,
-    question_type VARCHAR(50) NOT NULL, -- e.g., 'multiple_choice', 'true_false', 'short_answer'
-    points INT DEFAULT 1,
-    order_number INT, -- optional, if you want to sort questions
-    is_required BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE stu_tracker.Choices (
-    id SERIAL PRIMARY KEY,
+    student_id INT REFERENCES stu_tracker.Students(id) ON DELETE CASCADE,
+    session_token UUID,
     question_id INT REFERENCES stu_tracker.Questions(id) ON DELETE CASCADE,
-    choice_text TEXT NOT NULL,
-    is_correct BOOLEAN DEFAULT FALSE,
-    order_number INT, -- useful for displaying options in order
+    choice_id INT REFERENCES stu_tracker.Choices(id) ON DELETE SET NULL,
+    answer_text TEXT,
+    answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE stu_tracker.Locations_teachers (
+    id SERIAL PRIMARY KEY,
+    name TEXT,
+    room TEXT,
+    grade_level INT,
+    substitute BOOLEAN DEFAULT FALSE,
+    location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE stu_tracker.Assessment_answers (
-    id SERIAL PRIMARY KEY,
-    assessment_student_id INT NOT NULL REFERENCES stu_tracker.Assessments_students(id) ON DELETE CASCADE,
-    question_id INT NOT NULL REFERENCES stu_tracker.Questions(id) ON DELETE CASCADE,
-    choice_id INT REFERENCES stu_tracker.Choices(id) ON DELETE SET NULL,
-    answer_text TEXT, -- for short_answer type
-    is_correct BOOLEAN,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (assessment_student_id, question_id)
-);
+ALTER TABLE stu_tracker.Students ADD COLUMN teacher_id INT REFERENCES stu_tracker.Locations_teachers(id) ON DELETE SET NULL;
+
+-- NEW -- NEW -- NEW -- NEW
+
+
+

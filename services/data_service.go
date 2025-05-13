@@ -9,18 +9,55 @@ import (
 	"github.com/lib/pq"
 )
 
-/**
-tutor_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
-    session_date TIMESTAMP NOT NULL,
-    location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE SET NULL,
-    substitute BOOLEAN DEFAULT FALSE,
-    substitute_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE SET NULL,
-    start_time VARCHAR(10),
-    subject VARCHAR(100),
-    notes TEXT,
-    edited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-**/
+func (s *AuthService) StudentAssessmentSearch(c context.Context, student_assessment_id *int64) ([]models.StudentAssessmentSearch, error) {
+	query := `SELECT
+			ans.question_id, 
+			q.question_text,
+			q.points,
+			q.question_type,
+			ans.choice_id,
+			ans.answer_text,
+			ans.is_correct,
+			c.choice_text
+			FROM 
+				stu_tracker.Assessment_answers ans
+			LEFT JOIN
+				stu_tracker.Choices c
+			ON
+				ans.choice_id = c.question_id
+			LEFT JOIN
+				stu_tracker.Questions q
+			ON
+				q.id = ans.question_id
+			WHERE
+				ans.assessment_student_id = $1;`
+
+	rows, err := s.db.QueryContext(c, query, student_assessment_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying locations: %w", err)
+	}
+	defer rows.Close()
+	var studentAssessments []models.StudentAssessmentSearch
+	for rows.Next() {
+		var assessment models.StudentAssessmentSearch
+		err := rows.Scan(
+			&assessment.QuestionID,
+			&assessment.Question,
+			&assessment.Points,
+			&assessment.QuestionType,
+			&assessment.ChoiceID,
+			&assessment.AnswerText,
+			&assessment.IsCorrect,
+			&assessment.ChoiceText,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+
+		}
+		studentAssessments = append(studentAssessments, assessment)
+	}
+	return studentAssessments, nil
+}
 
 func (s *AuthService) SessionSearch(c context.Context, ss models.SearchQuery) ([]models.ServiceSession, error) {
 	query, args := buildSearchQuery(ss)
@@ -114,6 +151,7 @@ func (s *AuthService) StudentSessionSearch(c context.Context, ss models.SearchQu
 		err := rows.Scan(
 			&session.ID,
 			&session.FirstName,
+			&session.MiddleName,
 			&session.LastName,
 			&session.SessionCount,
 			&session.AssessmentCount,
@@ -297,6 +335,7 @@ func (s *AuthService) AssessmentInfo(c context.Context, session_id int64) ([]mod
 func (s *AuthService) StudentAssessmentInfo(c context.Context, student_id int64, organization_id int64) ([]models.StudentAssessmentInfo, error) {
 	query := `
 		SELECT
+		ast.id,
 		ast.created_at,
 		ast.score,
 		ast.session_id,
@@ -329,6 +368,7 @@ func (s *AuthService) StudentAssessmentInfo(c context.Context, student_id int64,
 	for rows.Next() {
 		var assessment models.StudentAssessmentInfo
 		err := rows.Scan(
+			&assessment.ID,
 			&assessment.CreatedAt,
 			&assessment.Score,
 			&assessment.SessionID,
@@ -842,13 +882,18 @@ func buildStudentSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 	query := `SELECT 
 			s.id AS student_id,
 			s.first_name,
+			s.middle_name,
 			s.last_name,
-			COUNT(DISTINCT ss.session_id) AS session_count,
-			COUNT(DISTINCT a.assessment_id) AS assessment_count
-		FROM stu_tracker.Session_students ss 
-		LEFT JOIN stu_tracker.Students s ON s.id = ss.student_id
-		LEFT JOIN stu_tracker.Sessions st ON st.id = ss.session_id
-		LEFT JOIN stu_tracker.Assessments_students a ON s.id = a.student_id `
+			COUNT(DISTINCT ss.id) AS session_count,
+			COUNT(DISTINCT a.id) AS assessment_count
+		FROM 
+			stu_tracker.Students s
+		JOIN 
+			stu_tracker.Session_students ss ON s.id = ss.student_id
+		JOIN 
+			stu_tracker.Assessments_students a ON s.id = a.student_id
+		LEFT JOIN 
+			stu_tracker.Sessions st ON st.id = ss.session_id `
 
 	if ss.SearchTerm != "" {
 		conditions = append(conditions, fmt.Sprintf("s.first_name ILIKE $%d OR s.last_name ILIKE $%d", argIndex, argIndex+1))

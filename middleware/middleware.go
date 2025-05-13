@@ -98,20 +98,30 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 			defer cancel()
+
 			if err != nil {
-				w.WriteHeader(http.StatusUnauthorized)
-				w.Write([]byte("Unable to load config files."))
+				http.Error(w, "Unable to load config files.", http.StatusUnauthorized)
+				return
 			}
-			if r.Header.Get("Authorization") == "" {
-				w.WriteHeader(http.StatusUnauthorized)
-				w.Write([]byte("Malformed Token"))
+
+			authHeader := r.Header.Get("Authorization")
+			if authHeader == "" {
+				http.Error(w, "Authorization header is required", http.StatusUnauthorized)
+				return
 			}
-			authHeader := strings.Split(r.Header.Get("Authorization"), "Bearer ")
-			if len(authHeader) != 2 {
-				w.WriteHeader(http.StatusUnauthorized)
-				w.Write([]byte("Malformed Token"))
+
+			// Split the token and validate format
+			parts := strings.SplitN(authHeader, "Bearer ", 2)
+			if len(parts) != 2 {
+				http.Error(w, "Malformed Token - must be 'Bearer <token>'", http.StatusUnauthorized)
+				return
 			}
-			jwtToken := authHeader[1]
+
+			jwtToken := strings.TrimSpace(parts[1]) // Also trim any whitespace
+			if jwtToken == "" {
+				http.Error(w, "Empty Token", http.StatusUnauthorized)
+				return
+			}
 			// Check if valid JWT
 			claims, jwtError := validateJWT(jwtToken, env_config.JWT)
 			fmt.Println("1. Claims-", claims)

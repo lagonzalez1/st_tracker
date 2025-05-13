@@ -26,6 +26,7 @@ func main() {
 		log.Fatalf("Database connection failed: %v", db_err)
 	}
 	defer db.Close()
+
 	r := mux.NewRouter()
 
 	authService := services.NewAuthService(db)
@@ -36,7 +37,7 @@ func main() {
 
 	// Testing allow different cors http://localhost:3000
 	corsOptions := cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://presentifyclone.click"},
+		AllowedOrigins:   []string{"https://presentifyclone.click", "http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		ExposedHeaders:   []string{"X-Access-Token"},
@@ -48,8 +49,10 @@ func main() {
 	r.HandleFunc("/hello", hello).Methods("GET")
 	r.HandleFunc("/register", authHandler.Register).Methods("POST")
 	r.HandleFunc("/login", authHandler.Login).Methods("POST")
+	r.HandleFunc("/get_assessment_questions_external", authHandler.GetAssessmentQuestionsExternal).Methods("GET")
 	r.HandleFunc("/create_organization", authHandler.CreateOrganization).Methods("POST")
 	r.HandleFunc("/health_check", authHandler.HealthCheck).Methods("GET") // FOR APPLICATIO LOAD BALANCER
+	r.HandleFunc("/create_student_assessment_response", authHandler.CreateStudentAssessmentResponse).Methods("POST")
 
 	apiMiddleware.HandleFunc("/create_student", authHandler.CreateStudent).Methods("POST")
 	apiMiddleware.HandleFunc("/create_location", authHandler.CreateLocation).Methods("POST")
@@ -96,9 +99,15 @@ func main() {
 	apiMiddleware.HandleFunc("/session_search", authHandler.GetSessionSearch).Methods("GET")
 	apiMiddleware.HandleFunc("/student_search", authHandler.GetStudentSessionSearch).Methods("GET")
 	apiMiddleware.HandleFunc("/tutor_search", authHandler.GetTutorSearch).Methods("GET")
+	apiMiddleware.HandleFunc("/student_assessment_search", authHandler.GetStudentAssesssmentSearch).Methods("GET")
 
 	apiMiddleware.HandleFunc("/get_tutor_sessions", authHandler.GetTutorSessionAnalytics).Methods("GET")
 	apiMiddleware.HandleFunc("/get_sessions", authHandler.GetTutorsSessions).Methods("GET")
+
+	apiMiddleware.HandleFunc("/create_teacher", authHandler.CreateTeacher).Methods("POST")
+	apiMiddleware.HandleFunc("/update_teacher", authHandler.UpdateTeacher).Methods("POST")
+	apiMiddleware.HandleFunc("/delete_teacher", authHandler.DeleteTeacher).Methods("POST")
+	apiMiddleware.HandleFunc("/get_teachers", authHandler.GetTeachers).Methods("GET")
 
 	apiMiddleware.HandleFunc("/create_session", authHandler.CreateStudentSession).Methods("POST")
 	apiMiddleware.HandleFunc("/create_assessment", authHandler.CreateAssessment).Methods("POST")
@@ -161,8 +170,15 @@ func main() {
 	apiMiddleware.HandleFunc("/get_session_trend", authHandler.GetSessionTrendLine).Methods("GET")
 	apiMiddleware.HandleFunc("/get_semester_assessments_data", authHandler.GetSemestersVAssessmentChart).Methods("GET")
 	apiMiddleware.HandleFunc("/get_assessments_growth_data", authHandler.GetAssessmentGrowth).Methods("GET")
+
 	apiMiddleware.HandleFunc("/tutor_big_data", authHandler.UploadTutorBigData).Methods("POST")
 	apiMiddleware.HandleFunc("/student_big_data", authHandler.UploadStudentBigData).Methods("POST")
+
+	apiMiddleware.HandleFunc("/create_assessment_sessions", authHandler.CreateAssessmentSessions).Methods("POST")
+	apiMiddleware.HandleFunc("/delete_assessment_sessions", authHandler.DeleteAssessmentSessions).Methods("POST")
+	apiMiddleware.HandleFunc("/get_student_assessment_choices", authHandler.GetStudentAssessmentChoices).Methods("GET")
+
+	apiMiddleware.HandleFunc("/get_student_assessment_sessions", authHandler.GetStudentAssessmentSessions).Methods("GET")
 
 	r.PathPrefix("/api").Handler(apiMiddleware)
 
