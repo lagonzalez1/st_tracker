@@ -9,7 +9,7 @@ import (
 	"github.com/lib/pq"
 )
 
-func (s *AuthService) StudentAssessmentSearch(c context.Context, student_assessment_id *int64) ([]models.StudentAssessmentSearch, error) {
+func (s *AuthService) StudentAssessmentSearch(c context.Context, student_assessment_id *int64, easyScore bool) ([]models.StudentAssessmentSearch, error) {
 	query := `SELECT
 			ans.question_id, 
 			q.question_text,
@@ -34,7 +34,7 @@ func (s *AuthService) StudentAssessmentSearch(c context.Context, student_assessm
 
 	rows, err := s.db.QueryContext(c, query, student_assessment_id)
 	if err != nil {
-		return nil, fmt.Errorf("error querying locations: %w", err)
+		return nil, fmt.Errorf("error querying Assessment_answers: %w", err)
 	}
 	defer rows.Close()
 	var studentAssessments []models.StudentAssessmentSearch
@@ -61,7 +61,6 @@ func (s *AuthService) StudentAssessmentSearch(c context.Context, student_assessm
 
 func (s *AuthService) SessionSearch(c context.Context, ss models.SearchQuery) ([]models.ServiceSession, error) {
 	query, args := buildSearchQuery(ss)
-	fmt.Println(query)
 	rows, err := s.db.QueryContext(c, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error querying locations: %w", err)
@@ -287,6 +286,27 @@ func (s *AuthService) GetSessionsTutors(c context.Context, ss models.RequestTuto
 	return sessions, nil
 }
 
+func (s *AuthService) GetStudentDetails(c context.Context, session_id *string, student_id *int64) (*models.StudentDetails, error) {
+
+	query := `SELECT 
+		s.first_name,
+		s.last_name,
+		s.middle_name,
+		s.grade_level
+		FROM stu_tracker.Students s
+		INNER JOIN stu_tracker.Assessment_sessions a
+		ON a.student_id = s.id
+		WHERE a.student_id = $1 AND a.session_token = $2
+		LIMIT 1;
+	`
+	var studentDetails models.StudentDetails
+	err := s.db.QueryRowContext(c, query, student_id, session_id).Scan(&studentDetails.FirstName, &studentDetails.LastName, &studentDetails.MiddleName, &studentDetails.GradeLevel)
+	if err != nil {
+		return nil, err
+	}
+	return &studentDetails, nil
+}
+
 func (s *AuthService) AssessmentInfo(c context.Context, session_id int64) ([]models.AssessmentInfoStudent, error) {
 	query := `
 	SELECT ats.title, ats.letter,
@@ -346,7 +366,8 @@ func (s *AuthService) StudentAssessmentInfo(c context.Context, student_id int64,
 		a.mid,
 		a.cycle,
 		a.letter,
-		a.version
+		a.version,
+		a.easy_score
 		FROM 
 			stu_tracker.Assessments_students ast
 		LEFT JOIN 
@@ -380,6 +401,7 @@ func (s *AuthService) StudentAssessmentInfo(c context.Context, student_id int64,
 			&assessment.Cycle,
 			&assessment.Letter,
 			&assessment.Version,
+			&assessment.EasyScore,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)

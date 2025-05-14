@@ -2682,6 +2682,40 @@ func (h *AuthHandler) GetStudents(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (h *AuthHandler) GetStudentDetails(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+	session_id := query.Get("session_id")
+	student_id := query.Get("student_id")
+	stud_id, err := strconv.ParseInt(student_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse location id", http.StatusInternalServerError)
+		return
+	}
+	rows, err := h.authService.GetStudentDetails(ctx, &session_id, &stud_id)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		// 6. You could also inspect SQL errors here if you like.
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
 func (h *AuthHandler) GetAdmins(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
@@ -3480,8 +3514,14 @@ func (h *AuthHandler) GetStudentAssesssmentSearch(w http.ResponseWriter, r *http
 		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
 		return
 	}
+	easyScore := query.Get("easy_score")
+	easyScoreBool, err := strconv.ParseBool(easyScore)
+	if err != nil {
+		http.Error(w, "unable to parse boolean", http.StatusInternalServerError)
+		return
+	}
 
-	rows, err := h.authService.StudentAssessmentSearch(ctx, &studentAssessmentSearch)
+	rows, err := h.authService.StudentAssessmentSearch(ctx, &studentAssessmentSearch, easyScoreBool)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "request timeout", http.StatusGatewayTimeout)

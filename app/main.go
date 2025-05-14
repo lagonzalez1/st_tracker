@@ -53,6 +53,7 @@ func main() {
 	r.HandleFunc("/create_organization", authHandler.CreateOrganization).Methods("POST")
 	r.HandleFunc("/health_check", authHandler.HealthCheck).Methods("GET") // FOR APPLICATIO LOAD BALANCER
 	r.HandleFunc("/create_student_assessment_response", authHandler.CreateStudentAssessmentResponse).Methods("POST")
+	r.HandleFunc("/get_student_details", authHandler.GetStudentDetails).Methods("GET")
 
 	apiMiddleware.HandleFunc("/create_student", authHandler.CreateStudent).Methods("POST")
 	apiMiddleware.HandleFunc("/create_location", authHandler.CreateLocation).Methods("POST")

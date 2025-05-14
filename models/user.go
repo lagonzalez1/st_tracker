@@ -652,6 +652,7 @@ type StudentAssessmentInfo struct {
 	Mid       bool      `json:"mid"`
 	Post      bool      `json:"post"`
 	Version   float64   `json:"version"`
+	EasyScore bool      `json:"easy_score"`
 }
 
 type SessionTrail struct {
@@ -840,4 +841,11 @@ type ResponseTeachers struct {
 	GradeLevel int64  `json:"grade_level"`
 	Substitute bool   `json:"substitute"`
 	LocationID *int64 `json:"location_id"`
+}
+
+type StudentDetails struct {
+	FirstName  string `json:"first_name"`
+	LastName   string `json:"last_name"`
+	MiddleName string `json:"middle_name"`
+	GradeLevel int64  `json:"grade_level"`
 }
