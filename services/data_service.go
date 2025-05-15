@@ -24,7 +24,7 @@ func (s *AuthService) StudentAssessmentSearch(c context.Context, student_assessm
 			LEFT JOIN
 				stu_tracker.Choices c
 			ON
-				ON ans.choice_id = c.id
+				ans.choice_id = c.id
 			LEFT JOIN
 				stu_tracker.Questions q
 			ON
