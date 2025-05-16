@@ -18,7 +18,7 @@ func (s *AuthService) AddTutor(c context.Context, req models.RegisterRequestTuto
 	if err != nil {
 		return nil, fmt.Errorf("unable to hash password: %v", err)
 	}
-	var newID int64
+	var newID *int64
 	query := `INSERT INTO stu_tracker.Tutors(first_name, last_name, email, password_hash, organization_id, location_id) 
 			  VALUES ($1, $2, $3, $4, $5, $6) RETURNING id;`
 
@@ -29,16 +29,27 @@ func (s *AuthService) AddTutor(c context.Context, req models.RegisterRequestTuto
 	if req.LocationId != nil {
 		queryLocationLink := `INSERT INTO stu_tracker.Tutor_locations(tutor_id, location_id, organization_id) 
 							  VALUES ($1, $2, $3); `
-		_, err = s.db.Exec(queryLocationLink, newID, *req.LocationId, *req.OrganizationId)
+		_, err = s.db.ExecContext(c, queryLocationLink, newID, *req.LocationId, *req.OrganizationId)
 		if err != nil {
 			fmt.Printf("Database query failed at AddTutor: %v", err)
+			return nil, err
+		}
+	}
+	if newID != nil {
+		permissionIDs, err := s.GetPermissionsByRole("tutor")
+		if err != nil {
+			return nil, err
+		}
+		permissionQuery, args := buildPermissionQueryTutors(permissionIDs, int(*newID))
+		_, err = s.db.ExecContext(c, permissionQuery, args...)
+		if err != nil {
 			return nil, err
 		}
 	}
 
 	return &models.ResponseRequestTutor{
 		Status:  "OK",
-		TutorId: newID,
+		TutorId: *newID,
 	}, nil
 }
 
