@@ -52,8 +52,8 @@ func (s *AuthService) AddAssessment(c context.Context, req models.RegisterAssess
 			var questionID int64
 			// Insert the question
 			questionQuery := `INSERT INTO stu_tracker.Questions 
-				(assessment_id, image_url, question_text, question_type, points, order_number)
-				VALUES ($1, $2, $3, $4, $5, $6)
+				(assessment_id, image_url, question_text, question_type, points, order_number, standard_text)
+				VALUES ($1, $2, $3, $4, $5, $6, $7)
 				RETURNING id;`
 			err := s.db.QueryRowContext(
 				c,
@@ -64,6 +64,7 @@ func (s *AuthService) AddAssessment(c context.Context, req models.RegisterAssess
 				question.QuestionType,
 				question.Points,
 				question.OrderNumber,
+				question.Standard,
 			).Scan(&questionID)
 			if err != nil {
 				return nil, fmt.Errorf("failed to insert question: %w", err)
@@ -124,8 +125,9 @@ func (s *AuthService) UpdateAssessment(c context.Context, req models.RegisterAss
 						question_text = $3,
 						question_type = $4,
 						points = $5,
-						order_number = $6
-					WHERE id = $7;`
+						order_number = $6,
+						standard_text = $7
+					WHERE id = $8;`
 
 				_, err := s.db.ExecContext(
 					c,
@@ -136,6 +138,7 @@ func (s *AuthService) UpdateAssessment(c context.Context, req models.RegisterAss
 					question.QuestionType,
 					question.Points,
 					question.OrderNumber,
+					question.Standard,
 					question.QuestionID,
 				)
 				if err != nil {
@@ -185,8 +188,8 @@ func (s *AuthService) UpdateAssessment(c context.Context, req models.RegisterAss
 				var questionID int64
 				// Insert the question
 				questionQuery := `INSERT INTO stu_tracker.Questions 
-				(assessment_id, image_url, question_text, question_type, points, order_number)
-				VALUES ($1, $2, $3, $4, $5, $6)
+				(assessment_id, image_url, question_text, question_type, points, order_number, standard_text)
+				VALUES ($1, $2, $3, $4, $5, $6, $7)
 				RETURNING id;`
 				err := s.db.QueryRowContext(
 					c,
@@ -197,6 +200,7 @@ func (s *AuthService) UpdateAssessment(c context.Context, req models.RegisterAss
 					question.QuestionType,
 					question.Points,
 					question.OrderNumber,
+					question.Standard,
 				).Scan(&questionID)
 				if err != nil {
 					return nil, fmt.Errorf("failed to insert question: %w", err)

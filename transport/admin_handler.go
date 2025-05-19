@@ -927,3 +927,79 @@ func (h *AuthHandler) GetStudentFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func (h *AuthHandler) GetTutorLowPerformance(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	// Undefined variables like optional location_id
+	// Check if exist before
+	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	var model models.RequestSessionBChart
+	if query.Get("organization_id") != "" {
+		org_id, err := strconv.ParseInt(query.Get("organization_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.OrganizationID = &org_id
+	}
+
+	if query.Get("location_id") != "" {
+		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.LocationID = &loc_id
+	}
+	if query.Get("semester_id") != "" {
+		sem_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SemesterID = &sem_id
+	}
+	if query.Get("start_date") != "" {
+		start_time, err := time.Parse("2006-01-02", query.Get("start_date"))
+		if err != nil {
+			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.StartDate = start_time
+	}
+	if query.Get("end_date") != "" {
+		end_date, err := time.Parse("2006-01-02", query.Get("end_date"))
+		if err != nil {
+			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.EndDate = end_date
+	}
+	user, err := h.authService.GetTutorLowPerformance(ctx, model)
+	if err != nil {
+		fmt.Print(err)
+		http.Error(w, "Unable to get GetTutorLowPerformance", http.StatusInternalServerError)
+		fmt.Printf("Unable to get GetTutorLowPerformance: %v", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}

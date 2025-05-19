@@ -540,6 +540,7 @@ type AssessmentQuestions struct {
 	ImageURL     string              `json:"image_url"`
 	Required     bool                `json:"is_required"`
 	OrderNumber  int                 `json:"order_number"`
+	Standard     *string             `json:"stadard_text"`
 	Points       int                 `json:"points"`
 	QuestionText string              `json:"question_text"`
 	QuestionType string              `json:"question_type"`

@@ -196,6 +196,82 @@ func buildSearchQueryTutorSessions(ss *models.RequestTutorSessions) (string, []i
 	return query, args
 }
 
+func buildLowPerformanceTutors(ss *models.RequestSessionBChart) (string, []interface{}) {
+	argIndex := 1
+	var args []interface{}
+	var conditions []string
+	query := `
+		WITH tutor_stats AS (
+			SELECT 
+				t.id,
+				t.first_name || ' ' || t.last_name AS tutor_name,
+				COUNT(DISTINCT s.id) AS session_count,
+				COUNT(DISTINCT aas.student_id) AS unique_student_count,
+				AVG(aas.score) AS avg_student_score,
+				PERCENT_RANK() OVER (ORDER BY COUNT(DISTINCT s.id)) AS session_percentile,
+				PERCENT_RANK() OVER (ORDER BY COUNT(DISTINCT aas.student_id)) AS student_percentile
+			FROM 
+				stu_tracker.Tutors t
+			LEFT JOIN 
+				stu_tracker.Sessions s ON t.id = s.tutor_id
+			LEFT JOIN 
+				stu_tracker.Assessments_students aas ON s.id = aas.session_id `
+
+	if ss.LocationID != nil {
+		conditions = append(conditions, fmt.Sprintf("s.location_id = $%d", argIndex))
+		args = append(args, ss.LocationID)
+		argIndex++
+	}
+	if ss.SemesterID != nil {
+		conditions = append(conditions, fmt.Sprintf("s.semester_id = $%d", argIndex))
+		args = append(args, ss.SemesterID)
+		argIndex++
+	}
+	if ss.ProgramID != nil {
+		conditions = append(conditions, fmt.Sprintf("s.program_id = $%d", argIndex))
+		args = append(args, ss.ProgramID)
+		argIndex += 1
+	}
+	if !ss.StartDate.IsZero() && !ss.EndDate.IsZero() {
+		conditions = append(conditions, fmt.Sprintf("s.session_date BETWEEN $%d AND $%d", argIndex, argIndex+1))
+		args = append(args, ss.StartDate, ss.EndDate)
+		argIndex += 2
+	} else if !ss.StartDate.IsZero() {
+		conditions = append(conditions, fmt.Sprintf("s.session_date >= $%d", argIndex))
+		args = append(args, ss.StartDate)
+		argIndex++
+	}
+
+	if len(conditions) > 0 {
+		query += "WHERE " + strings.Join(conditions, " AND ")
+	}
+	query += ` AND t.active = TRUE`
+	query += ` GROUP BY 
+				t.id, t.first_name, t.last_name
+			)
+			SELECT 
+			id,
+			tutor_name,
+			session_count,
+			unique_student_count,
+			avg_student_score,
+			session_percentile,
+			student_percentile,
+			CASE 
+				WHEN session_percentile < 0.25 AND student_percentile < 0.25 THEN 'High Concern'
+				WHEN session_percentile < 0.25 OR student_percentile < 0.25 THEN 'Moderate Concern'
+				ELSE 'Performing Adequately'
+			END AS performance_status
+			FROM 
+			tutor_stats
+			WHERE 
+			session_percentile < 0.25 OR student_percentile < 0.25  -- Bottom 25th percentile
+			ORDER BY 
+			session_count ASC, 
+			unique_student_count ASC;`
+	return query, args
+}
+
 func (s *AuthService) GetSessionAnalytics(req models.RequestSessionBChart) (*models.SessionAnalytics, error) {
 	if req.OrganizationID == nil {
 		return &models.SessionAnalytics{
@@ -506,9 +582,11 @@ func (s *AuthService) GetAssessmentTrendLine(ctx context.Context, req models.Req
 		return nil, err
 	}
 	defer rows.Close()
+	index := 0
 	var assessments []models.ResponseAssessmentTrendline
 	for rows.Next() {
 		var s models.ResponseAssessmentTrendline
+		s.ID = index
 		if err := rows.Scan(
 			&s.AssessmentCount,
 			&s.Year,
@@ -517,6 +595,7 @@ func (s *AuthService) GetAssessmentTrendLine(ctx context.Context, req models.Req
 			return nil, err
 		}
 		assessments = append(assessments, s)
+		index++
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating rows: %w", err)
@@ -551,8 +630,10 @@ func (s *AuthService) GetSessionTrendLine(req models.RequestSessionBChart) ([]mo
 	}
 	defer rows.Close()
 	var sessions []models.ResponseSessionTrendline
+	index := 0
 	for rows.Next() {
 		var s models.ResponseSessionTrendline
+		s.ID = index
 		if err := rows.Scan(
 			&s.SessionCount,
 			&s.Year,
@@ -561,6 +642,7 @@ func (s *AuthService) GetSessionTrendLine(req models.RequestSessionBChart) ([]mo
 			return nil, err
 		}
 		sessions = append(sessions, s)
+		index++
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating rows: %w", err)
@@ -604,4 +686,34 @@ func (s *AuthService) GetTutorSessions(req models.RequestTutorSessions) ([]model
 		return nil, fmt.Errorf("error iterating over rows: %w", err)
 	}
 	return sessions, nil
+}
+
+func (s *AuthService) GetTutorLowPerformance(c context.Context, req models.RequestSessionBChart) ([]models.ResponseTutorLowPerformance, error) {
+	query, args := buildLowPerformanceTutors(&req)
+	fmt.Println(query)
+	rows, err := s.db.QueryContext(c, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var performance []models.ResponseTutorLowPerformance
+	for rows.Next() {
+		var tutor models.ResponseTutorLowPerformance
+		err := rows.Scan(
+			&tutor.ID,
+			&tutor.TutorName,
+			&tutor.SessionCount,
+			&tutor.UniqueStudentCount,
+			&tutor.AverageStudentScore,
+			&tutor.SessionPercentile,
+			&tutor.StudentPercentile,
+			&tutor.PerformanceStatus,
+		)
+		if err != nil {
+			return nil, err
+		}
+		performance = append(performance, tutor)
+	}
+
+	return performance, nil
 }

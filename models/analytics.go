@@ -70,11 +70,13 @@ type ResponseTutorsBChart struct {
 }
 
 type ResponseAssessmentTrendline struct {
+	ID              int `json:"id"`
 	AssessmentCount int `json:"assessment_count"`
 	Year            int `json:"year"`
 	Month           int `json:"month"`
 }
 type ResponseSessionTrendline struct {
+	ID           int `json:"id"`
 	SessionCount int `json:"session_total"`
 	Year         int `json:"year"`
 	Month        int `json:"month"`
@@ -174,4 +176,15 @@ type ResponseTutorSessions struct {
 	EditedAt     string         `json:"edited_at"`
 	SubjectName  string         `json:"subject_name"`
 	StudentCount int64          `json:"student_count"`
+}
+
+type ResponseTutorLowPerformance struct {
+	ID                  *int64   `json:"id"`
+	TutorName           *string  `json:"fullname"`
+	SessionCount        *int64   `json:"session_count"`
+	UniqueStudentCount  *int64   `json:"unique_student_count"`
+	AverageStudentScore *float64 `json:"avg_student_score"`
+	SessionPercentile   *float64 `json:"session_percentile"`
+	StudentPercentile   *float64 `json:"student_percentile"`
+	PerformanceStatus   *string  `json:"performance_status"`
 }

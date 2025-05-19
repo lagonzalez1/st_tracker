@@ -309,7 +309,7 @@ CREATE TABLE stu_tracker.Announcements (
     staff_id INT REFERENCES stu_tracker.Admin_staff(id) ON DELETE CASCADE
 );
 
-CREATE TABLE stu_tracker.User_Acknowledgments(
+CREATE TABLE stu_tracker.User_Acknowledgments (
     id SERIAL PRIMARY KEY,
     tutor_id INT NOT NULL,
     announcement_id INT NOT NULL,
@@ -426,9 +426,10 @@ CREATE TABLE stu_tracker.Locations_teachers (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE stu_tracker.Students ADD COLUMN teacher_id INT REFERENCES stu_tracker.Locations_teachers(id) ON DELETE SET NULL;
 
 -- NEW -- NEW -- NEW -- NEW
+ALTER TABLE stu_tracker.Students ADD COLUMN teacher_id INT REFERENCES stu_tracker.Locations_teachers(id) ON DELETE SET NULL;
+ALTER TABLE stu_tracker.Questions ADD COLUMN standard_text TEXT;
 
 
 

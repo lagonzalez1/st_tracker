@@ -101,6 +101,7 @@ func main() {
 	apiMiddleware.HandleFunc("/student_search", authHandler.GetStudentSessionSearch).Methods("GET")
 	apiMiddleware.HandleFunc("/tutor_search", authHandler.GetTutorSearch).Methods("GET")
 	apiMiddleware.HandleFunc("/student_assessment_search", authHandler.GetStudentAssesssmentSearch).Methods("GET")
+	apiMiddleware.HandleFunc("/get_tutor_low_performance", authHandler.GetTutorLowPerformance).Methods("GET")
 
 	apiMiddleware.HandleFunc("/get_tutor_sessions", authHandler.GetTutorSessionAnalytics).Methods("GET")
 	apiMiddleware.HandleFunc("/get_sessions", authHandler.GetTutorsSessions).Methods("GET")
