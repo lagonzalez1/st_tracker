@@ -352,7 +352,7 @@ func (s *AuthService) CreateStudentAssessmentResponse(c context.Context, req mod
 	if err != nil {
 		return nil, fmt.Errorf("failed to check existing session: %w", err)
 	}
-	if !exists {
+	if exists {
 		return nil, fmt.Errorf("session not found given session id")
 	}
 	fmt.Println("checkQueryValidSession", exists)
