@@ -42,6 +42,15 @@ type DeleteAssessmentSession struct {
 	SessionID string `json:"session_id"`
 }
 
+type DeleteStudentSession struct {
+	SessionID string `json:"session_id"`
+	StudentID *int64 `json:"student_id"`
+}
+
+type DeleteStudentSessionResponse struct {
+	Status string `json:"status"`
+}
+
 type DeleteAssessmentSessionResponse struct {
 	Status string `json:"status"`
 }

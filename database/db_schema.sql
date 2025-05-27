@@ -431,5 +431,15 @@ CREATE TABLE stu_tracker.Locations_teachers (
 ALTER TABLE stu_tracker.Students ADD COLUMN teacher_id INT REFERENCES stu_tracker.Locations_teachers(id) ON DELETE SET NULL;
 ALTER TABLE stu_tracker.Questions ADD COLUMN standard_text TEXT;
 
+-- May 26 -- Adjust of timeframes ETO ...
+ALTER TABLE stu_tracker.Programs ADD timeframe_required BOOLEAN DEFAULT FALSE;
+ALTER TABLE stu_tracker.Students ADD timeframe BOOLEAN DEFAULT FALSE;
+ALTER TABLE stu_tracker.Students ADD timeframe_start TEXT DEFAULT NULL;
+ALTER TABLE stu_tracker.Students ADD timeframe_end TEXT DEFAULT NULL;
+
+
+ALTER TABLE stu_tracker.Session_students ADD timeframe BOOLEAN DEFAULT FALSE;
+ALTER TABLE stu_tracker.Session_students ADD timeframe_start TEXT DEFAULT NULL;
+ALTER TABLE stu_tracker.Session_students ADD timeframe_end TEXT DEFAULT NULL;
 
 

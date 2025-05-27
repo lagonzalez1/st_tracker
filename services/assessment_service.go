@@ -8,8 +8,6 @@ import (
 )
 
 func (s *AuthService) ComputeScore(assessment_id *int64, choices map[string]interface{}, grader map[string]bool) (*models.AssessmentScore, error) {
-	fmt.Println("Choices interface", choices)
-	fmt.Println("Grader interface", grader)
 	points, questionEntries, err := s.GradeAssessmentWithCorrectAnswers(assessment_id, choices, grader)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get assessments by assessment_id: %v", err)
@@ -148,7 +146,6 @@ func (s *AuthService) fetchCorrectAnswers(assessment_id int64) ([]models.Assessm
 	return questions, nil
 }
 
-// Helper function to grade a single question
 func (s *AuthService) gradeQuestion(q models.AssessmentGrader, questionIDstr string, choicesMap map[string]interface{}, graderMap map[string]bool) (models.AnswerFeedback, int, error) {
 	selectedChoice, exists := choicesMap[questionIDstr]
 	fmt.Printf("Type: %T, Value: %v, Exists: %t\n", selectedChoice, selectedChoice, exists)
@@ -173,51 +170,62 @@ func (s *AuthService) gradeQuestion(q models.AssessmentGrader, questionIDstr str
 			return feedback, q.Points, nil
 		}
 		return feedback, 0, nil
-
-	case string:
-		correctBool := graderMap[questionIDstr]
+	case int64:
+		isCorrect := q.IsCorrect && (int(val) == int(*q.ChoiceID))
 		feedback := models.AnswerFeedback{
 			QuestionID: *q.QuestionID,
-			IsCorrect:  correctBool,
-			AnswerText: &val,
-			ChoiceID:   nil,
+			ChoiceID:   q.ChoiceID,
+			IsCorrect:  isCorrect,
+			AnswerText: nil,
 		}
-		if correctBool {
+		if isCorrect {
 			return feedback, q.Points, nil
 		}
 		return feedback, 0, nil
-	case nil:
-		correctBool := graderMap[questionIDstr]
-		feedback := models.AnswerFeedback{
+	case string:
+		if graderMap != nil {
+			correctBool, ok := graderMap[questionIDstr]
+			if ok {
+				feedback := models.AnswerFeedback{
+					QuestionID: *q.QuestionID,
+					IsCorrect:  correctBool,
+					AnswerText: &val,
+					ChoiceID:   nil,
+				}
+				if correctBool {
+					return feedback, q.Points, nil
+				}
+			}
+		}
+		return models.AnswerFeedback{
 			QuestionID: *q.QuestionID,
-			IsCorrect:  correctBool,
+			IsCorrect:  false,
 			AnswerText: nil,
 			ChoiceID:   nil,
+		}, 0, nil
+	case nil:
+		if graderMap != nil {
+			correctBool, ok := graderMap[questionIDstr]
+			if ok {
+				feedback := models.AnswerFeedback{
+					QuestionID: *q.QuestionID,
+					IsCorrect:  correctBool,
+					AnswerText: nil,
+					ChoiceID:   nil,
+				}
+				if correctBool {
+					return feedback, q.Points, nil
+				}
+			}
 		}
-		if correctBool {
-			return feedback, q.Points, nil
-		}
-		return feedback, 0, nil
+		return models.AnswerFeedback{
+			QuestionID: *q.QuestionID,
+			IsCorrect:  false,
+			AnswerText: nil,
+			ChoiceID:   nil,
+		}, 0, nil
 
 	default:
-		selectedChoice, exists := graderMap[questionIDstr]
-		if !exists {
-			return models.AnswerFeedback{
-				QuestionID: *q.QuestionID,
-				IsCorrect:  false,
-				AnswerText: nil,
-				ChoiceID:   nil,
-			}, 0, nil
-		}
-		if exists {
-			return models.AnswerFeedback{
-				QuestionID: *q.QuestionID,
-				IsCorrect:  selectedChoice,
-				ChoiceID:   nil,
-				AnswerText: nil,
-			}, 0, nil
-		}
-
 		return models.AnswerFeedback{}, 0, fmt.Errorf("invalid choice type %T for question", selectedChoice)
 	}
 }
@@ -363,7 +371,7 @@ func (s *AuthService) CreateStudentAssessmentResponse(c context.Context, req mod
 	if err != nil {
 		return nil, fmt.Errorf("failed to check existing session: %w", err)
 	}
-	fmt.Println("Exist duplicate", checkDuplicateSubmit)
+	fmt.Println("Exist duplicate", existDuplicate)
 	if existDuplicate {
 		return nil, fmt.Errorf("no more than one submission per session")
 	}
@@ -420,5 +428,40 @@ func (s *AuthService) CreateStudentAssessmentResponse(c context.Context, req mod
 	return &models.StudentSubmitResponse{
 		Status:  "OK",
 		Answers: len(req.Answers),
+	}, nil
+}
+
+func (s *AuthService) DeleteStudentSession(c context.Context, req models.DeleteStudentSession) (*models.DeleteStudentSessionResponse, error) {
+	if req.SessionID == "" || req.StudentID == nil {
+		return nil, fmt.Errorf("missing session id and or student id")
+	}
+	tx, err := s.db.BeginTx(c, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	// Defer rollback in case of failure
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	query := `DELETE FROM stu_tracker.Assessment_sessions WHERE session_token = $1 AND student_id = $2;`
+	_, err = tx.ExecContext(c, query, req.SessionID, req.StudentID)
+	if err != nil {
+		return nil, err
+	}
+	sessionAnswerQuery := `DELETE FROM stu_tracker.Session_answers WHERE session_token = $1 AND student_id = $2;`
+	_, err = tx.ExecContext(c, sessionAnswerQuery, req.SessionID, req.StudentID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit DeleteStudentSession transaction: %w", err)
+	}
+
+	return &models.DeleteStudentSessionResponse{
+		Status: "Deleted",
 	}, nil
 }

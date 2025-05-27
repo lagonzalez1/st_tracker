@@ -12,10 +12,10 @@ func (s *AuthService) AddProgram(c context.Context, req models.RegisterRequestPr
 		return nil, fmt.Errorf("missing required fields: ID, Program name")
 	}
 	var newID int64
-	query := `INSERT INTO stu_tracker.Programs (program_name, organization_id) 
-			  VALUES ($1, $2) RETURNING id;`
+	query := `INSERT INTO stu_tracker.Programs (program_name, organization_id, timeframe_required) 
+			  VALUES ($1, $2, $3) RETURNING id;`
 
-	err := s.db.QueryRowContext(c, query, req.ProgramName, *req.OrganizationId).Scan(&newID)
+	err := s.db.QueryRowContext(c, query, req.ProgramName, *req.OrganizationId, req.TimeFrameRequired).Scan(&newID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}
@@ -30,8 +30,8 @@ func (s *AuthService) UpdateProgram(c context.Context, req models.RegisterReques
 	if req.ProgramName == "" || req.OrganizationId == nil {
 		return nil, fmt.Errorf("missing required fields: ID, Program name")
 	}
-	query := `UPDATE stu_tracker.Programs SET program_name = $1 WHERE id = $2`
-	_, err := s.db.ExecContext(c, query, req.ProgramName, req.ID)
+	query := `UPDATE stu_tracker.Programs SET program_name = $1, timeframe_required = $2 WHERE id = $3 `
+	_, err := s.db.ExecContext(c, query, req.ProgramName, req.TimeFrameRequired, req.ID)
 	if err != nil {
 		return nil, fmt.Errorf("unable to update program: %w", err)
 	}

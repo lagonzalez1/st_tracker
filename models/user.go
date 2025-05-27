@@ -78,6 +78,9 @@ type RegisterRequestStudents struct {
 	TutorID           *int64  `json:"tutor_id"`
 	TeacherID         *int64  `json:"teacher_id"`
 	CreatedBy         string  `json:"created_by"`
+	Timeframe         *bool   `json:"timeframe"`
+	TimeframeStart    *string `json:"timeframe_start"`
+	TimeframeEnd      *string `json:"timeframe_end"`
 }
 
 type ResponseRequestStudentList struct {
@@ -96,6 +99,9 @@ type ResponseRequestStudentList struct {
 	TeacherID         *int64  `json:"teacher_id"`
 	TeacherName       *string `json:"teacher_name"`
 	LocationId        *int64  `json:"location_id"`
+	Timeframe         *bool   `json:"timeframe"`
+	TimeframeStart    *string `json:"timeframe_start"`
+	TimeframeEnd      *string `json:"timeframe_end"`
 }
 
 type ResponseRequestStudents struct {
@@ -163,10 +169,11 @@ type ResponseRequestDistrictList struct {
 }
 
 type ResponseRequestProgramList struct {
-	ID          int64  `json:"id"`
-	LocationID  *int64 `json:"location_id"`
-	ProgramName string `json:"program_name"`
-	CreatedAt   string `json:"created_at"`
+	ID                int64  `json:"id"`
+	LocationID        *int64 `json:"location_id"`
+	ProgramName       string `json:"program_name"`
+	TimeFrameRequired bool   `json:"timeframe_required"`
+	CreatedAt         string `json:"created_at"`
 }
 
 type RegisterRequestDistrict struct {
@@ -185,10 +192,11 @@ type ResponseRequestDistrict struct {
 }
 
 type RegisterRequestProgram struct {
-	ID             *int64 `json:"id"`
-	ProgramName    string `json:"program_name"`
-	AdminID        int64  `json:"admin_id"`
-	OrganizationId *int64 `json:"organization_id"`
+	ID                *int64 `json:"id"`
+	ProgramName       string `json:"program_name"`
+	AdminID           int64  `json:"admin_id"`
+	OrganizationId    *int64 `json:"organization_id"`
+	TimeFrameRequired bool   `json:"timeframe_required"`
 }
 
 type PermissionsMap struct {
@@ -440,22 +448,25 @@ type StudentSessions struct {
 }
 
 type RegisterStudentSession struct {
-	ID              *int64 `json:"id"`
-	Absent          bool   `json:"absent"`
-	FirstName       string `json:"first_name"`
-	LastName        string `json:"last_name"`
-	SessionDate     string `json:"session_date"`
-	Duration        *int64 `json:"duration"`
-	StartTime       string `json:"start_time"`
-	Notes           string `json:"notes"`
-	OrganizationId  *int64 `json:"organization_id"`
-	ProgramId       *int64 `json:"program_id"`
-	LocationId      *int64 `json:"location_id"`
-	TutorId         *int64 `json:"tutor_id"`
-	SubjectId       *int64 `json:"subject_id"`
-	AssessmentId    *int64 `json:"assessment_id"`
-	AssessmentScore *int64 `json:"score"`
-	EasyScoreID     bool   `json:"easy_score"`
+	ID              *int64  `json:"id"`
+	Absent          bool    `json:"absent"`
+	FirstName       string  `json:"first_name"`
+	LastName        string  `json:"last_name"`
+	SessionDate     string  `json:"session_date"`
+	Duration        *int64  `json:"duration"`
+	StartTime       string  `json:"start_time"`
+	Notes           string  `json:"notes"`
+	OrganizationId  *int64  `json:"organization_id"`
+	ProgramId       *int64  `json:"program_id"`
+	LocationId      *int64  `json:"location_id"`
+	TutorId         *int64  `json:"tutor_id"`
+	SubjectId       *int64  `json:"subject_id"`
+	AssessmentId    *int64  `json:"assessment_id"`
+	AssessmentScore *int64  `json:"score"`
+	EasyScoreID     bool    `json:"easy_score"`
+	Timeframe       *bool   `json:"timeframe"`
+	TimeframeStart  *string `json:"timeframe_start"`
+	TimeframeEnd    *string `json:"timeframe_end"`
 }
 
 type StudentList struct {
@@ -613,14 +624,17 @@ type Session struct {
 }
 
 type SessionInfoStudent struct {
-	ID         *int64  `json:"student_id"`
-	FirstName  string  `json:"first_name"`
-	LastName   string  `json:"last_name"`
-	Email      *string `json"email"`
-	MiddleName string  `json:"middle_name"`
-	Duration   *int64  `json:"duration"`
-	Period     *int64  `json:"period,omitempty"`
-	Grade      *int64  `json:"grade"`
+	ID             *int64  `json:"student_id"`
+	FirstName      string  `json:"first_name"`
+	LastName       string  `json:"last_name"`
+	Email          *string `json"email"`
+	MiddleName     string  `json:"middle_name"`
+	Duration       *int64  `json:"duration"`
+	Period         *int64  `json:"period,omitempty"`
+	Grade          *int64  `json:"grade"`
+	Timeframe      bool    `json:"timeframe"`
+	TimeframeStart *string `json:"timeframe_start"`
+	TimeframeEnd   *string `json:"timeframe_end"`
 }
 
 type AssessmentInfoStudent struct {
@@ -641,19 +655,20 @@ type StudentSessionInfo struct {
 }
 
 type StudentAssessmentInfo struct {
-	ID        *int64    `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	Score     *int64    `json:"score"`
-	MaxScore  *int64    `json:"max_score"`
-	Letter    string    `json:"letter"`
-	Cycle     string    `json:"cycle"`
-	SessionID *int64    `json:"session_id"`
-	Title     string    `json:"title"`
-	Pre       bool      `json:"pre"`
-	Mid       bool      `json:"mid"`
-	Post      bool      `json:"post"`
-	Version   float64   `json:"version"`
-	EasyScore bool      `json:"easy_score"`
+	ID          *int64    `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	SessionDate time.Time `json:"session_date"`
+	Score       *int64    `json:"score"`
+	MaxScore    *int64    `json:"max_score"`
+	Letter      string    `json:"letter"`
+	Cycle       string    `json:"cycle"`
+	SessionID   *int64    `json:"session_id"`
+	Title       string    `json:"title"`
+	Pre         bool      `json:"pre"`
+	Mid         bool      `json:"mid"`
+	Post        bool      `json:"post"`
+	Version     float64   `json:"version"`
+	EasyScore   bool      `json:"easy_score"`
 }
 
 type SessionTrail struct {
@@ -670,6 +685,10 @@ type SessionTrail struct {
 	Absent          bool      `json:"absent"`
 	StudentDuration int       `json:"student_duration"`
 	SubstituteName  string    `json:"substitute_name,omitempty"`
+	SessionDate     time.Time `json:"session_date"`
+	Timeframe       bool      `json:"timeframe"`
+	TimeframeStart  *string   `json:"timeframe_start"`
+	TimeframeEnd    *string   `json:"timeframe_end"`
 }
 
 type TutorLocationList struct {
@@ -785,12 +804,15 @@ type RequestTutorSessions struct {
 }
 
 type Students struct {
-	SessionID  *int64 `json:"session_id"`
-	StudentID  *int64 `json:"student_id"`
-	FirstName  string `json:"first_name"`
-	MiddleName string `json:"middle_name"`
-	LastName   string `json:"last_name"`
-	Grade      int    `json:"grade_level"`
+	SessionID      *int64  `json:"session_id"`
+	StudentID      *int64  `json:"student_id"`
+	FirstName      string  `json:"first_name"`
+	MiddleName     string  `json:"middle_name"`
+	LastName       string  `json:"last_name"`
+	Grade          int     `json:"grade_level"`
+	Timeframe      bool    `json:"timeframe"`
+	TimeframeStart *string `json:"timeframe_start"`
+	TimeframeEnd   *string `json:"timeframe_end"`
 }
 
 type TutorSessionsList struct {

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 	"time"
 	"tracker/app/database"
 	"tracker/app/middleware"
@@ -180,9 +181,13 @@ func main() {
 	apiMiddleware.HandleFunc("/delete_assessment_sessions", authHandler.DeleteAssessmentSessions).Methods("POST")
 	apiMiddleware.HandleFunc("/get_student_assessment_choices", authHandler.GetStudentAssessmentChoices).Methods("GET")
 
+	apiMiddleware.HandleFunc("/delete_student_session", authHandler.DeleteStudentSession).Methods("POST")
+
 	apiMiddleware.HandleFunc("/get_student_assessment_sessions", authHandler.GetStudentAssessmentSessions).Methods("GET")
 
 	r.PathPrefix("/api").Handler(apiMiddleware)
+
+	fmt.Println("Number of cores avilable: ", runtime.GOMAXPROCS(0))
 
 	handler := corsOptions.Handler(r)
 	httpListen := &http.Server{

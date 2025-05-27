@@ -132,7 +132,10 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 		stu.created_at, stu.semester_id, stu.direct_partnership,
 		COALESCE(stu.created_by, 'NA') AS created_by,
 		stu.teacher_id,
-		COALESCE(lt.name, '') AS teacher_name
+		COALESCE(lt.name, '') AS teacher_name,
+		stu.timeframe,
+		stu.timeframe_start,
+		stu.timeframe_end
 		FROM stu_tracker.Students stu
 		JOIN stu_tracker.Locations loc
 		ON stu.location_id = loc.id
@@ -148,7 +151,10 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 		stu.location_id, stu.email, stu.grade_level, stu.active, stu.period, 
 		stu.created_at, stu.semester_id, stu.direct_partnership, 
 		COALESCE(stu.created_by, 'NA') AS created_by, stu.teacher_id,
-		COALESCE(lt.name, '') AS teacher_name
+		COALESCE(lt.name, '') AS teacher_name,
+		stu.timeframe,
+		stu.timeframe_start,
+		stu.timeframe_end
 		FROM stu_tracker.Students stu
 		JOIN stu_tracker.Locations loc
 		ON stu.location_id = loc.id
@@ -188,6 +194,9 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 			&student.CreatedBy,
 			&student.TeacherID,
 			&student.TeacherName,
+			&student.Timeframe,
+			&student.TimeframeStart,
+			&student.TimeframeEnd,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan row: %v", err)
@@ -612,7 +621,7 @@ func (s *AuthService) GetProgramsByLocation(c context.Context, locId int64, org_
 func (s *AuthService) GetProgramsByIds(c context.Context, locId []int64, org_id int64) ([]models.ResponseRequestProgramList, error) {
 	var query string
 	query += `
-		SELECT p.id, p.program_name, p.created_at
+		SELECT p.id, p.program_name, p.created_at, p.timeframe_required
 		FROM stu_tracker.Location_programs lp
 		JOIN stu_tracker.Programs p 
 		ON lp.program_id = p.id
@@ -631,6 +640,7 @@ func (s *AuthService) GetProgramsByIds(c context.Context, locId []int64, org_id 
 			&program.ID,
 			&program.ProgramName,
 			&program.CreatedAt,
+			&program.TimeFrameRequired,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)

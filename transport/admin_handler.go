@@ -675,15 +675,6 @@ func (h *AuthHandler) GetSemestersVAssessmentChart(w http.ResponseWriter, r *htt
 		}
 		model.Assessment1ID = &assessment_id
 	}
-	if query.Get("program_id") != "" {
-		program_id, err := strconv.ParseInt(query.Get("program_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-			return
-		}
-		model.ProgramID = &program_id
-	}
-
 	rows, err := h.authService.GetSemestersVAssessmentChart(model)
 	if err != nil {
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
@@ -803,6 +794,14 @@ func (h *AuthHandler) GetTutorFile(w http.ResponseWriter, r *http.Request) {
 		}
 		model.SemesterID = &sem_id
 	}
+	if query.Get("program_id") != "" {
+		program_id, err := strconv.ParseInt(query.Get("program_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.ProgramID = &program_id
+	}
 	if query.Get("date") != "" {
 		DateStart, err := time.Parse("2006-01-02", query.Get("date"))
 		if err != nil {
@@ -875,6 +874,15 @@ func (h *AuthHandler) GetStudentFile(w http.ResponseWriter, r *http.Request) {
 	}
 	if query.Get("semester_id") != "" {
 		sem_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SemesterID = &sem_id
+	}
+
+	if query.Get("program_id") != "" {
+		sem_id, err := strconv.ParseInt(query.Get("program_id"), 10, 64)
 		if err != nil {
 			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
 			return

@@ -246,7 +246,10 @@ func (s *AuthService) GetSessionsTutors(c context.Context, ss models.RequestTuto
 			st.last_name,
 			st.middle_name,
 			st.grade_level,
-			st.id
+			st.id,
+			st.timeframe,
+			st.timeframe_start,
+			st.timeframe_end
 		FROM 
 			stu_tracker.Session_students ss
 		INNER JOIN
@@ -274,6 +277,9 @@ func (s *AuthService) GetSessionsTutors(c context.Context, ss models.RequestTuto
 			&student.MiddleName,
 			&student.Grade,
 			&student.StudentID,
+			&student.Timeframe,
+			&student.TimeframeStart,
+			&student.TimeframeEnd,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -367,7 +373,8 @@ func (s *AuthService) StudentAssessmentInfo(c context.Context, student_id int64,
 		a.cycle,
 		a.letter,
 		a.version,
-		a.easy_score
+		a.easy_score,
+		ses.session_date
 		FROM 
 			stu_tracker.Assessments_students ast
 		LEFT JOIN 
@@ -378,6 +385,10 @@ func (s *AuthService) StudentAssessmentInfo(c context.Context, student_id int64,
 			stu_tracker.Assessments a
 		ON
 			a.id = ast.assessment_id
+		JOIN
+			stu_tracker.Sessions ses
+		on
+			ses.id = ast.session_id
 		WHERE 
 			ast.student_id = $1`
 	rows, err := s.db.QueryContext(c, query, student_id)
@@ -402,6 +413,7 @@ func (s *AuthService) StudentAssessmentInfo(c context.Context, student_id int64,
 			&assessment.Letter,
 			&assessment.Version,
 			&assessment.EasyScore,
+			&assessment.SessionDate,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -430,7 +442,11 @@ func (s *AuthService) TrailSessions(c context.Context, student_id int64) ([]mode
 			ss.substitute,
 			sst.absent,
 			sst.duration as student_duration,
-			COALESCE(sub.first_name || ' ' || sub.last_name, '') AS substitute_name
+			COALESCE(sub.first_name || ' ' || sub.last_name, '') AS substitute_name,
+			ss.session_date,
+			sst.timeframe,
+			sst.timeframe_start,
+			sst.timeframe_end
 		FROM 
 			stu_tracker.Session_students sst 
 		LEFT JOIN 
@@ -474,6 +490,10 @@ func (s *AuthService) TrailSessions(c context.Context, student_id int64) ([]mode
 			&session.Absent,
 			&session.StudentDuration,
 			&session.SubstituteName,
+			&session.SessionDate,
+			&session.Timeframe,
+			&session.TimeframeStart,
+			&session.TimeframeEnd,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -492,7 +512,7 @@ func (s *AuthService) SessionInfo(session_id int64) ([]models.SessionInfoStudent
 	SELECT
 		ss.duration, st.id as student_id, 
 		st.first_name, st.last_name, COALESCE(st.middle_name, '') as middle_name, 
-		st.email, st.grade_level AS grade, st.period
+		st.email, st.grade_level AS grade, st.period, ss.timeframe, ss.timeframe_start, ss.timeframe_end
 	FROM 
 		stu_tracker.Session_students ss 
 	LEFT JOIN 
@@ -520,6 +540,9 @@ func (s *AuthService) SessionInfo(session_id int64) ([]models.SessionInfoStudent
 			&session.Email,
 			&session.Grade,
 			&session.Period,
+			&session.Timeframe,
+			&session.TimeframeStart,
+			&session.TimeframeEnd,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -914,7 +937,7 @@ func buildStudentSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 			stu_tracker.Session_students ss ON s.id = ss.student_id
 		JOIN 
 			stu_tracker.Assessments_students a ON s.id = a.student_id
-		LEFT JOIN 
+		JOIN 
 			stu_tracker.Sessions st ON st.id = ss.session_id `
 
 	if ss.SearchTerm != "" {
