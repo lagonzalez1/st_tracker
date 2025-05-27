@@ -284,8 +284,8 @@ func (s *AuthService) GetDistrictsById(c context.Context, id int64, role string)
 
 func (s *AuthService) GetProgramsId(c context.Context, id int64, role string) ([]models.ResponseRequestProgramList, error) {
 	var query string
-	query += `SELECT id, program_name
-			  FROM stu_tracker.programs pg
+	query += `SELECT id, program_name, timeframe_required
+			  FROM stu_tracker.Programs pg
 			  WHERE pg.organization_id = $1;`
 	rows, err := s.db.QueryContext(c, query, id)
 	if err != nil {
@@ -298,6 +298,7 @@ func (s *AuthService) GetProgramsId(c context.Context, id int64, role string) ([
 		err := rows.Scan(
 			&program.ID,
 			&program.ProgramName,
+			&program.TimeFrameRequired,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
