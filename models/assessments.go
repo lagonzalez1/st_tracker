@@ -1,14 +1,15 @@
 package models
 
 type AssessmentGrader struct {
-	QuestionID *int64 `json:"question_id"`
-	Points     int    `json:"points"`
-	ChoiceID   *int64 `json:"choice_id"`
-	IsCorrect  bool   `json:"is_correct"`
+	QuestionID   *int64  `json:"question_id"`
+	Points       int     `json:"points"`
+	ChoiceID     *int64  `json:"choice_id"`
+	IsCorrect    bool    `json:"is_correct"`
+	QuestionType *string `json:"question_type"`
 }
 
 type AssessmentScore struct {
-	Points          int              `json:"points"`
+	Points          float32          `json:"points"`
 	Correct         int              `json:"correct"`
 	MaxScore        int              `json:"total"`
 	QuestionEntries []AnswerFeedback `json:"correct_map"`
@@ -86,7 +87,8 @@ type RegisterStudentAssessment struct {
 }
 
 type StudentAssessmentChoices struct {
-	QuestionID *int64  `json:"question_id"`
-	ChoiceID   *int64  `json:"choice_id"`
-	AnswerText *string `json:"answer_text"`
+	QuestionID   *int64  `json:"question_id"`
+	ChoiceID     *int64  `json:"choice_id"`
+	AnswerText   *string `json:"answer_text"`
+	AssessmentID *int64  `json:"assessment_id"`
 }

@@ -18,6 +18,7 @@ type RequestDownloadData struct {
 	SemesterID *int64    `json:"semester_id"`
 	DateStart  time.Time `json:"date"`
 	DateEnd    time.Time `json:"date_end"`
+	SortKey    string    `json:"sort_key"`
 }
 type AssessmentsData struct {
 	Title           string    `json:"title"`
@@ -29,7 +30,7 @@ type AssessmentsData struct {
 	Mid             bool      `json:"mid"`
 	Post            bool      `json:"port"`
 	Version         float32   `json:"version"`
-	Score           int       `json:"score"`
+	Score           float64   `json:"score"`
 	StudentID       *int64    `json:"student_id"`
 	StudentName     string    `json:"student_name"`
 	StudentLastName string    `json:"student_last_name"`
@@ -51,19 +52,23 @@ type StudentRow struct {
 }
 
 type StudentSession struct {
-	FirstName   string    `json:"student_first_name"`
-	LastName    string    `json:"student_last_name"`
-	SessionID   *int64    `json:"session_id"`
-	StudentID   *int64    `json:"student_id"`
-	Subject     string    `json:"subject"`
-	Duration    int       `json:"duration"`
-	CreatedAt   time.Time `json:"created_at"`
-	StartTime   string    `json:"start_time"`
-	SessionDate time.Time `json:"session_date"`
-	Notes       string    `json:"notes"`
-	Program     string    `json:"program"`
-	Absent      bool      `json:"absent"`
-	Grade       int       `json:"grade_level"`
+	FirstName      string    `json:"student_first_name"`
+	LastName       string    `json:"student_last_name"`
+	SessionID      *int64    `json:"session_id"`
+	StudentID      *int64    `json:"student_id"`
+	Subject        string    `json:"subject"`
+	Duration       int       `json:"duration"`
+	CreatedAt      time.Time `json:"created_at"`
+	StartTime      string    `json:"start_time"`
+	SessionDate    time.Time `json:"session_date"`
+	Notes          string    `json:"notes"`
+	Program        string    `json:"program"`
+	ProgramID      *int64    `json:"program_id"`
+	Absent         bool      `json:"absent"`
+	Grade          int       `json:"grade_level"`
+	Timeframe      bool      `json:"timeframe"`
+	TimeframeStart *string   `json:"timeframe_start"`
+	TimeframeEnd   *string   `json:"timeframe_end"`
 }
 
 type TutorSessionData struct {
@@ -79,4 +84,5 @@ type TutorSessionData struct {
 	SessionDate   time.Time `json:"session_date"`
 	Notes         string    `json:"notes"`
 	Program       string    `json:"program"`
+	ProgramID     *int64    `json:"program_id"`
 }

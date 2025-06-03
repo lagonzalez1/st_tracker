@@ -253,17 +253,13 @@ func (h *AuthHandler) GetStudentAssessmentChoices(w http.ResponseWriter, r *http
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
 	}
-	asid, err := strconv.ParseInt(assessment_id, 10, 64)
-	if err != nil {
-		http.Error(w, "Invalid student id", http.StatusBadRequest)
-		return
-	}
+
 	sid, err := strconv.ParseInt(student_id, 10, 64)
 	if err != nil {
 		http.Error(w, "Invalid student id", http.StatusBadRequest)
 		return
 	}
-	rows, err := h.authService.GetAssessmentChoicesByStudent(ctx, &asid, &sid, &session_id)
+	rows, err := h.authService.GetAssessmentChoicesByStudent(ctx, &sid, &session_id)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "request timeout", http.StatusGatewayTimeout)

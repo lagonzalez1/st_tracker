@@ -786,6 +786,9 @@ func (h *AuthHandler) GetTutorFile(w http.ResponseWriter, r *http.Request) {
 		}
 		model.LocationID = &loc_id
 	}
+	if query.Get("sort_key") != "" {
+		model.SortKey = query.Get("sort_key")
+	}
 	if query.Get("semester_id") != "" {
 		sem_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
 		if err != nil {
@@ -879,6 +882,9 @@ func (h *AuthHandler) GetStudentFile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		model.SemesterID = &sem_id
+	}
+	if query.Get("sort_key") != "" {
+		model.SortKey = query.Get("sort_key")
 	}
 
 	if query.Get("program_id") != "" {

@@ -285,6 +285,7 @@ CREATE TABLE stu_tracker.Assessments_students (
     FOREIGN KEY (session_id) REFERENCES stu_tracker.Sessions(id) ON DELETE CASCADE
 );
 
+
 CREATE TABLE stu_tracker.Notifications (
     id SERIAL PRIMARY KEY,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
@@ -442,4 +443,8 @@ ALTER TABLE stu_tracker.Session_students ADD timeframe BOOLEAN DEFAULT FALSE;
 ALTER TABLE stu_tracker.Session_students ADD timeframe_start TEXT DEFAULT NULL;
 ALTER TABLE stu_tracker.Session_students ADD timeframe_end TEXT DEFAULT NULL;
 
+-- May 30 --- 
+
+ALTER TABLE stu_tracker.Assessments_students ALTER COLUMN score TYPE FLOAT;
+ALTER TABLE stu_tracker.Assessment_answers DROP CONSTRAINT assessment_answers_assessment_student_id_question_id_key;
 

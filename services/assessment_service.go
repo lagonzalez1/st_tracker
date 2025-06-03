@@ -7,15 +7,34 @@ import (
 	"tracker/app/models"
 )
 
-func (s *AuthService) ComputeScore(assessment_id *int64, choices map[string]interface{}, grader map[string]bool) (*models.AssessmentScore, error) {
-	points, questionEntries, err := s.GradeAssessmentWithCorrectAnswers(assessment_id, choices, grader)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get assessments by assessment_id: %v", err)
+func (s *AuthService) ComputeScore(assessmentID *int64, choices map[string]interface{}, grader map[string]bool) (*models.AssessmentScore, error) {
+	if assessmentID == nil {
+		return nil, fmt.Errorf("assessmentID cannot be nil")
 	}
 
-	maxScore, err := s.GetAssessmentMaxScore(assessment_id)
+	maxScore, err := s.GetAssessmentMaxScore(assessmentID)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get assessments by assessment_id: %v", err)
+		return nil, fmt.Errorf("unable to get max score for assessment %d: %w", *assessmentID, err)
+	}
+	if maxScore == nil {
+		return nil, fmt.Errorf("maxScore was nil for assessment %d", *assessmentID)
+	}
+
+	if len(choices) == 0 {
+		fmt.Println("Empty choices, returning zero score")
+		return &models.AssessmentScore{
+			Points:          0.0,
+			MaxScore:        *maxScore,
+			QuestionEntries: []models.AnswerFeedback{},
+		}, nil
+	}
+
+	points, questionEntries, err := s.GradeAssessmentWithCorrectAnswers(assessmentID, choices, grader)
+	if err != nil {
+		return nil, fmt.Errorf("grading failed for assessment %d: %w", *assessmentID, err)
+	}
+	if points == nil {
+		return nil, fmt.Errorf("grade result returned nil points for assessment %d", *assessmentID)
 	}
 
 	return &models.AssessmentScore{
@@ -74,42 +93,85 @@ func (s *AuthService) GradeAssessment(assessment_id *int64, choices map[string]i
 	return &totalScore, nil
 }
 
-func (s *AuthService) GradeAssessmentWithCorrectAnswers(assessment_id *int64, choices interface{}, grader map[string]bool) (*int, []models.AnswerFeedback, error) {
-	// Validate inputs
-	if assessment_id == nil {
+func (s *AuthService) GradeAssessmentWithCorrectAnswers(
+	assessmentID *int64,
+	choices interface{},
+	grader map[string]bool,
+) (*float32, []models.AnswerFeedback, error) {
+	if assessmentID == nil {
 		return nil, nil, fmt.Errorf("assessment_id cannot be nil")
 	}
-	// Type assert the interfaces to maps
+
 	choicesMap, ok := choices.(map[string]interface{})
 	if !ok {
 		return nil, nil, fmt.Errorf("choices must be a map[string]interface{}")
 	}
-	// Fetch correct answers from database
-	questions, err := s.fetchCorrectAnswers(*assessment_id)
+	fmt.Println("Choices Map 2", choicesMap)
+	questions, err := s.fetchCorrectAnswers(*assessmentID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch correct answers: %w", err)
 	}
-	// Grade each question
-	totalScore := 0
+	fmt.Println("Questions answers", questions)
+	var totalScore float32
 	var allAnswers []models.AnswerFeedback
-	fmt.Println("fetchCorrectAnswers", questions)
-	for _, q := range questions {
-		questionIDstr := strconv.Itoa(int(*q.QuestionID))
-		feedback, score, err := s.gradeQuestion(q, questionIDstr, choicesMap, grader)
-		fmt.Println("Grade question result: ", feedback, score)
-		if err != nil {
-			return nil, nil, fmt.Errorf("grading failed for question %s: %w", questionIDstr, err)
+
+	for questionID, questionSet := range questions {
+		value, ok := choicesMap[questionID]
+		if !ok {
+			continue
 		}
-		totalScore += score
-		allAnswers = append(allAnswers, feedback)
+
+		if len(questionSet) == 1 {
+			feedback, score, err := s.gradeQuestion(questionSet[0], questionID, value, grader)
+			if err != nil {
+				return nil, nil, fmt.Errorf("grading failed for question %s: %w", questionID, err)
+			}
+			totalScore += float32(score)
+			allAnswers = append(allAnswers, feedback)
+
+		} else if len(questionSet) > 1 {
+			rawSlice, ok := value.([]interface{})
+			if !ok {
+				feedback, score, err := s.gradeQuestion(questionSet[0], questionID, value, grader)
+				if err != nil {
+					return nil, nil, fmt.Errorf("grading failed for question %s: %w", questionID, err)
+				}
+				totalScore += float32(score)
+				allAnswers = append(allAnswers, feedback)
+				continue
+			}
+
+			lookup := make(map[int64]bool)
+			for _, val := range rawSlice {
+				switch v := val.(type) {
+				case int64:
+					lookup[v] = true
+				case int:
+					lookup[int64(v)] = true
+				case float64:
+					lookup[int64(v)] = true
+				}
+			}
+
+			for _, q := range questionSet {
+				if q.ChoiceID != nil && lookup[*q.ChoiceID] {
+					feedback, score, err := s.gradeQuestion(q, questionID, *q.ChoiceID, grader)
+					if err != nil {
+						return nil, nil, fmt.Errorf("grading failed for question %s: %w", questionID, err)
+					}
+					divisor := float32(len(questionSet))
+					totalScore += float32(score) / divisor
+					allAnswers = append(allAnswers, feedback)
+				}
+			}
+		}
 	}
 
 	return &totalScore, allAnswers, nil
-
 }
 
 // Helper function to fetch correct answers from DB
-func (s *AuthService) fetchCorrectAnswers(assessment_id int64) ([]models.AssessmentGrader, error) {
+func (s *AuthService) fetchCorrectAnswers(assessment_id int64) (map[string][]models.AssessmentGrader, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -117,7 +179,8 @@ func (s *AuthService) fetchCorrectAnswers(assessment_id int64) ([]models.Assessm
         c.id AS choice_id,
         c.question_id,
         c.is_correct,
-        q.points
+        q.points,
+		q.question_type
         FROM stu_tracker.Choices c
         INNER JOIN stu_tracker.Questions q ON c.question_id = q.id
         WHERE q.assessment_id = $1 AND c.is_correct = TRUE
@@ -137,26 +200,36 @@ func (s *AuthService) fetchCorrectAnswers(assessment_id int64) ([]models.Assessm
 			&r.QuestionID,
 			&r.IsCorrect,
 			&r.Points,
+			&r.QuestionType,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 		questions = append(questions, r)
 	}
 
-	return questions, nil
+	q := make(map[string][]models.AssessmentGrader)
+
+	if len(questions) > 0 {
+		for _, question := range questions {
+			questionIdStr := strconv.Itoa(int(*question.QuestionID))
+			// Exist in map
+			if payload, ok := q[questionIdStr]; ok {
+				currentArray := payload
+				currentArray = append(currentArray, question)
+				q[questionIdStr] = currentArray
+			} else {
+				var array []models.AssessmentGrader
+				array = append(array, question)
+				q[questionIdStr] = array
+			}
+		}
+	}
+
+	return q, nil
 }
 
-func (s *AuthService) gradeQuestion(q models.AssessmentGrader, questionIDstr string, choicesMap map[string]interface{}, graderMap map[string]bool) (models.AnswerFeedback, int, error) {
-	selectedChoice, exists := choicesMap[questionIDstr]
-	fmt.Printf("Type: %T, Value: %v, Exists: %t\n", selectedChoice, selectedChoice, exists)
-	if !exists {
-		return models.AnswerFeedback{
-			QuestionID: *q.QuestionID,
-			ChoiceID:   nil,
-			IsCorrect:  false,
-			AnswerText: nil,
-		}, 0, nil
-	}
+func (s *AuthService) gradeQuestion(q models.AssessmentGrader, questionIDstr string, selectedChoice interface{}, graderMap map[string]bool) (models.AnswerFeedback, float32, error) {
+	fmt.Printf("Type: %T, Value: %v\n", selectedChoice, selectedChoice)
 	switch val := selectedChoice.(type) {
 	case float64:
 		isCorrect := q.IsCorrect && (int(val) == int(*q.ChoiceID))
@@ -167,7 +240,7 @@ func (s *AuthService) gradeQuestion(q models.AssessmentGrader, questionIDstr str
 			AnswerText: nil,
 		}
 		if isCorrect {
-			return feedback, q.Points, nil
+			return feedback, float32(q.Points), nil
 		}
 		return feedback, 0, nil
 	case int64:
@@ -179,9 +252,9 @@ func (s *AuthService) gradeQuestion(q models.AssessmentGrader, questionIDstr str
 			AnswerText: nil,
 		}
 		if isCorrect {
-			return feedback, q.Points, nil
+			return feedback, float32(q.Points), nil
 		}
-		return feedback, 0, nil
+		return feedback, 0.0, nil
 	case string:
 		if graderMap != nil {
 			correctBool, ok := graderMap[questionIDstr]
@@ -193,7 +266,7 @@ func (s *AuthService) gradeQuestion(q models.AssessmentGrader, questionIDstr str
 					ChoiceID:   nil,
 				}
 				if correctBool {
-					return feedback, q.Points, nil
+					return feedback, float32(q.Points), nil
 				}
 			}
 		}
@@ -214,7 +287,7 @@ func (s *AuthService) gradeQuestion(q models.AssessmentGrader, questionIDstr str
 					ChoiceID:   nil,
 				}
 				if correctBool {
-					return feedback, q.Points, nil
+					return feedback, float32(q.Points), nil
 				}
 			}
 		}
@@ -226,8 +299,9 @@ func (s *AuthService) gradeQuestion(q models.AssessmentGrader, questionIDstr str
 		}, 0, nil
 
 	default:
-		return models.AnswerFeedback{}, 0, fmt.Errorf("invalid choice type %T for question", selectedChoice)
+		return models.AnswerFeedback{}, float32(0), fmt.Errorf("invalid choice type %T for question", selectedChoice)
 	}
+
 }
 
 func (s *AuthService) GetAssessmentMaxScore(assessment_id *int64) (*int, error) {
@@ -248,16 +322,13 @@ func (s *AuthService) GetAssessmentMaxScore(assessment_id *int64) (*int, error) 
 	return score, nil
 }
 
-func (s *AuthService) GetAssessmentChoicesByStudent(c context.Context, assessment_id *int64, student_id *int64, session_token *string) ([]models.StudentAssessmentChoices, error) {
-	if assessment_id == nil {
-		return nil, fmt.Errorf("assessment id is null")
-	}
+func (s *AuthService) GetAssessmentChoicesByStudent(c context.Context, student_id *int64, session_token *string) ([]models.StudentAssessmentChoices, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	query := `SELECT question_id, choice_id, answer_text 
+	query := `SELECT question_id, choice_id, answer_text, assessment_id
 	FROM stu_tracker.Session_answers 
-	WHERE session_token = $1 AND student_id = $2 AND assessment_id = $3;`
-	rows, err := s.db.QueryContext(ctx, query, session_token, student_id, assessment_id)
+	WHERE session_token = $1 AND student_id = $2;`
+	rows, err := s.db.QueryContext(ctx, query, session_token, student_id)
 	if err != nil {
 		return nil, err
 	}
@@ -270,6 +341,7 @@ func (s *AuthService) GetAssessmentChoicesByStudent(c context.Context, assessmen
 			&choices.QuestionID,
 			&choices.ChoiceID,
 			&choices.AnswerText,
+			&choices.AssessmentID,
 		)
 		if err != nil {
 			return nil, err
@@ -277,6 +349,18 @@ func (s *AuthService) GetAssessmentChoicesByStudent(c context.Context, assessmen
 		assessmentChoices = append(assessmentChoices, choices)
 	}
 	return assessmentChoices, nil
+}
+
+func (s *AuthService) GetStudentAssessmentId(c context.Context, student_id *int64, session_token *string) (*int64, error) {
+	var id int64
+	query := `SELECT assessment_id
+	FROM stu_tracker.Assessment_sessions 
+	WHERE session_token = $1 AND student_id = $2;`
+	err := s.db.QueryRowContext(c, query, session_token, student_id).Scan(&id)
+	if err != nil {
+		return nil, err
+	}
+	return &id, nil
 }
 
 func (s *AuthService) GetAssessmentBySessionId(c context.Context, session_id string, tutor_id *int64) ([]models.StudentAssessmentSession, error) {
@@ -378,7 +462,48 @@ func (s *AuthService) CreateStudentAssessmentResponse(c context.Context, req mod
 
 	for questionIDStr, choiceID := range req.Answers {
 		switch val := choiceID.(type) {
+		case []interface{}:
+			questionID, err := strconv.ParseInt(questionIDStr, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			idx := 1
+			values := []interface{}{}
+			insertQuery := `INSERT INTO stu_tracker.Session_answers
+				(assessment_id, student_id, session_token, question_id, choice_id) VALUES `
+			for i, choiceID := range val {
+				if i > 0 {
+					insertQuery += ", "
+				}
+				insertQuery += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d)", idx, idx+1, idx+2, idx+3, idx+4)
+				values = append(values, req.AssessmentID, req.StudentID, req.SessionID, questionID, choiceID)
+				idx += 5
+			}
+			_, err = s.db.ExecContext(c, insertQuery, values...)
+			if err != nil {
+				return nil, err
+			}
 		case float64:
+			insertQuery := `
+			INSERT INTO stu_tracker.Session_answers
+				(assessment_id, student_id, session_token, question_id, choice_id)
+			VALUES ($1, $2, $3, $4, $5);`
+			questionID, err := strconv.ParseInt(questionIDStr, 10, 64)
+
+			if err != nil {
+				return nil, fmt.Errorf("invalid question ID '%s': %w", questionIDStr, err)
+			}
+			_, err = s.db.ExecContext(c, insertQuery,
+				req.AssessmentID,
+				req.StudentID,
+				req.SessionID,
+				questionID,
+				choiceID,
+			)
+			if err != nil {
+				return nil, err
+			}
+		case int64:
 			insertQuery := `
 			INSERT INTO stu_tracker.Session_answers
 				(assessment_id, student_id, session_token, question_id, choice_id)

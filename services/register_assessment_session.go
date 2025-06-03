@@ -27,7 +27,12 @@ func (s *AuthService) CreateAssessmentSession(c context.Context, req models.Regi
 			return nil, fmt.Errorf("failed to check existing session: %w", err)
 		}
 		if exists {
-			continue // skip insertion if session already exists
+			deleteQuery := `DELETE FROM stu_tracker.Assessment_sessions
+								WHERE tutor_id = $1 AND assessment_id = $2 AND student_id = $3`
+			_, err = s.db.ExecContext(c, deleteQuery, student.TutorId, student.AssessmentId, student.ID)
+			if err != nil {
+				return nil, err
+			}
 		}
 		var toGrade bool
 		gradeCheck := `SELECT EXISTS (SELECT 1 FROM stu_tracker.Questions WHERE assessment_id = $1 AND question_type = 'short_answer');`

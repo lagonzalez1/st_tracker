@@ -551,7 +551,7 @@ type AssessmentQuestions struct {
 	ImageURL     string              `json:"image_url"`
 	Required     bool                `json:"is_required"`
 	OrderNumber  int                 `json:"order_number"`
-	Standard     *string             `json:"stadard_text"`
+	Standard     *string             `json:"standard_text"`
 	Points       int                 `json:"points"`
 	QuestionText string              `json:"question_text"`
 	QuestionType string              `json:"question_type"`
@@ -643,7 +643,7 @@ type AssessmentInfoStudent struct {
 	Cycle     string    `json:"cycle"`
 	MaxScore  *int64    `json:"max_score"`
 	Subject   *int64    `json:"subject"`
-	Score     *int64    `json:"score"`
+	Score     *float64  `json:"score"`
 	CreatedAt time.Time `json:"created_at"`
 	StudentID *int64    `json:"student_id"`
 }
@@ -658,7 +658,7 @@ type StudentAssessmentInfo struct {
 	ID          *int64    `json:"id"`
 	CreatedAt   time.Time `json:"created_at"`
 	SessionDate time.Time `json:"session_date"`
-	Score       *int64    `json:"score"`
+	Score       *float64  `json:"score"`
 	MaxScore    *int64    `json:"max_score"`
 	Letter      string    `json:"letter"`
 	Cycle       string    `json:"cycle"`
