@@ -222,6 +222,35 @@ type ResponseRequestProgram struct {
 }
 
 type ResponseRequestMaterialsList struct {
+<<<<<<< Updated upstream
+	ID           int64  `json:"id"`
+	Title        string `json:"title"`
+	ExternalLink string `json:"external_link"`
+	Description  string `json:"description"`
+	Version      int    `json:"version"`
+	Pre          bool   `json:"pre"`
+	Mid          bool   `json:"mid"`
+	Post         bool   `json:"post"`
+	Visible      bool   `json:"visible"`
+	ProgramId    *int64 `json:"program_id"`
+	CreatedAt    string `json:"created_at"`
+}
+
+type RegisterRequestMaterials struct {
+	ID             *int64 `json:"id"`
+	Title          string `json:"title"`
+	ExternalLink   string `json:"external_link"`
+	Description    string `json:"description"`
+	Version        int    `json:"version"`
+	Pre            bool   `json:"pre"`
+	Mid            bool   `json:"mid"`
+	Post           bool   `json:"post"`
+	Visible        bool   `json:"visible"`
+	CreatedAt      string `json:"created_at"`
+	LocationId     *int64 `json:"location_id"`
+	ProgramId      *int64 `json:"program_id"`
+	OrganizationId *int64 `json:"organization_id"`
+=======
 	ID           int64   `json:"id"`
 	Title        string  `json:"title"`
 	ExternalLink string  `json:"external_link"`
@@ -232,23 +261,27 @@ type ResponseRequestMaterialsList struct {
 	Post         bool    `json:"post"`
 	Visible      bool    `json:"visible"`
 	ProgramId    *int64  `json:"program_id"`
+	SReference   *string `json:"s3_reference"`
 	CreatedAt    string  `json:"created_at"`
 }
 
 type RegisterRequestMaterials struct {
-	ID             *int64  `json:"id"`
-	Title          string  `json:"title"`
-	ExternalLink   string  `json:"external_link"`
-	Description    string  `json:"description"`
-	Version        float64 `json:"version"`
-	Pre            bool    `json:"pre"`
-	Mid            bool    `json:"mid"`
-	Post           bool    `json:"post"`
-	Visible        bool    `json:"visible"`
-	CreatedAt      string  `json:"created_at"`
-	LocationId     *int64  `json:"location_id"`
-	ProgramId      *int64  `json:"program_id"`
-	OrganizationId *int64  `json:"organization_id"`
+	ID               *int64  `json:"id"`
+	Title            string  `json:"title"`
+	ExternalLink     string  `json:"external_link"`
+	Description      string  `json:"description"`
+	Version          float64 `json:"version"`
+	Pre              bool    `json:"pre"`
+	Mid              bool    `json:"mid"`
+	Post             bool    `json:"post"`
+	Visible          bool    `json:"visible"`
+	CreatedAt        string  `json:"created_at"`
+	LocationId       *int64  `json:"location_id"`
+	ProgramId        *int64  `json:"program_id"`
+	SReference       *string `json:"s3_reference"`
+	OrganizationId   *int64  `json:"organization_id"`
+	SReferenceDelete bool    `json:"s3_reference_remove"`
+>>>>>>> Stashed changes
 }
 
 type ResponseRequestMaterials struct {

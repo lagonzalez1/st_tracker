@@ -6,8 +6,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+<<<<<<< Updated upstream
+=======
 	"runtime"
 	"time"
+	"tracker/app/config"
+>>>>>>> Stashed changes
 	"tracker/app/database"
 	"tracker/app/middleware"
 	"tracker/app/services"
@@ -28,10 +32,24 @@ func main() {
 	}
 	defer db.Close()
 
+	mq, mq_err := database.ConnectRabbitMQ()
+	if mq_err != nil {
+		fmt.Printf("Rabbit MQ connection failed: %v", mq_err)
+		log.Fatalf("Rabbit MQ connection failed: %v", mq_err)
+	}
+	defer mq.Close()
+
+	s3Client, s3_err := config.ConnectS3Client()
+	if s3_err != nil {
+		fmt.Printf("s3 client connection failed: %v", mq_err)
+		log.Fatalf("s3 client connection failed: %v", mq_err)
+	}
+
 	r := mux.NewRouter()
 
-	authService := services.NewAuthService(db)
-	authHandler := transport.NewAuthHandler(authService)
+	authService := services.NewAuthService(db, s3Client)
+
+	authHandler := transport.NewAuthHandler(authService, s3Client)
 
 	apiMiddleware := mux.NewRouter().PathPrefix("/api").Subrouter()
 	apiMiddleware.Use(middleware.Middleware(authService))
@@ -45,16 +63,23 @@ func main() {
 		AllowCredentials: true,
 		Debug:            false, // Log CORS issues
 	})
+<<<<<<< Updated upstream
+
 	//api.ConnectSheetsAPI()
+=======
+>>>>>>> Stashed changes
 
 	r.HandleFunc("/hello", hello).Methods("GET")
 	r.HandleFunc("/register", authHandler.Register).Methods("POST")
 	r.HandleFunc("/login", authHandler.Login).Methods("POST")
 	r.HandleFunc("/get_assessment_questions_external", authHandler.GetAssessmentQuestionsExternal).Methods("GET")
 	r.HandleFunc("/create_organization", authHandler.CreateOrganization).Methods("POST")
-	r.HandleFunc("/health_check", authHandler.HealthCheck).Methods("GET") // FOR APPLICATIO LOAD BALANCER
+<<<<<<< Updated upstream
+=======
+	r.HandleFunc("/health_check", authHandler.HealthCheck).Methods("GET")
 	r.HandleFunc("/create_student_assessment_response", authHandler.CreateStudentAssessmentResponse).Methods("POST")
 	r.HandleFunc("/get_student_details", authHandler.GetStudentDetails).Methods("GET")
+>>>>>>> Stashed changes
 
 	apiMiddleware.HandleFunc("/create_student", authHandler.CreateStudent).Methods("POST")
 	apiMiddleware.HandleFunc("/create_location", authHandler.CreateLocation).Methods("POST")
@@ -144,8 +169,12 @@ func main() {
 	apiMiddleware.HandleFunc("/get_student_file", authHandler.GetStudentFile).Methods("GET")
 	apiMiddleware.HandleFunc("/get_locations", authHandler.GetLocations).Methods("GET")
 
+<<<<<<< Updated upstream
+=======
 	// Return session id as well for duplicate
+	apiMiddleware.HandleFunc("/get_signed_url_materials", authHandler.GetSignedUrlMaterials).Methods("GET")
 	apiMiddleware.HandleFunc("/get_session_accountability", authHandler.GetSessionAccountability).Methods("GET")
+>>>>>>> Stashed changes
 	apiMiddleware.HandleFunc("/get_tutors", authHandler.GetTutors).Methods("GET")
 	apiMiddleware.HandleFunc("/get_assessment_questions", authHandler.GetAssessmentQuestions).Methods("GET")
 	apiMiddleware.HandleFunc("/get_schedule", authHandler.GetSchedules).Methods("GET")

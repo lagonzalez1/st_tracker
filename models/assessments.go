@@ -92,3 +92,11 @@ type StudentAssessmentChoices struct {
 	AnswerText   *string `json:"answer_text"`
 	AssessmentID *int64  `json:"assessment_id"`
 }
+
+type SQSAssessmentPayload struct {
+	ID           *int64                 `json:"id"`
+	FirstName    string                 `json:"first_name"`
+	LastName     string                 `json:"last_name"`
+	AssessmentID *int64                 `json:"assessment_id"`
+	Answers      map[string]interface{} `json:"answers"`
+}

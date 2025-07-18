@@ -284,10 +284,16 @@ func (s *AuthService) GetDistrictsById(c context.Context, id int64, role string)
 
 func (s *AuthService) GetProgramsId(c context.Context, id int64, role string) ([]models.ResponseRequestProgramList, error) {
 	var query string
-	query += `SELECT id, program_name, timeframe_required
-			  FROM stu_tracker.Programs pg
+<<<<<<< Updated upstream
+	query += `SELECT id, program_name
+			  FROM stu_tracker.programs pg
 			  WHERE pg.organization_id = $1;`
-	rows, err := s.db.QueryContext(c, query, id)
+	rows, err := s.db.Query(query, id)
+=======
+	query += `SELECT id, program_name, timeframe_required
+			  FROM stu_tracker.Programs;`
+	rows, err := s.db.QueryContext(c, query)
+>>>>>>> Stashed changes
 	if err != nil {
 		return nil, fmt.Errorf("error quering get districts by id %w", err)
 	}
@@ -313,7 +319,7 @@ func (s *AuthService) GetProgramsId(c context.Context, id int64, role string) ([
 
 func (s *AuthService) GetMaterialsById(c context.Context, id int64, role string) ([]models.ResponseRequestMaterialsList, error) {
 	var query string
-	query += `SELECT id, title, external_link, description, version, pre, mid, post, visible, created_at, program_id
+	query += `SELECT id, title, external_link, description, version, pre, mid, post, visible, created_at, program_id, s3_reference
 			  FROM stu_tracker.materials mt
 			  WHERE mt.organization_id = $1;`
 	rows, err := s.db.QueryContext(c, query, id)
@@ -336,6 +342,7 @@ func (s *AuthService) GetMaterialsById(c context.Context, id int64, role string)
 			&material.Visible,
 			&material.CreatedAt,
 			&material.ProgramId,
+			&material.SReference,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)

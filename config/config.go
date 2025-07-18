@@ -38,6 +38,17 @@ func LoadConfig() (*models.Config, error) {
 			ORG_ADD_KEY_2: os.Getenv("ORG_ADD_KEY_2"),
 			ORG_ADD_KEY_3: os.Getenv("ORG_ADD_KEY_3"),
 		},
+		MQ: models.MQ{
+			Host:     os.Getenv("RABBIT_HOST"),
+			Username: os.Getenv("RABBIT_USERNAME"),
+			Password: os.Getenv("RABBIT_PASSWORD"),
+			Port:     os.Getenv("RABBIT_PORT"),
+		},
+		S3: models.S3Client{
+			AccessKey: os.Getenv("AWS_ACCESS_KEY_ID"),
+			SecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+			Region:    os.Getenv("AWS_REGION"),
+		},
 	}
 	return cfg, nil
 }

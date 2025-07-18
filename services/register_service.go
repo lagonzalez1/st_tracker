@@ -6,6 +6,7 @@ import (
 	"net/mail"
 	"tracker/app/models"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -18,12 +19,14 @@ import (
 
 type AuthService struct {
 	db *sql.DB
+	s3 *s3.Client
 }
 
 // Return the struct object by reference.
-func NewAuthService(db *sql.DB) *AuthService {
+func NewAuthService(db *sql.DB, client *s3.Client) *AuthService {
 	return &AuthService{
 		db: db,
+		s3: client,
 	}
 }
 

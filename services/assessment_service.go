@@ -304,6 +304,27 @@ func (s *AuthService) gradeQuestion(q models.AssessmentGrader, questionIDstr str
 
 }
 
+// DoesAssessmentRequire returns true if there is at least one
+// 'short_answer' question for the given assessment.
+func (s *AuthService) DoesAssessmentRequire(ctx context.Context, assessmentID int64) (bool, error) {
+	const sqlStmt = `
+    SELECT EXISTS (
+      SELECT 1
+      FROM stu_tracker.Questions
+      WHERE assessment_id = $1
+        AND question_type = 'short_answer'
+    ) AS requires;
+    `
+	var requires bool
+	err := s.db.
+		QueryRowContext(ctx, sqlStmt, assessmentID).
+		Scan(&requires)
+	if err != nil {
+		return false, fmt.Errorf("checking requirement: %w", err)
+	}
+	return requires, nil
+}
+
 func (s *AuthService) GetAssessmentMaxScore(assessment_id *int64) (*int, error) {
 	if assessment_id == nil {
 		return nil, fmt.Errorf("assessment id is null")
@@ -318,7 +339,6 @@ func (s *AuthService) GetAssessmentMaxScore(assessment_id *int64) (*int, error) 
 	if err != nil {
 		return nil, err
 	}
-
 	return score, nil
 }
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"tracker/app/config"
 
 	_ "github.com/lib/pq"
@@ -33,20 +34,32 @@ func ConnectDB() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+<<<<<<< Updated upstream
+	psql_info := fmt.Sprintf("host=%s port=%d user=%s "+"password=%s dbname=%s sslmode=disable",
+=======
 	if port == 5433 {
 		ssl += `disable`
 	}
 	if port == 5432 {
 		ssl += `require`
 	}
+	if port == 2222 {
+		ssl += `disable`
+	}
 	psql_info := fmt.Sprintf("host=%s port=%d user=%s "+"password=%s dbname=%s sslmode=%s",
+>>>>>>> Stashed changes
 		host,
 		port,
 		username,
 		password,
+<<<<<<< Updated upstream
+		name)
+=======
 		name,
 		ssl,
 	)
+	fmt.Println(psql_info)
+>>>>>>> Stashed changes
 	db, err := sql.Open("postgres", psql_info)
 	if err != nil {
 		return nil, err
@@ -92,10 +105,24 @@ func CreateSchemaIfNotExist(db *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("error reading schema file: %v", err)
 	}
-	// Execute SQL script
+<<<<<<< Updated upstream
 	_, err = db.Exec(string(schemaSQL))
 	if err != nil {
-		return fmt.Errorf("error executing schema SQL: %v", err)
+		return fmt.Errorf("error executing schema %v", err)
+=======
+	// Execute SQL script
+	stmts := strings.Split(string(schemaSQL), ";")
+
+	for i, stmt := range stmts {
+		stmt = strings.TrimSpace(stmt)
+		if stmt == "" {
+			continue
+		}
+		_, err := db.Exec(stmt)
+		if err != nil {
+			return fmt.Errorf("error executing statement %d: %v\nSQL: %s", i+1, err, stmt)
+		}
+>>>>>>> Stashed changes
 	}
 	// Execute permissions SQL page
 	permissionPath := filepath.Join("database", "db_init_permissions.sql")
