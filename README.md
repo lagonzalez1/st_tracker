@@ -106,15 +106,6 @@ Authentication
 ## Endpoints
 
 
-#### Additional information
-[!NOTE]
-If endpoint starts as /create_program 
- - {Id} parameter is not required in the body.
-It's update endpoint is /update_program
- - {Id} parameter is required.
-It's delete endpoint is /delete_program
- - {Id} parameter is required.
-
 
 ### Register
 
@@ -153,7 +144,7 @@ Authenticate a user and obtain JWT tokens.
 	•	Auth required: No
 
 Request Body:
-
+```
 {
   "email": "admin@example.com",
   "password": "SomeSupperSecretPassword22$$"
@@ -167,7 +158,7 @@ Status	Description	Body
 200	OK	{ "refresh_token": "...", "token": "...", "user": { ... } }
 401	Unauthorized	{ "error": "Invalid credentials" }
 500	Server error	{ "error": "Server error" }
-
+```
 
 ### Create student
 
@@ -177,7 +168,7 @@ Create a new root student.
 	•	Auth required: Yes
 
 Request Body:
-
+```
 {
     ID                *int64  `json:"id"`
     FirstName         string  `json:"firstname"`
@@ -206,14 +197,14 @@ Status	Description	Body
 201	Created	{ "message": "User created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
-
+```
 ### Create location
 
 Create a new location in reference to a school location.
 	•	URL: /create_location
 	•	Method: POST
 	•	Auth required: Yes
-
+```
 Request Body:
 {
     ID             int64  `json:"id"`
@@ -233,7 +224,7 @@ Status	Description	Body
 201	Created	{ "message": "Location created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
-
+```
 
 ### Create admin
 
@@ -243,6 +234,7 @@ Create a new administrator
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     ID             *int64 `json:"id"`
     Fullname       string `json:"fullname"`
@@ -260,7 +252,7 @@ Status	Description	Body
 201	Created	{ "message": "Admin created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
-
+```
 
 ### Create district
 
@@ -270,6 +262,7 @@ Create a new region/ district, as school locations are typically sorted by regio
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     ID             *int64 `json:"id"`
     Name           string `json:"name"`
@@ -286,7 +279,7 @@ Status	Description	Body
 201	Created	{ "message": "District created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
-
+```
 
 ### Create program
 
@@ -296,6 +289,7 @@ Create a new program, typically used to containerize requirements.
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     ID                *int64 `json:"id"`
     ProgramName       string `json:"program_name"`
@@ -309,6 +303,7 @@ Status	Description	Body
 201	Created	{ "message": "Program created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
+```
 
 ### Create material
 
@@ -322,6 +317,8 @@ Create materials, typically used together with assessments, or standalone refere
 
 
 Request Body:
+
+```
 {
 	file: Binary (Accepts file type .jpg, .png, jpeg Images)
 	data: {
@@ -349,7 +346,7 @@ Status	Description	Body
 201	Created	{ "message": "Material created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
-
+```
 ### Create tutor
 
 Create a new tutor/support specialist. 
@@ -359,6 +356,7 @@ Create a new tutor/support specialist.
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     ID             int64  `json:"id"`
     FirstName      string `json:"first_name"`
@@ -377,7 +375,7 @@ Status	Description	Body
 201	Created	{ "message": "Tutor created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
-
+```
 
 ### Create semester
 
@@ -388,6 +386,7 @@ Create a new semester, used to track and sort by date.
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     ID             *int64 `json:"id"`
     Title          string `json:"title"`
@@ -404,7 +403,7 @@ Status	Description	Body
 201	Created	{ "message": "Semester created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
-
+```
 
 
 ### Create semester location
@@ -416,6 +415,7 @@ Create a semester location joins a location to a semester time range
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     ID             *int64 `json:"id"`
     LocationID     *int64 `json:"location_id"`
@@ -429,6 +429,7 @@ Status	Description	Body
 201	Created	{ "message": "semester location created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
+```
 
 
 ### Create semester location
@@ -440,6 +441,7 @@ Create a semester location joins a location to a semester time range
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     ID             *int64 `json:"id"`
     LocationID     *int64 `json:"location_id"`
@@ -453,7 +455,7 @@ Status	Description	Body
 201	Created	{ "message": "semester location created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
-
+```
 
 
 ### Create program location
@@ -465,6 +467,7 @@ Bind a program to a location
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     ProgramId      *int64 `json:"program_id"`
     LocationId     *int64 `json:"location_id"`
@@ -478,7 +481,7 @@ Status	Description	Body
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
 
-
+```
 ### Create s3 object
 
 * In development/ experimental
@@ -491,6 +494,7 @@ Used to create images with no association returns a ID to used to link associati
 	•	MultiformData: Yes 
 
 Request Body:
+```
 {
     file: Binary (Accepts file type .jpg, .png, jpeg Images)
 }
@@ -501,17 +505,17 @@ Status	Description	Body
 201	Created	{ "message": "UUID" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
+```
 
 ### Create teacher
 
 Create a teacher and link to location by the required location_id paramater.
-
-
 	•	URL: /create_teacher
 	•	Method: POST
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     ID         *int64 `json:"id"`
     Name       string `json:"name"`
@@ -527,16 +531,17 @@ Status	Description	Body
 201	Created	{ "message": "Teacher created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
+```
+
 
 ### Create session
-
 	Create a session with student and tutors. Each session can also include some assessments and or assessment sessions.
-
 	•	URL: /create_session
 	•	Method: POST
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     session: {
 		ID           *int64 `json:"id"`
@@ -592,19 +597,18 @@ Status	Description	Body
 201	Created	{ "message": "Session created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
-
+```
 
 ### Create assessment
 
 Create an assessment
 In development/experimental
-
-
 	•	URL: /create_assessment
 	•	Method: POST
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     ID              *int64                `json:"id"`
     Title           string                `json:"title"`
@@ -651,17 +655,18 @@ Status	Description	Body
 201	Created	{ "message": "Session created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
+```
+
 
 ### Create tutor location
 
 Bind tutor to location
-
-
 	•	URL: /create_tutor_location
 	•	Method: POST
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     LocationId     *int64 `json:"location_id"`
     TutorId        *int64 `json:"tutor_id"`
@@ -675,7 +680,7 @@ Status	Description	Body
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
 
-
+```
 ### Create subject
 
 Create a subject.
@@ -685,6 +690,7 @@ Create a subject.
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     ID             *int64 `json:"id"`
     Title          string `json:"title"`
@@ -698,7 +704,7 @@ Status	Description	Body
 201	Created	{ "message": "Subject created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
-
+```
 
 ### Create permission
 
@@ -709,6 +715,7 @@ Grant user persmissions
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     ID                *int64   `json:"id"`
     Role              string   `json:"role"`
@@ -724,7 +731,7 @@ Status	Description	Body
 201	Created	{ "message": "Permission created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
-
+```
 
 ### Create Subject location
 
@@ -735,6 +742,7 @@ Bind a subject to a location
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     ID             int  `json:"id"`
     SubjectID      *int `json:"subject_id"`
@@ -748,7 +756,7 @@ Status	Description	Body
 201	Created	{ "message": "subject location created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
-
+```
 
 ### Create announcments
 
@@ -759,6 +767,7 @@ Create an announcment
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     ID             int    `json:"id"`
     Title          string `json:"title"`
@@ -778,7 +787,7 @@ Status	Description	Body
 201	Created	{ "message": "announcment created" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
-
+```
 
 ### Create assessment session
 
@@ -790,6 +799,7 @@ Returns a session_id, number of session active, status.
 	•	Auth required: Yes
 
 Request Body:
+```
 {
     students: {
 		ID           *int64 `json:"id"`
@@ -811,7 +821,30 @@ Status	Description	Body
 201	Created	{ "Status", "session_active", "session_id" }
 400	Validation error { "error": "Invalid request" }
 500	Server error { "error": "Server error" }
+```
 
+### Additional information
+> [!NOTE]
+> If endpoint starts as /create_program 
+> ID parameter is not required in the body.
+> It's update endpoint is /update_program
+> ID parameter is required.
+> It's delete endpoint is /delete_program
+> ID parameter is required.
+
+
+
+### Some exciting features being implemented
+1. Attach files to materials [x]
+	- A useful feature when pre-defined documents are available. These files are easily viewable by relevant staff members.
+2. Add Images to Questions 
+	- Improvement from previous implementation, that is before users must have a static https link to image
+	- Improvement is users can dynamically attach images or files to each question, no static link required.
+3. Artifical intelligence
+	- Leverages LLM models to generate assessments based on various user-defined factors.
+	- Utilizes database context such as location, district, and academic standards to create contextually appropriate questions.
+4. Artifical intelligence
+	- Grade assessments, eleminate potential user error.
 
 License
 
