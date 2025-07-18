@@ -107,11 +107,12 @@ Authentication
 
 
 #### Additional information
-* If endpoint starts as /create_program 
+[!NOTE]
+If endpoint starts as /create_program 
  - {Id} parameter is not required in the body.
-* It's update endpoint is /update_program
+It's update endpoint is /update_program
  - {Id} parameter is required.
-* It's delete endpoint is /delete_program
+It's delete endpoint is /delete_program
  - {Id} parameter is required.
 
 
@@ -123,7 +124,7 @@ Create a new root user and organization.
 	•	Auth required: No
 
 Request Body:
-
+```
 {
   "email": "admin@example.com",
   "password": "securePassword123!",
@@ -140,7 +141,7 @@ Status	Description	Body
 201	Created	{ "message": "User created" }
 400	Validation error	{ "error": "Invalid request" }
 500	Server error	{ "error": "Server error" }
-
+```
 
 ⸻
 
