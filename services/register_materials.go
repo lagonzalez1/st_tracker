@@ -11,9 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-<<<<<<< Updated upstream
-func (s *AuthService) AddMaterial(req models.RegisterRequestMaterials) (*models.ResponseRequestMaterials, error) {
-=======
 func (s *AuthService) UploadMaterialFile(c context.Context, file multipart.File, keyFound *string) (*string, error) {
 	key := uuid.New()
 	keyString := key.String()
@@ -36,25 +33,17 @@ func (s *AuthService) UploadMaterialFile(c context.Context, file multipart.File,
 }
 
 func (s *AuthService) AddMaterial(c context.Context, req models.RegisterRequestMaterials) (*models.ResponseRequestMaterials, error) {
->>>>>>> Stashed changes
 	// Input validation
 	if req.Title == "" || req.OrganizationId == nil {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, or email")
 	}
 	var newID int64
-<<<<<<< Updated upstream
-	query := `INSERT INTO stu_tracker.Materials(title, external_link, description, pre, mid, post, visible, version, organization_id, location_id, program_id)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id;`
-
-	err := s.db.QueryRow(query, req.Title, req.ExternalLink, req.Description, req.Pre, req.Mid, req.Post, req.Visible, req.Version, *req.OrganizationId, req.LocationId, req.ProgramId).Scan(&newID)
-=======
 	query := `INSERT INTO stu_tracker.Materials
 			(title, external_link, description, pre, mid, post, visible, version, organization_id, location_id, program_id, s3_reference)
               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id;`
 
 	err := s.db.QueryRowContext(c, query, req.Title, req.ExternalLink, req.Description,
 		req.Pre, req.Mid, req.Post, req.Visible, req.Version, *req.OrganizationId, req.LocationId, req.ProgramId, req.SReference).Scan(&newID)
->>>>>>> Stashed changes
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert Locations: %w", err)
 	}
@@ -70,9 +59,6 @@ func (s *AuthService) UpdateMaterial(c context.Context, req models.RegisterReque
 		return nil, fmt.Errorf("missing required fields: id")
 	}
 
-<<<<<<< Updated upstream
-	_, err := s.db.Exec(query, req.Title, req.ExternalLink, req.Description, req.Pre, req.Mid, req.Post, req.Visible, req.Version, *req.OrganizationId, req.LocationId, req.ProgramId, *req.ID)
-=======
 	query := `UPDATE stu_tracker.Materials SET
 			  title = $1, external_link = $2, description = $3, pre = $4, mid = $5, 
 			  post = $6, visible = $7, version = $8, organization_id = $9, location_id = $10, program_id = $11, s3_reference = $12
@@ -80,7 +66,6 @@ func (s *AuthService) UpdateMaterial(c context.Context, req models.RegisterReque
 
 	_, err := s.db.ExecContext(c, query, req.Title, req.ExternalLink, req.Description,
 		req.Pre, req.Mid, req.Post, req.Visible, req.Version, *req.OrganizationId, req.LocationId, req.ProgramId, req.SReference, *req.ID)
->>>>>>> Stashed changes
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert Locations: %w", err)
 	}
@@ -89,10 +74,6 @@ func (s *AuthService) UpdateMaterial(c context.Context, req models.RegisterReque
 	}, nil
 }
 
-<<<<<<< Updated upstream
-func (s *AuthService) DeleteMaterial(req models.RemoveRequest) (*models.RemoveResponse, error) {
-	// Input validation
-=======
 func (s *AuthService) DoesReferenceExist(c context.Context, id *int64) (*string, error) {
 	if id == nil {
 		return nil, fmt.Errorf("missing required fields: id")
@@ -107,7 +88,6 @@ func (s *AuthService) DoesReferenceExist(c context.Context, id *int64) (*string,
 }
 
 func (s *AuthService) DeleteMaterial(c context.Context, req models.RemoveRequest) (*models.RemoveResponse, error) {
->>>>>>> Stashed changes
 	if req.ID == nil {
 		return nil, fmt.Errorf("missing required fields: id")
 	}
@@ -126,11 +106,7 @@ func (s *AuthService) DeleteMaterial(c context.Context, req models.RemoveRequest
 		}
 	}
 	query := `DELETE FROM stu_tracker.Materials WHERE id = $1`
-<<<<<<< Updated upstream
-	_, err := s.db.Exec(query, *req.ID)
-=======
 	_, err = s.db.ExecContext(c, query, *req.ID)
->>>>>>> Stashed changes
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert Locations: %w", err)
 	}

@@ -275,11 +275,7 @@ CREATE TABLE stu_tracker.Assessments_students (
     id SERIAL PRIMARY KEY,
     session_id INT NOT NULL,
     student_id INT NOT NULL,
-<<<<<<< Updated upstream
-    score INT NOT NULL,
-=======
     score FLOAT NOT NULL CHECK (score >= 0),
->>>>>>> Stashed changes
     assessment_id INT NOT NULL,
     subject_id INT REFERENCES stu_tracker.Subjects(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -361,17 +357,6 @@ CREATE TABLE stu_tracker.Choices (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE stu_tracker.Assessment_answers (
-    id SERIAL PRIMARY KEY,
-    assessment_student_id INT NOT NULL REFERENCES stu_tracker.Assessments_students(id) ON DELETE CASCADE,
-    question_id INT NOT NULL REFERENCES stu_tracker.Questions(id) ON DELETE CASCADE,
-    choice_id INT REFERENCES stu_tracker.Choices(id) ON DELETE SET NULL,
-    answer_text TEXT,
-    is_correct BOOLEAN,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (assessment_student_id, question_id)
-);
-
 
  --- INDEXES ---
 CREATE INDEX idx_tutor_schedules_tutor_id ON stu_tracker.Tutor_schedules(tutor_id);
@@ -410,22 +395,6 @@ CREATE TABLE stu_tracker.Assessment_sessions (
     grade_assessment BOOLEAN DEFAULT FALSE
 );
 
-CREATE TABLE stu_tracker.Session_answers (
-    id SERIAL PRIMARY KEY,
-    assessment_id INT REFERENCES stu_tracker.Assessments(id) ON DELETE CASCADE,
-    student_id INT REFERENCES stu_tracker.Students(id) ON DELETE CASCADE,
-    session_token UUID,
-    question_id INT REFERENCES stu_tracker.Questions(id) ON DELETE CASCADE,
-<<<<<<< Updated upstream
-    standard_id INT REFERENCES stu_tracker.Standards(id) ON DELETE CASCADE,
-    PRIMARY KEY (question_id, standard_id) -- Composite primary key
-);
-=======
-    choice_text TEXT NOT NULL,
-    is_correct BOOLEAN DEFAULT FALSE,
-    order_number INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
 
 CREATE TABLE stu_tracker.Assessment_answers (
     id SERIAL PRIMARY KEY,
@@ -437,43 +406,6 @@ CREATE TABLE stu_tracker.Assessment_answers (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-
- --- INDEXES ---
-CREATE INDEX idx_tutor_schedules_tutor_id ON stu_tracker.Tutor_schedules(tutor_id);
-CREATE INDEX idx_tutor_schedules_program_id ON stu_tracker.Tutor_schedules(program_id);
-CREATE INDEX idx_tutor_schedules_dates ON stu_tracker.Tutor_schedules(start_date, end_date);
-CREATE INDEX idx_tutor_location ON stu_tracker.Tutors(location_id);
-
-CREATE INDEX idx_sessions_tutor ON stu_tracker.Sessions(tutor_id);
-CREATE INDEX idx_student_semester ON stu_tracker.Sessions(semester_id);
-CREATE INDEX idx_session_date ON stu_tracker.Sessions(session_date);
-
-CREATE INDEX idx_session_assessments ON stu_tracker.Assessments_students(session_id);
-
-CREATE INDEX idx_session_students_session ON stu_tracker.Session_students(session_id);
-CREATE INDEX idx_session_students_student ON stu_tracker.Session_students(student_id);
-
-CREATE INDEX idx_student_location ON stu_tracker.Students(location_id);
--- NEW SCHEMA --
-
-
--- April 29 --  -- NEW -- NEW -- NEW -- NEW
-CREATE INDEX idx_student_semester_id ON stu_tracker.Students(semester_id);
-
-CREATE TABLE stu_tracker.Assessment_sessions (
-    id SERIAL PRIMARY KEY,
-    tutor_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
-    student_id INT REFERENCES stu_tracker.Students(id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    first_name TEXT,
-    last_name TEXT,
-    assessment_id INT REFERENCES stu_tracker.Assessments(id) ON DELETE CASCADE,
-    semester_id INT REFERENCES stu_tracker.Semester(id) ON DELETE CASCADE,
-    session_token UUID NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    completed BOOLEAN DEFAULT FALSE,
-    grade_assessment BOOLEAN DEFAULT FALSE
-);
 
 CREATE TABLE stu_tracker.Session_answers (
     id SERIAL PRIMARY KEY,
@@ -518,4 +450,8 @@ ALTER TABLE stu_tracker.Assessments_students ALTER COLUMN score TYPE FLOAT;
 -- ALTER TABLE stu_tracker.Assessment_answers DROP CONSTRAINT assessment_answers_assessment_student_id_question_id_key;
 
 ALTER TABLE stu_tracker.Materials ADD s3_reference TEXT DEFAULT NULL;
->>>>>>> Stashed changes
+
+-- JULY 8 --
+ALTER TABLE stu_tracker.Students ADD duration_required BOOLEAN DEFAULT FALSE;
+ALTER TABLE stu_tracker.Students ADD tardy BOOLEAN DEFAULT FALSE;
+ALTER TABLE stu_tracker.Assessments ADD grade_level INT;

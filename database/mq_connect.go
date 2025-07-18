@@ -13,6 +13,7 @@ func ConnectRabbitMQ() (*amqp091.Connection, error) {
 		return nil, err
 	}
 	buildConnectString := fmt.Sprintf("amqp://%s:%s@%s:%s/", env.MQ.Username, env.MQ.Password, env.MQ.Host, env.MQ.Port)
+	fmt.Println(buildConnectString)
 	conn, err := amqp091.Dial(buildConnectString)
 	if err != nil {
 		return nil, err

@@ -100,6 +100,7 @@ func (s *AuthService) GetStudentFileData(c context.Context, ss models.RequestDow
 		return nil, fmt.Errorf("unable to query student sessions %v", err)
 	}
 	assessmentSessions, err := s.queryAssessmentSessions(c, sessionIDs)
+	fmt.Println("queryAssessmentSessions length", len(assessmentSessions))
 	if err != nil {
 		return nil, fmt.Errorf("unable to query student sessions %v", err)
 	}
@@ -119,13 +120,14 @@ func (s *AuthService) GetStudentFileData(c context.Context, ss models.RequestDow
 
 // Get assessments per session given session ids
 func (s *AuthService) queryAssessmentSessions(c context.Context, sessions []int64) ([]models.AssessmentsData, error) {
+	fmt.Println("queryAssessmentSessions the sessions", sessions)
 	query := `
 	SELECT a.title, a.max_score, ast.score, 
-	ast.created_at, a.letter, a.cycle, 
+	sn.session_date, a.letter, a.cycle, 
 	a.pre, a.mid, a.post, a.version, ss.first_name, ss.last_name, ss.id, ast.session_id
 	FROM 
 		stu_tracker.Assessments_students ast
-	LEFT JOIN
+	JOIN
 		stu_tracker.Assessments a
 	ON
 		a.id = ast.assessment_id
@@ -133,6 +135,10 @@ func (s *AuthService) queryAssessmentSessions(c context.Context, sessions []int6
 		stu_tracker.Students ss
 	ON
 		ss.id = ast.student_id
+	LEFT JOIN
+		stu_tracker.Sessions sn
+	ON
+		sn.id = ast.session_id
 	WHERE 
 		ast.session_id = ANY($1);`
 
@@ -184,9 +190,9 @@ func (s *AuthService) queryStudentsSessions(c context.Context, sessions []int64)
 			ELSE sj.title
 		END AS subject,
 		st.grade_level,
-		ss.timeframe,
-		ss.timeframe_start,
-		ss.timeframe_end
+		st.timeframe,
+		st.timeframe_start,
+		st.timeframe_end
 		FROM 
 			stu_tracker.Session_students ss 
 		JOIN
@@ -360,7 +366,6 @@ func buildStudentSessionFile(studentSessions *[]models.StudentSession, studentAs
 		if err := f.SetSheetName("Sheet1", sheet); err != nil {
 			return nil, fmt.Errorf("failed to rename sheet: %v", err)
 		}
-		fmt.Println("StudentSession Size: ", len(*studentSessions))
 		// Col values A , B, C, D ...
 		headers := []string{"SID", "First name", "Last name", "Session id", "Subject",
 			"Duration", "Session Date", "Absent", "Notes", "Grade", "Assessment title", "Letter", "Cycle", "Pre", "Mid", "Post", "Version", "Score", "Max score"}
@@ -641,6 +646,7 @@ func buildSessionTutorFileGroupByTutor(sessions []models.TutorSessionData) (*exc
 	return f, nil
 }
 
+// This can be optimized please fix later.
 func buildSessionStudentFileByStudents(studentSessions *[]models.StudentSession, studentAssessments *[]models.AssessmentsData) (*excelize.File, error) {
 	f := excelize.NewFile()
 	sheetName := "Student sessions dataframe"
@@ -688,6 +694,7 @@ func buildSessionStudentFileByStudents(studentSessions *[]models.StudentSession,
 			continue
 		}
 		firstSession := sessions[0]
+		fmt.Println(firstSession)
 		firstName := firstSession.FirstName
 		lastName := firstSession.LastName
 		var subjectList []string
@@ -724,7 +731,7 @@ func buildSessionStudentFileByStudents(studentSessions *[]models.StudentSession,
 		row++ // Now we move to the next row
 	}
 
-	assessmentHeaders := []string{"First name", "last name", "assessment title", "version", "cycle", "score", "max score", "pre", "mid", "post", "created at"}
+	assessmentHeaders := []string{"First name", "Last name", "Assessment title", "Version", "Cycle", "Score", "Max score", "pre", "mid", "post", "Created at"}
 
 	// Set assessment headers
 	for i, header := range assessmentHeaders {
@@ -756,8 +763,9 @@ func buildSessionStudentFileByStudents(studentSessions *[]models.StudentSession,
 				cell, _ := excelize.CoordinatesToCellName(i+1, row)
 				f.SetCellValue(sheetName, cell, item)
 			}
+			row++
 		}
-		row++
+
 	}
 	return f, nil
 }

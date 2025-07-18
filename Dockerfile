@@ -6,6 +6,9 @@ RUN apk add --no-cache git
 
 RUN apk add --no-cache git ca-certificates
 
+RUN apk add --no-cache postgresql-client
+
+
 WORKDIR /app
 
 # Cache your module dependencies

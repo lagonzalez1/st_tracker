@@ -154,7 +154,8 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 		COALESCE(lt.name, '') AS teacher_name,
 		stu.timeframe,
 		stu.timeframe_start,
-		stu.timeframe_end
+		stu.timeframe_end,
+		stu.duration_required
 		FROM stu_tracker.Students stu
 		JOIN stu_tracker.Locations loc
 		ON stu.location_id = loc.id
@@ -197,6 +198,7 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 			&student.Timeframe,
 			&student.TimeframeStart,
 			&student.TimeframeEnd,
+			&student.DurationRequired,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan row: %v", err)
@@ -284,16 +286,10 @@ func (s *AuthService) GetDistrictsById(c context.Context, id int64, role string)
 
 func (s *AuthService) GetProgramsId(c context.Context, id int64, role string) ([]models.ResponseRequestProgramList, error) {
 	var query string
-<<<<<<< Updated upstream
-	query += `SELECT id, program_name
+	query += `SELECT id, program_name, timeframe_required
 			  FROM stu_tracker.programs pg
 			  WHERE pg.organization_id = $1;`
-	rows, err := s.db.Query(query, id)
-=======
-	query += `SELECT id, program_name, timeframe_required
-			  FROM stu_tracker.Programs;`
-	rows, err := s.db.QueryContext(c, query)
->>>>>>> Stashed changes
+	rows, err := s.db.QueryContext(c, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("error quering get districts by id %w", err)
 	}
@@ -485,7 +481,7 @@ func (s *AuthService) GetAssessmentsById(c context.Context, id int64, role strin
 			COALESCE(sb.title, 'NA') AS subject_name, 
 			COALESCE(pg.program_name, 'NA') AS program_name, 
 			pg.id as program_id,
-			aas.version, aas.pre, aas.mid, aas.post, aas.visible, aas.easy_score
+			aas.version, aas.pre, aas.mid, aas.post, aas.visible, aas.easy_score, aas.grade_level
 			FROM stu_tracker.Assessments aas 
 			LEFT JOIN stu_tracker.Subjects sb
 			ON sb.id = aas.subject_id
@@ -521,6 +517,7 @@ func (s *AuthService) GetAssessmentsById(c context.Context, id int64, role strin
 			&assessment.Post,
 			&assessment.Visible,
 			&assessment.EasyScore,
+			&assessment.GradeLevel,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)

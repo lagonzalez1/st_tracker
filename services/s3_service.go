@@ -2,10 +2,12 @@ package services
 
 import (
 	"context"
+	"mime/multipart"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/google/uuid"
 )
 
 func (s *AuthService) GenerateMaterialsPresignedUrl(ctx context.Context, id string) (string, error) {
@@ -43,7 +45,6 @@ func (s *AuthService) GenerateAssessmentsPresignedUrl(ctx context.Context, id st
 }
 
 func (s *AuthService) DeleteObjectS3(ctx context.Context, id string) error {
-
 	presignParams := &s3.DeleteObjectInput{
 		Bucket: aws.String("tracker-client-storage"),
 		Key:    aws.String(id),
@@ -53,4 +54,25 @@ func (s *AuthService) DeleteObjectS3(ctx context.Context, id string) error {
 		return err
 	}
 	return nil
+}
+
+func (s *AuthService) CreateObjectS3(c context.Context, file multipart.File, keyFound *string) (*string, error) {
+	key := uuid.New()
+	keyString := key.String()
+	var stringPtr *string
+	// If file exist update such key.
+	if keyFound == nil {
+		stringPtr = &keyString
+	} else {
+		stringPtr = keyFound
+	}
+	_, err := s.s3.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket: aws.String("tracker-client-storage"),
+		Key:    stringPtr,
+		Body:   file,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return stringPtr, nil
 }

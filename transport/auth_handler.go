@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"tracker/app/helpers"
 	"tracker/app/models"
 	"tracker/app/services"
 
@@ -43,8 +44,6 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Print the formated string body
-	// fmt.Printf("Request body %s\n", string(body))
-
 	// Parse values to json model
 	var models models.RegisterRequestAdminRoot
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -71,7 +70,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	var models models.LoginRequest
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -126,11 +124,21 @@ func (h *AuthHandler) CreateDistrict(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
+	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
+		return
+	}
 	var models models.RegisterRequestDistrict
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
+	}
+	// Check if claims is the same as input data
+	if int64(orgID) != *models.OrganizationId {
+		http.Error(w, "Invalid claims and input missmatch", http.StatusBadRequest)
+		fmt.Printf("Claims is different from input data: %v", err)
+		return
 	}
 	// Need to handle 3 cases of logins for different permissions
 	user, err := h.authService.AddDistrict(ctx, models)
@@ -156,7 +164,21 @@ func (h *AuthHandler) CreateDistrict(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) UpdateDistrict(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:district")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
+		return
+	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
@@ -167,15 +189,18 @@ func (h *AuthHandler) UpdateDistrict(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
-
 	var models models.RegisterRequestDistrict
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v\n", err)
 		return
 	}
-
+	// Check if claims is the same as input data
+	if int64(orgID) != *models.OrganizationId {
+		http.Error(w, "Invalid claims and input missmatch", http.StatusBadRequest)
+		fmt.Printf("Claims is different from input data: %v", err)
+		return
+	}
 	user, err := h.authService.UpdateDistrict(ctx, models)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -198,7 +223,21 @@ func (h *AuthHandler) UpdateDistrict(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) DeleteDistrict(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "delete:district")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
+		return
+	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
@@ -209,7 +248,6 @@ func (h *AuthHandler) DeleteDistrict(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	var models models.RemoveRequest
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -217,7 +255,7 @@ func (h *AuthHandler) DeleteDistrict(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error decoding JSON: %v\n", err)
 		return
 	}
-
+	models.OrganizationId = int64(orgID)
 	user, err := h.authService.DeleteDistrict(ctx, models)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -254,7 +292,6 @@ func (h *AuthHandler) CreateStudent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -307,7 +344,6 @@ func (h *AuthHandler) UpdateStudent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -360,7 +396,6 @@ func (h *AuthHandler) DeleteStudent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -415,17 +450,25 @@ func (h *AuthHandler) CreateProgram(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
+		return
+	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		fmt.Printf("error found reading body")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	var models models.RegisterRequestProgram
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
+	}
+	if int64(orgID) != *models.OrganizationId {
+		http.Error(w, "Missmatch organizations", http.StatusBadRequest)
+		return
 	}
 	// Need to handle 3 cases of logins for different permissions
 	user, err := h.authService.AddProgram(ctx, models)
@@ -446,6 +489,7 @@ func (h *AuthHandler) CreateProgram(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
+
 func (h *AuthHandler) UpdateProgram(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
@@ -459,20 +503,26 @@ func (h *AuthHandler) UpdateProgram(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-
+	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
+		return
+	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		fmt.Printf("error found reading body")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	var models models.RegisterRequestProgram
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
-
+	if int64(orgID) != *models.OrganizationId {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		return
+	}
 	// Need to handle 3 cases of logins for different permissions
 	user, err := h.authService.UpdateProgram(ctx, models)
 	if err != nil {
@@ -486,53 +536,6 @@ func (h *AuthHandler) UpdateProgram(w http.ResponseWriter, r *http.Request) {
 		}
 		// 6. You could also inspect SQL errors here if you like.
 		http.Error(w, "Unable to update program", http.StatusInternalServerError)
-		fmt.Printf("service error: %v\n", err)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
-}
-
-// Program create, update, delete AUTH
-func (h *AuthHandler) CreatePermission(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	claims, ok := r.Context().Value("props").(jwt.MapClaims)
-	if !ok {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	valid, err := validateRequest(claims, "write:permissions")
-	if err != nil || !valid {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		fmt.Printf("error found reading body")
-		return
-	}
-	fmt.Printf("Request body %s\n", string(body))
-
-	var models models.RegisterPermissionRequest
-	if err := json.Unmarshal(body, &models); err != nil {
-		http.Error(w, "Invalid request data", http.StatusBadRequest)
-		fmt.Printf("Error decoding JSON: %v", err)
-	}
-	// Need to handle 3 cases of logins for different permissions
-	user, err := h.authService.CreatePermission(ctx, models)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "internal server error", http.StatusInternalServerError)
 		fmt.Printf("service error: %v\n", err)
 		return
 	}
@@ -555,22 +558,78 @@ func (h *AuthHandler) DeleteProgram(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
+		return
+	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		fmt.Printf("error found reading body")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	var models models.RemoveRequest
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
-
-	// Need to handle 3 cases of logins for different permissions
+	models.OrganizationId = int64(orgID)
 	user, err := h.authService.DeleteProgram(ctx, models)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		// 6. You could also inspect SQL errors here if you like.
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
 
+// Program create, update, delete AUTH
+func (h *AuthHandler) CreatePermission(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:permissions")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	var models models.RegisterPermissionRequest
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+	if *models.OrganizationId != int64(orgID) {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		return
+	}
+	// Need to handle 3 cases of logins for different permissions
+	user, err := h.authService.CreatePermission(ctx, models)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "request timeout", http.StatusGatewayTimeout)
@@ -604,19 +663,26 @@ func (h *AuthHandler) DeleteProgramLocation(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
+		return
+	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		fmt.Printf("error found reading body")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	var models models.RemoveLocationProgram
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
-
+	if *models.OrganizationID != int64(orgID) {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		return
+	}
 	// Need to handle 3 cases of logins for different permissions
 	user, err := h.authService.DeleteProgramLocation(ctx, models)
 	if err != nil {
@@ -657,11 +723,19 @@ func (h *AuthHandler) CreateProgramLocation(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
+	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
+		return
+	}
 	var models models.RegisterLocationProgram
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
+	}
+	if int64(orgID) != *models.OrganizationID {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		return
 	}
 	user, err := h.authService.CreateProgramLocation(ctx, models)
 	if err != nil {
@@ -701,14 +775,12 @@ func (h *AuthHandler) CreateSchedule(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
-
 	var models models.RegisterSchedule
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
-	// Need to handle 3 cases of logins for different permissions
+
 	user, err := h.authService.AddSchedule(ctx, models)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -732,13 +804,8 @@ func (h *AuthHandler) CreateSchedule(w http.ResponseWriter, r *http.Request) {
 // END Program create, update, delete
 
 func (h *AuthHandler) CreateMaterial(w http.ResponseWriter, r *http.Request) {
-<<<<<<< Updated upstream
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		fmt.Printf("error found reading body\n")
-		return
-	}
-	fmt.Printf("Request body %s\n", string(body))
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -751,34 +818,11 @@ func (h *AuthHandler) CreateMaterial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var models models.RegisterRequestMaterials
-	if err := json.Unmarshal(body, &models); err != nil {
-		http.Error(w, "Invalid request data", http.StatusBadRequest)
-		fmt.Printf("Error decoding JSON: %v\n", err)
-		return
-	}
-
-	user, err := h.authService.AddMaterial(ctx, models)
+	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		http.Error(w, "Unable to create material", http.StatusInternalServerError)
-		fmt.Printf("Unable to insert material: %v\n", err)
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
-=======
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	// — JWT & permission checks omitted —
 
 	// Parse up to 10 MB of multipart form data
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
@@ -808,7 +852,10 @@ func (h *AuthHandler) CreateMaterial(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
 	}
-
+	if *payload.OrganizationId != int64(orgID) {
+		http.Error(w, "Invalid request", http.StatusInternalServerError)
+		return
+	}
 	// If a file was provided, upload it to S3 and set the SReference
 	if file != nil {
 		keyPtr, err := h.authService.UploadMaterialFile(ctx, file, nil)
@@ -826,23 +873,16 @@ func (h *AuthHandler) CreateMaterial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
->>>>>>> Stashed changes
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
 
 func (h *AuthHandler) UpdateMaterial(w http.ResponseWriter, r *http.Request) {
-<<<<<<< Updated upstream
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		fmt.Printf("error found reading body")
-=======
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	// Parse up to 10 MB of multipart form data
+
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		http.Error(w, "failed to parse multipart form", http.StatusBadRequest)
->>>>>>> Stashed changes
 		return
 	}
 
@@ -857,12 +897,6 @@ func (h *AuthHandler) UpdateMaterial(w http.ResponseWriter, r *http.Request) {
 		defer file.Close()
 	}
 
-<<<<<<< Updated upstream
-	var models models.RegisterRequestMaterials
-	if err := json.Unmarshal(body, &models); err != nil {
-		http.Error(w, "Invalid request data", http.StatusBadRequest)
-		fmt.Printf("Error decoding JSON: %v", err)
-=======
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
 		http.Error(w, "forbidden", http.StatusForbidden)
@@ -878,7 +912,6 @@ func (h *AuthHandler) UpdateMaterial(w http.ResponseWriter, r *http.Request) {
 	if jsonField == "" {
 		http.Error(w, "missing JSON data", http.StatusBadRequest)
 		return
->>>>>>> Stashed changes
 	}
 	var models models.RegisterRequestMaterials
 	if err := json.Unmarshal([]byte(jsonField), &models); err != nil {
@@ -948,7 +981,6 @@ func (h *AuthHandler) DeleteMaterial(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -998,7 +1030,6 @@ func (h *AuthHandler) CreateLocation(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -1047,7 +1078,6 @@ func (h *AuthHandler) UpdateLocation(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -1096,7 +1126,6 @@ func (h *AuthHandler) DeleteLocation(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -1148,7 +1177,6 @@ func (h *AuthHandler) CreateSemesterLocation(w http.ResponseWriter, r *http.Requ
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -1197,7 +1225,6 @@ func (h *AuthHandler) UpdateSemesterLocation(w http.ResponseWriter, r *http.Requ
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -1246,7 +1273,6 @@ func (h *AuthHandler) DeleteSemesterLocation(w http.ResponseWriter, r *http.Requ
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -1296,7 +1322,6 @@ func (h *AuthHandler) CreateOrganization(w http.ResponseWriter, r *http.Request)
 		fmt.Printf("error found reading body")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	var models models.RegisterOrganization
 	if err := json.Unmarshal([]byte(body), &models); err != nil {
@@ -1335,7 +1360,6 @@ func (h *AuthHandler) CreateSemester(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	var models models.RegisterRequestSemester
 	if err := json.Unmarshal([]byte(body), &models); err != nil {
@@ -1373,7 +1397,6 @@ func (h *AuthHandler) UpdateSemester(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	var models models.RegisterRequestSemester
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -1410,7 +1433,6 @@ func (h *AuthHandler) DeleteSemester(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	var models models.RemoveRequest
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -1451,7 +1473,6 @@ func (h *AuthHandler) CreateAdminStaff(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -1500,7 +1521,6 @@ func (h *AuthHandler) UpdateAdminStaff(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	var models models.RegisterRequestAdmin
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -1538,7 +1558,6 @@ func (h *AuthHandler) DeleteAdminStaff(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	var models models.RemoveAdmin
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -1578,7 +1597,6 @@ func (h *AuthHandler) CreateTutor(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -1627,7 +1645,6 @@ func (h *AuthHandler) UpdateTutor(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -1676,7 +1693,6 @@ func (h *AuthHandler) DeleteTutor(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -1734,7 +1750,7 @@ func (h *AuthHandler) DeleteTutorLocation(w http.ResponseWriter, r *http.Request
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
+
 	var models models.RemoveTutorLocation
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -1779,7 +1795,7 @@ func (h *AuthHandler) CreateTutorLocation(w http.ResponseWriter, r *http.Request
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
+
 	var models models.RegisterTutorLocation
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -1827,7 +1843,7 @@ func (h *AuthHandler) DeleteSchedule(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
+
 	var models models.RemoveSchedule
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -1862,7 +1878,6 @@ func (h *AuthHandler) CreateSubject(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -1911,7 +1926,6 @@ func (h *AuthHandler) UpdateSubject(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -1960,7 +1974,6 @@ func (h *AuthHandler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -2009,7 +2022,7 @@ func (h *AuthHandler) CreateSubjectLocation(w http.ResponseWriter, r *http.Reque
 		fmt.Printf("error found reading body")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
+
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
 		http.Error(w, "forbidden", http.StatusForbidden)
@@ -2056,7 +2069,7 @@ func (h *AuthHandler) DeleteSubjectLocation(w http.ResponseWriter, r *http.Reque
 		fmt.Printf("error found reading body")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
+
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
 		http.Error(w, "forbidden", http.StatusForbidden)
@@ -2107,7 +2120,6 @@ func (h *AuthHandler) CreateAnnouncement(w http.ResponseWriter, r *http.Request)
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -2156,7 +2168,6 @@ func (h *AuthHandler) UpdateAnnouncement(w http.ResponseWriter, r *http.Request)
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -2205,7 +2216,6 @@ func (h *AuthHandler) DeleteAnnouncement(w http.ResponseWriter, r *http.Request)
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -2246,6 +2256,82 @@ func (h *AuthHandler) DeleteAnnouncement(w http.ResponseWriter, r *http.Request)
 }
 
 // End of announcments
+
+func (h *AuthHandler) CreateS3Object(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:assessments")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	// Parse up to 10 MB of multipart form data
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		http.Error(w, "failed to parse multipart form", http.StatusBadRequest)
+		return
+	}
+
+	// Try to grab "file"; ErrMissingFile means "no file uploaded"
+	file, _, err := r.FormFile("file")
+	if err != nil && err != http.ErrMissingFile {
+		http.Error(w, "error reading file", http.StatusBadRequest)
+		return
+	}
+	// Only close if we actually got a file
+	if file != nil {
+		defer file.Close()
+	}
+
+	id, err := h.authService.CreateObjectS3(ctx, file, nil)
+	if err != nil {
+		http.Error(w, "unable to upload to s3", http.StatusBadRequest)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]interface{}{"id": id}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) DeleteS3Object(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "delete:assessments")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body\n")
+		return
+	}
+	var model models.DeleteImageRequest
+	if err := json.Unmarshal([]byte(body), &model); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+	err = h.authService.DeleteObjectS3(ctx, model.ID)
+	if err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]interface{}{"id": model.ID}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
 func (h *AuthHandler) CreateTeacher(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
@@ -2301,6 +2387,10 @@ func (h *AuthHandler) UpdateTeacher(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user, err := h.authService.UpdateTeacher(ctx, model)
+	if err != nil {
+		http.Error(w, "Unable to update teacher", http.StatusBadRequest)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(user)
@@ -2315,7 +2405,6 @@ func (h *AuthHandler) DeleteTeacher(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -2366,7 +2455,6 @@ func (h *AuthHandler) CreateAssessment(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -2415,7 +2503,6 @@ func (h *AuthHandler) UpdateAssessment(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -2464,7 +2551,6 @@ func (h *AuthHandler) DeleteAssessment(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -2941,7 +3027,6 @@ func (h *AuthHandler) GetPrograms(w http.ResponseWriter, r *http.Request) {
 	email := query.Get("email")
 	role := query.Get("role")
 	id := query.Get("id")
-	orgID := query.Get("organization_id")
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -2954,19 +3039,18 @@ func (h *AuthHandler) GetPrograms(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if email == "" || role == "" || id == "" || orgID == "" {
+	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
+		return
+	}
+
+	if email == "" || role == "" || id == "" {
 		http.Error(w, "Missing query parameter", http.StatusBadRequest)
 		return
 	}
 
-	orgIDParsed, err := strconv.ParseInt(orgID, 10, 64)
-	if err != nil {
-		http.Error(w, "Invalid organization_id", http.StatusBadRequest)
-		fmt.Printf("Error parsing organization_id: %v\n", err)
-		return
-	}
-
-	rows, err := h.authService.GetProgramsId(ctx, orgIDParsed, role)
+	rows, err := h.authService.GetProgramsId(ctx, int64(orgID), role)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "request timeout", http.StatusGatewayTimeout)
@@ -3097,8 +3181,6 @@ func (h *AuthHandler) GetTutors(w http.ResponseWriter, r *http.Request) {
 	email := query.Get("email")
 	role := query.Get("role")
 	id := query.Get("id")
-<<<<<<< Updated upstream
-=======
 	locationID := query.Get("location_id")
 	orgID := query.Get("organization_id")
 
@@ -3179,739 +3261,6 @@ func (h *AuthHandler) GetSignedUrlMaterials(w http.ResponseWriter, r *http.Reque
 
 	// Example response
 	response := map[string]interface{}{"data": url}
-	json.NewEncoder(w).Encode(response)
-}
-
-func (h *AuthHandler) GetSemesters(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	query := r.URL.Query()
-	email := query.Get("email")
-	role := query.Get("role")
-	id := query.Get("id")
-	org_id := query.Get("organization_id")
-	claims, ok := r.Context().Value("props").(jwt.MapClaims)
-	if !ok {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	valid, err := validateRequest(claims, "view:semester")
-	if err != nil || !valid {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	if email == "" || role == "" || id == "" || org_id == "" {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
-		return
-	}
-	idd, err := strconv.ParseInt(org_id, 10, 64)
-	if err != nil {
-		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-		return
-	}
-
-	rows, err := h.authService.GetSemestersById(ctx, idd, role)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "Unable to get semesters", http.StatusInternalServerError)
-		fmt.Printf("service error: %v\n", err)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	// Example response
-	response := map[string]interface{}{"data": rows}
-	json.NewEncoder(w).Encode(response)
-}
-
-func (h *AuthHandler) GetSchedules(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	query := r.URL.Query()
-	email := query.Get("email")
-	role := query.Get("role")
-	id := query.Get("id")
-	tutorID := query.Get("tutor_id")
-	orgID := query.Get("organization_id")
-
-	claims, ok := r.Context().Value("props").(jwt.MapClaims)
-	if !ok {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	valid, err := validateRequest(claims, "view:tutors")
-	if err != nil || !valid {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-
-	if email == "" || role == "" || id == "" || orgID == "" || tutorID == "" {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
-		return
-	}
-
-	tutorIDParsed, err := strconv.ParseInt(tutorID, 10, 64)
-	if err != nil {
-		http.Error(w, "Invalid tutor_id", http.StatusBadRequest)
-		return
-	}
-
-	rows, err := h.authService.GetTutorSchedules(ctx, tutorIDParsed)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		http.Error(w, "Unable to retrieve schedules", http.StatusInternalServerError)
-		fmt.Printf("Error retrieving schedules: %v\n", err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	response := map[string]interface{}{"data": rows}
-	json.NewEncoder(w).Encode(response)
-}
-
-func (h *AuthHandler) GetAssessments(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	query := r.URL.Query()
-	email := query.Get("email")
-	role := query.Get("role")
-	id := query.Get("id")
-	orgID := query.Get("organization_id")
-
-	claims, ok := r.Context().Value("props").(jwt.MapClaims)
-	if !ok {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	valid, err := validateRequest(claims, "view:assessments")
-	if err != nil || !valid {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-
-	if email == "" || role == "" || id == "" || orgID == "" {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
-		return
-	}
-
-	orgIDParsed, err := strconv.ParseInt(orgID, 10, 64)
-	if err != nil {
-		http.Error(w, "Invalid organization_id", http.StatusBadRequest)
-		return
-	}
-
-	rows, err := h.authService.GetAssessmentsById(ctx, orgIDParsed, role)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		http.Error(w, "Unable to retrieve assessments", http.StatusInternalServerError)
-		fmt.Printf("Error retrieving assessments: %v\n", err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	response := map[string]interface{}{"data": rows}
-	json.NewEncoder(w).Encode(response)
-}
-
-func (h *AuthHandler) GetAssessmentQuestions(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	query := r.URL.Query()
-	assessmentID := query.Get("assessment_id")
-
-	claims, ok := r.Context().Value("props").(jwt.MapClaims)
-	if !ok {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	valid, err := validateRequest(claims, "view:assessments")
-	if err != nil || !valid {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-
-	if assessmentID == "" {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
-		return
-	}
-
-	assessmentIDParsed, err := strconv.ParseInt(assessmentID, 10, 64)
-	if err != nil {
-		http.Error(w, "Invalid assessment_id", http.StatusBadRequest)
-		return
-	}
-
-	rows, err := h.authService.GetAssessmentsQuestionsChoice(ctx, assessmentIDParsed)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		http.Error(w, "Unable to retrieve assessment questions", http.StatusInternalServerError)
-		fmt.Printf("Error retrieving assessment questions: %v\n", err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	response := map[string]interface{}{"data": rows}
-	json.NewEncoder(w).Encode(response)
-}
-
-func (h *AuthHandler) GetSubjects(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	query := r.URL.Query()
-	email := query.Get("email")
-	role := query.Get("role")
-	id := query.Get("id")
-	org_id := query.Get("organization_id")
-	claims, ok := r.Context().Value("props").(jwt.MapClaims)
-	if !ok {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	valid, err := validateRequest(claims, "view:subject")
-	if err != nil || !valid {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	if email == "" || role == "" || id == "" || org_id == "" {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
-		return
-	}
-	idd, err := strconv.ParseInt(org_id, 10, 64)
-	if err != nil {
-		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-		return
-	}
-
-	rows, err := h.authService.GetSubjectById(ctx, idd, role)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		fmt.Printf("service error: %v\n", err)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	// Example response
-	response := map[string]interface{}{"data": rows}
-	json.NewEncoder(w).Encode(response)
-}
-
-func (h *AuthHandler) GetTeachers(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	query := r.URL.Query()
-	claims, ok := r.Context().Value("props").(jwt.MapClaims)
-	if !ok {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	valid, err := validateRequest(claims, "view:subject")
-	if err != nil || !valid {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	if query.Get("location_id") == "" {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
-		return
-	}
-	idd, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
-	if err != nil {
-		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-		return
-	}
-	rows, err := h.authService.GetTeachers(ctx, &idd)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		fmt.Printf("service error: %v\n", err)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	// Example response
-	response := map[string]interface{}{"data": rows}
-	json.NewEncoder(w).Encode(response)
-}
-
-func (h *AuthHandler) GetTutorLocations(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	query := r.URL.Query()
-	email := query.Get("email")
-	role := query.Get("role")
-	id := query.Get("id")
-	org_id := query.Get("organization_id")
-	claims, ok := r.Context().Value("props").(jwt.MapClaims)
-	if !ok {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	valid, err := validateRequest(claims, "view:tutor-locations")
-	if err != nil || !valid {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	if email == "" || role == "" || id == "" || org_id == "" {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
-		return
-	}
-	idd, err := strconv.ParseInt(org_id, 10, 64)
-	if err != nil {
-		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-		return
-	}
-	tid, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-		return
-	}
-	rows, err := h.authService.GetTutorLocations(ctx, tid, idd)
-
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		fmt.Printf("service error: %v\n", err)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	// Example response
-	response := map[string]interface{}{"data": rows}
-	json.NewEncoder(w).Encode(response)
-}
-
-func (h *AuthHandler) GetSessionSearch(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	query := r.URL.Query()
-
-	claims, ok := r.Context().Value("props").(jwt.MapClaims)
-	if !ok {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	valid, err := validateRequest(claims, "view:session")
-	if err != nil || !valid {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	// Undefined variables like optional location_id
-	// Check if exist before
-	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
-		return
-	}
-	var model models.SearchQuery
-
-	if query.Get("location_id") != "" {
-		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-			return
-		}
-		model.LocationId = &loc_id
-	}
-	if query.Get("program_id") != "" {
-		prog_id, err := strconv.ParseInt(query.Get("program_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-			return
-		}
-		model.ProgramId = &prog_id
-	}
-	if query.Get("organization_id") != "" {
-		org_id, err := strconv.ParseInt(query.Get("organization_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-			return
-		}
-		model.OrganizationID = &org_id
-	}
-	if query.Get("subject_id") != "" {
-		sub_id, err := strconv.ParseInt(query.Get("subject_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-			return
-		}
-		model.SubjectId = &sub_id
-	}
-	if query.Get("semester_id") != "" {
-		sub_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-			return
-		}
-		model.SemesterID = &sub_id
-	}
-
-	if query.Get("date") != "" {
-		start_time, err := time.Parse("2006-01-02", query.Get("date"))
-		if err != nil {
-			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
-			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
-			return
-		}
-		model.DateStart = start_time
-	}
-	if query.Get("date_end") != "" {
-		end_date, err := time.Parse("2006-01-02", query.Get("date_end"))
-		if err != nil {
-			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
-			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
-			return
-		}
-		model.DateEnd = end_date
-	}
-	rows, err := h.authService.SessionSearch(ctx, model)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		fmt.Printf("service error: %v\n", err)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	// Example response
-	response := map[string]interface{}{"data": rows}
-	json.NewEncoder(w).Encode(response)
-}
-
-func (h *AuthHandler) GetStudentAssesssmentSearch(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	query := r.URL.Query()
-
-	claims, ok := r.Context().Value("props").(jwt.MapClaims)
-	if !ok {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	valid, err := validateRequest(claims, "view:session")
-	if err != nil || !valid {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	sid := query.Get("student_assessment_id")
-	studentAssessmentSearch, err := strconv.ParseInt(sid, 10, 64)
-	if err != nil {
-		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-		return
-	}
-	easyScore := query.Get("easy_score")
-	easyScoreBool, err := strconv.ParseBool(easyScore)
-	if err != nil {
-		http.Error(w, "unable to parse boolean", http.StatusInternalServerError)
-		return
-	}
-
-	rows, err := h.authService.StudentAssessmentSearch(ctx, &studentAssessmentSearch, easyScoreBool)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		fmt.Printf("service error: %v\n", err)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	// Example response
-	response := map[string]interface{}{"data": rows}
-	json.NewEncoder(w).Encode(response)
-}
-
-func (h *AuthHandler) GetStudentSessionSearch(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	query := r.URL.Query()
-	claims, ok := r.Context().Value("props").(jwt.MapClaims)
-	if !ok {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	valid, err := validateRequest(claims, "view:session")
-	if err != nil || !valid {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	// Undefined variables like optional location_id
-	// Check if exist before
-	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
-		return
-	}
-	var model models.SearchQuery
-	if query.Get("search_term") != "" {
-		model.SearchTerm = query.Get("search_term")
-	}
-	if query.Get("location_id") != "" {
-		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "Unable to parse location", http.StatusInternalServerError)
-			return
-		}
-		model.LocationId = &loc_id
-	}
-	if query.Get("program_id") != "" {
-		prog_id, err := strconv.ParseInt(query.Get("program_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "Unable to parse program", http.StatusInternalServerError)
-			return
-		}
-		model.ProgramId = &prog_id
-	}
-	if query.Get("organization_id") != "" {
-		org_id, err := strconv.ParseInt(query.Get("organization_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "Unable to parse organization", http.StatusInternalServerError)
-			return
-		}
-		model.OrganizationID = &org_id
-	}
-	if query.Get("subject_id") != "" {
-		sub_id, err := strconv.ParseInt(query.Get("subject_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "Unable to parse subject", http.StatusInternalServerError)
-			return
-		}
-		model.SubjectId = &sub_id
-	}
-	if query.Get("semester_id") != "" {
-		sub_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "Unable to parse semester", http.StatusInternalServerError)
-			return
-		}
-		model.SemesterID = &sub_id
-	}
-
-	if query.Get("date") != "" {
-		start_time, err := time.Parse("2006-01-02", query.Get("date"))
-		if err != nil {
-			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
-			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
-			return
-		}
-		model.DateStart = start_time
-	}
-	if query.Get("date_end") != "" {
-		end_date, err := time.Parse("2006-01-02", query.Get("date_end"))
-		if err != nil {
-			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
-			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
-			return
-		}
-		model.DateEnd = end_date
-	}
-	rows, err := h.authService.StudentSessionSearch(ctx, model)
-
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		fmt.Printf("service error: %v\n", err)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	// Example response
-	response := map[string]interface{}{"data": rows}
-	json.NewEncoder(w).Encode(response)
-}
-
-func (h *AuthHandler) GetTutorSearch(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	query := r.URL.Query()
-
-	claims, ok := r.Context().Value("props").(jwt.MapClaims)
-	if !ok {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	valid, err := validateRequest(claims, "view:session")
-	if err != nil || !valid {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") || !query.Has("search_term") {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
-		return
-	}
-	var model models.SearchQueryTutor
-	if query.Get("organization_id") != "" {
-		org_id, err := strconv.ParseInt(query.Get("organization_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-			return
-		}
-		model.OrganizationID = &org_id
-	}
-
-	if query.Get("search_term") != "" {
-		model.SearchTerm = query.Get("search_term")
-	}
-
-	rows, err := h.authService.TutorSearch(ctx, model)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		fmt.Printf("service error: %v\n", err)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	// Example response
-	response := map[string]interface{}{"data": rows}
-	json.NewEncoder(w).Encode(response)
-}
-
-func (h *AuthHandler) GetTutorsSessions(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	query := r.URL.Query()
-	email := query.Get("email")
-	role := query.Get("role")
-	id := query.Get("id")
-	semester_id := query.Get("semester_id")
->>>>>>> Stashed changes
-	location_id := query.Get("location_id")
-	org_id := query.Get("organization_id")
-
-	if email == "" || role == "" || id == "" || orgID == "" || locationID == "" {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
-		return
-	}
-
-	orgIDParsed, err := strconv.ParseInt(orgID, 10, 64)
-	if err != nil {
-		http.Error(w, "Invalid organization_id", http.StatusBadRequest)
-		return
-	}
-
-	locationIDParsed, err := strconv.ParseInt(locationID, 10, 64)
-	if err != nil {
-		http.Error(w, "Invalid location_id", http.StatusBadRequest)
-		return
-	}
-
-	rows, err := h.authService.GetTutorsById(ctx, orgIDParsed, role, locationIDParsed)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		http.Error(w, "Unable to get tutors", http.StatusInternalServerError)
-		fmt.Printf("Error retrieving tutors: %v\n", err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	response := map[string]interface{}{"data": rows}
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -4992,7 +4341,7 @@ func (h *AuthHandler) CreateStudentSession(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	fmt.Printf("Request body %s\n", string(body))
+
 	var models models.RegisterStudentSessionList
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
