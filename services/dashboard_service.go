@@ -135,7 +135,8 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 		COALESCE(lt.name, '') AS teacher_name,
 		stu.timeframe,
 		stu.timeframe_start,
-		stu.timeframe_end
+		stu.timeframe_end,
+		stu.duration_required
 		FROM stu_tracker.Students stu
 		JOIN stu_tracker.Locations loc
 		ON stu.location_id = loc.id
@@ -203,6 +204,7 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan row: %v", err)
 		}
+
 		// Convert nullable fields
 		if middleName.Valid {
 			student.MiddleName = middleName.String
@@ -581,6 +583,17 @@ func (s *AuthService) GetAssessmentsQuestionsChoice(c context.Context, assessmen
 
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("row iteration error: %w", err)
+	}
+
+	for i := range results {
+		if results[i].ImageURL != nil && *results[i].ImageURL != "NA" && *results[i].ImageURL != "" {
+			signedUrl, err := s.GenerateAssessmentsPresignedUrl(c, *results[i].ImageURL)
+			fmt.Printf("Signed url %s", signedUrl)
+			if err != nil {
+				return nil, fmt.Errorf("unable to sign url, possible corrupt image: %v", err)
+			}
+			results[i].ImageURL = &signedUrl
+		}
 	}
 
 	return results, nil

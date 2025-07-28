@@ -1,7 +1,9 @@
 package services
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"mime/multipart"
 	"time"
 
@@ -42,6 +44,26 @@ func (s *AuthService) GenerateAssessmentsPresignedUrl(ctx context.Context, id st
 		return "nil", err
 	}
 	return presignResult.URL, nil
+}
+
+func (s *AuthService) GetS3Object(ctx context.Context, id string) (*string, error) {
+	response, err := s.s3.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String("tracker-client-storage"),
+		Key:    aws.String(id),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get object %w", err)
+	}
+	defer response.Body.Close()
+	buf := new(bytes.Buffer)
+	_, err = buf.ReadFrom(response.Body)
+	if err != nil {
+		return nil, fmt.Errorf("unable to write to bytes buffer")
+	}
+	var res = buf.String()
+	var resptr *string
+	resptr = &res
+	return resptr, nil
 }
 
 func (s *AuthService) DeleteObjectS3(ctx context.Context, id string) error {

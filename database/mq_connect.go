@@ -7,64 +7,72 @@ import (
 	"github.com/rabbitmq/amqp091-go"
 )
 
-func ConnectRabbitMQ() (*amqp091.Connection, error) {
-	env, err := config.LoadConfig()
-	if err != nil {
-		return nil, err
-	}
-	buildConnectString := fmt.Sprintf("amqp://%s:%s@%s:%s/", env.MQ.Username, env.MQ.Password, env.MQ.Host, env.MQ.Port)
-	fmt.Println(buildConnectString)
-	conn, err := amqp091.Dial(buildConnectString)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
+type MQChannels struct {
+	Connection *amqp091.Connection
+	Channels   map[string]*amqp091.Channel // Keyed by task type
+}
 
+func setupTaskQueue(conn *amqp091.Connection, routingKey string, queueName string) (*amqp091.Channel, error) {
 	ch, err := conn.Channel()
 	if err != nil {
 		return nil, err
 	}
 
-	defer ch.Close()
-
-	// Declare a fanout exchange for pub/sub
+	exchange := "ai_events_exchange"
 	err = ch.ExchangeDeclare(
-		"logs",   // name
-		"fanout", // type
-		true,     // durable
-		false,    // auto-deleted
-		false,    // internal
-		false,    // no-wait
-		nil,      // arguments
+		exchange, "direct", true, false, false, false, nil,
 	)
 	if err != nil {
+		ch.Close()
 		return nil, err
 	}
 
-	// Create a random, exclusive queue for this subscriber
-	q, err := ch.QueueDeclare(
-		"",    // empty name means random queue
-		false, // durable
-		false, // delete when unused
-		true,  // exclusive
-		false, // no-wait
-		nil,   // arguments
+	_, err = ch.QueueDeclare(
+		queueName, true, false, false, false, nil,
 	)
 	if err != nil {
+		ch.Close()
 		return nil, err
 	}
 
-	// Bind queue to the exchange
-	err = ch.QueueBind(
-		q.Name, // queue name
-		"",     // routing key
-		"logs", // exchange
-		false,
-		nil,
-	)
+	err = ch.QueueBind(queueName, routingKey, exchange, false, nil)
 	if err != nil {
+		ch.Close()
 		return nil, err
 	}
 
-	return conn, nil
+	return ch, nil
+}
+
+func ConnectRabbitMQ() (*MQChannels, error) {
+	env, err := config.LoadConfig()
+	if err != nil {
+		return nil, err
+	}
+	buildConnectString := fmt.Sprintf("amqp://%s:%s@%s:%s/", env.MQ.Username, env.MQ.Password, env.MQ.Host, env.MQ.Port)
+	conn, err := amqp091.Dial(buildConnectString)
+	if err != nil {
+		return nil, err
+	}
+	channels := make(map[string]*amqp091.Channel)
+	ch, err := setupTaskQueue(conn, "generate", "micro_questions")
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	channels["generate"] = ch
+	// Future Task B: score_tasks (just comment it out for now)
+	/*
+		chScore, err := setupTaskQueue(conn, "score", "score_tasks")
+		if err != nil {
+			conn.Close()
+			return nil, err
+		}
+		channels["score"] = chScore
+	*/
+
+	return &MQChannels{
+		Connection: conn,
+		Channels:   channels,
+	}, nil
 }

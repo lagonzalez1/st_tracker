@@ -1,46 +1,54 @@
 PresentifyClone API
 
+
 A Go-based backend service for session storage and assessment creation using Gorilla Mux.
 
 ⸻
 
 Table of Contents
-	1.	Features
-	2.	Tech Stack
-	3.	Prerequisites
-	4.	Installation & Setup
-	•	Clone Repository
-	•	Environment Variables
-	•	Running Locally
-	•	Running with Docker
-	5.	API Reference
-	•	Base URL
-	•	Authentication
-	•	Endpoints
-	•	Register
-	•	Login
-	6.	Analytics & Reporting
-	7.	License
+1.	Features
+2.	Tech Stack
+3.	Prerequisites
+4.	Installation & Setup
+*	Clone Repository
+*	Environment Variables
+*	Running Locally
+*	Running with Docker
+5.	API Reference
+*	Base URL
+*	Authentication
+*	Endpoints
+*	Register
+*	Login
+6.	Analytics & Reporting
+7.	License
 
 ⸻
 
 Features
-	•	Multi-tenant support: Organizations, administrators, tutors, and students.
-	•	Session tracking: Record start/end times, durations, and scores.
-	•	Assessment management: Create and deliver assessments and live sessions.
-	•	Role-based dashboards: Customized views for root users, admins, and tutors.
-	•	Analytics & Export: Light analytics and downloadable XLSX reports per tutor/student.
+*	Multi-tenant support: Organizations, administrators, tutors, and students.
+*	Session tracking: Record start/end times, durations, and scores.
+*	Assessment management: Create and deliver assessments and live sessions.
+*	Role-based dashboards: Customized views for root users, admins, and tutors.
+*	Analytics & Export: Light analytics and downloadable XLSX reports per tutor/student.
 
 Tech Stack
-	•	Language: Go (1.23+)
-	•	Router: Gorilla Mux
-	•	Database: PostgreSQL
-	•	Containerization: Docker & Docker Compose
+*	Language: Go (1.23+)
+*	Router: Gorilla Mux
+*	Database: PostgreSQL
+*	Containerization: Docker & Docker Compose
 
 Prerequisites
-	•	Go 1.23+ installed on your machine
-	•	Docker & Docker Compose (for containerized run)
-	•	PostgreSQL instance (local or managed)
+*	Go 1.23+ installed on your machine
+*	Docker & Docker Compose (for containerized run)
+*	PostgreSQL instance (local or managed)
+
+
+- - - -
+Frontend application is avilable on
+- https://presentifyclone.click
+- - - -
+
 
 Installation & Setup
 
@@ -91,6 +99,10 @@ Running with Docker
 docker-compose up –build
 
 3. The API will be available at `http://localhost:3333`.
+
+
+
+
 
 
 ## API Reference
@@ -837,14 +849,39 @@ Status	Description	Body
 ### Some exciting features being implemented
 1. Attach files to materials [x]
 	- A useful feature when pre-defined documents are available. These files are easily viewable by relevant staff members.
-2. Add Images to Questions 
+2. Add Images to Questions [x]
 	- Improvement from previous implementation, that is before users must have a static https link to image
 	- Improvement is users can dynamically attach images or files to each question, no static link required.
-3. Artifical intelligence
-	- Leverages LLM models to generate assessments based on various user-defined factors.
+3. Artifical intelligence [Testing]
+	- Leverages LLM models to generate assessments based on various user-defined factors. 
 	- Utilizes database context such as location, district, and academic standards to create contextually appropriate questions.
-4. Artifical intelligence
+	- Context aware/ context injection using google gemini API.
+4. Artifical intelligence [Testing]
 	- Grade assessments, eleminate potential user error.
+
+
+### How features above are implemented
+
+1. Attach files to materials
+	- With the use of S3, the user can upload files, images, etc. Each upload is marked with a UUID and stored in the database for retrieval.
+	- When a user needs to fetch such a document, an endpoint is triggered with the UUID as a parameter and returns a signed URL.
+
+2. Add images to questions
+	- Since the user can create N number of questions, uploading N number of images at once can become an issue if N is large.
+	- To circumvent this, the user will upload each image as they create a new question.
+	- Once the user uploads an image, a UUID is stored on the frontend. If the screen is exited at any point, each stored UUID is deleted.
+	- Otherwise, on submit, link the UUID to each question.
+	- This solution works well since it allows for the implementation of AI-generated assessments. Each question is queued with the ability to upload an image, as well as review and update generated assessment questions.
+
+3. Artifical intelligence
+	- To prevent from API calls to Bedrock to delay its best to ofload this task to a microservice.
+	- Using RabbitMQ to send request to a python function/listener would be a viable solution. 
+	- We also ensure each request is re-queued if failure occurs. 
+	- Use an input/output key UUID to reference the S3 bucket object and the RDS input key row.
+	- Update the RDS row to indicate "complete"; the frontend polls and fetches from S3 using the output/input key.
+
+
+
 
 License
 

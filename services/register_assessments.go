@@ -48,8 +48,12 @@ func (s *AuthService) AddAssessment(c context.Context, req models.RegisterAssess
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}
 	if len(req.Questions) > 0 && req.EasyScore {
-		for _, question := range req.Questions {
+		if len(req.Questions) != len(req.Images) {
+			return nil, fmt.Errorf("unable to insert questions, missmatch len of questions(%v), images (%v)", len(req.Questions), len(req.Images))
+		}
+		for idx, question := range req.Questions {
 			var questionID int64
+			var questionImageID = &req.Images[idx].ID
 			// Insert the question
 			questionQuery := `INSERT INTO stu_tracker.Questions 
 				(assessment_id, image_url, question_text, question_type, points, order_number, standard_text)
@@ -59,7 +63,7 @@ func (s *AuthService) AddAssessment(c context.Context, req models.RegisterAssess
 				c,
 				questionQuery,
 				newID,
-				question.ImageURL,
+				questionImageID,
 				question.QuestionText,
 				question.QuestionType,
 				question.Points,

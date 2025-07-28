@@ -14,19 +14,16 @@ import (
 	"tracker/app/models"
 	"tracker/app/services"
 
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/golang-jwt/jwt/v5"
 )
 
 type AuthHandler struct {
 	authService *services.AuthService
-	s3Service   *s3.Client
 }
 
-func NewAuthHandler(authService *services.AuthService, s3client *s3.Client) *AuthHandler {
+func NewAuthHandler(authService *services.AuthService) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
-		s3Service:   s3client,
 	}
 }
 
@@ -3140,6 +3137,17 @@ func (h *AuthHandler) GetMaterials(w http.ResponseWriter, r *http.Request) {
 	role := query.Get("role")
 	id := query.Get("id")
 	orgID := query.Get("organization_id")
+
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:materials")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 
 	if email == "" || role == "" || id == "" || orgID == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)

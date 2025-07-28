@@ -516,17 +516,17 @@ type ResponseAssessmentList struct {
 }
 
 type ResponseAssessmentQuestionsChoice struct {
-	QuestionID        *int64 `json:"question_id"`
-	AssessmentID      *int64 `json:"assessment_id"`
-	ImageURL          string `json:"image_url"`
-	QuestionText      string `json:"question_text"`
-	QuestionType      string `json:"question_type"`
-	Points            int    `json:"points"`
-	OrderNumber       int    `json:"order_number"`
-	ChoiceID          *int64 `json:"choice_id"`
-	ChoiceText        string `json:"choice_text"`
-	IsCorrect         bool   `json:"is_correct"`
-	ChoiceOrderNumber int    `json:"choice_order"`
+	QuestionID        *int64  `json:"question_id"`
+	AssessmentID      *int64  `json:"assessment_id"`
+	ImageURL          *string `json:"image_url"`
+	QuestionText      string  `json:"question_text"`
+	QuestionType      string  `json:"question_type"`
+	Points            int     `json:"points"`
+	OrderNumber       int     `json:"order_number"`
+	ChoiceID          *int64  `json:"choice_id"`
+	ChoiceText        *string `json:"choice_text"`
+	IsCorrect         bool    `json:"is_correct"`
+	ChoiceOrderNumber int     `json:"choice_order"`
 }
 
 type RegisterAssessment struct {
@@ -552,6 +552,12 @@ type RegisterAssessment struct {
 	EasyScore       bool                  `json:"easy_score"`
 	Questions       []AssessmentQuestions `json:"questions"`
 	RemoveQuestions []int64               `json:"remove_questions"`
+	Images          []ImagePayload        `json:"images"`
+}
+
+type ImagePayload struct {
+	Index int64  `json:"index"`
+	ID    string `json:"id"`
 }
 
 type AssessmentQuestions struct {

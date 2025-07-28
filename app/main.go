@@ -34,7 +34,7 @@ func main() {
 		fmt.Printf("Rabbit MQ connection failed: %v", mq_err)
 		log.Fatalf("Rabbit MQ connection failed: %v", mq_err)
 	}
-	defer mq.Close()
+	defer mq.Connection.Close()
 
 	s3Client, s3_err := config.ConnectS3Client()
 	if s3_err != nil {
@@ -44,9 +44,9 @@ func main() {
 
 	r := mux.NewRouter()
 
-	authService := services.NewAuthService(db, s3Client)
+	authService := services.NewAuthService(db, s3Client, mq)
 
-	authHandler := transport.NewAuthHandler(authService, s3Client)
+	authHandler := transport.NewAuthHandler(authService)
 
 	apiMiddleware := mux.NewRouter().PathPrefix("/api").Subrouter()
 	apiMiddleware.Use(middleware.Middleware(authService))
@@ -200,10 +200,12 @@ func main() {
 	apiMiddleware.HandleFunc("/create_assessment_sessions", authHandler.CreateAssessmentSessions).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_assessment_sessions", authHandler.DeleteAssessmentSessions).Methods("POST")
 	apiMiddleware.HandleFunc("/get_student_assessment_choices", authHandler.GetStudentAssessmentChoices).Methods("GET")
-
 	apiMiddleware.HandleFunc("/delete_student_session", authHandler.DeleteStudentSession).Methods("POST")
-
 	apiMiddleware.HandleFunc("/get_student_assessment_sessions", authHandler.GetStudentAssessmentSessions).Methods("GET")
+
+	apiMiddleware.HandleFunc("/get_generated_questions", authHandler.GetGeneratedQuestion).Methods("GET")
+	apiMiddleware.HandleFunc("/delete_generated_assessment", authHandler.MicroEventDeleteQuestions).Methods("POST")
+	apiMiddleware.HandleFunc("/micro_generate_questions", authHandler.MicroEventGenQuestions).Methods("POST")
 
 	r.PathPrefix("/api").Handler(apiMiddleware)
 

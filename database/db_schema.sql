@@ -168,7 +168,7 @@ CREATE TABLE stu_tracker.Assessments (
     description TEXT,
     letter VARCHAR(10) NOT NULL,
     cycle VARCHAR(100) NOT NULL,
-    alpha_identifier VARCHAR(10) UNIQUE,
+    alpha_identifier VARCHAR(10),
     external_link TEXT,
     max_score INT,
     subject_id INT REFERENCES stu_tracker.Subjects(id) ON DELETE SET NULL,
@@ -455,3 +455,16 @@ ALTER TABLE stu_tracker.Materials ADD s3_reference TEXT DEFAULT NULL;
 ALTER TABLE stu_tracker.Students ADD duration_required BOOLEAN DEFAULT FALSE;
 ALTER TABLE stu_tracker.Students ADD tardy BOOLEAN DEFAULT FALSE;
 ALTER TABLE stu_tracker.Assessments ADD grade_level INT;
+ALTER TABLE stu_tracker.assessments drop constraint assessments_alpha_identifier_key;
+
+ALTER TABLE stu_tracker.Assessments drop constraint assessments_students_assessment_id_fkey;
+
+
+CREATE TABLE stu_tracker.Generate_questions_task (
+    input_key UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    status TEXT,
+    retry_count INT DEFAULT 0,
+    s3_output_key TEXT,
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
