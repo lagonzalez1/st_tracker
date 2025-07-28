@@ -20,11 +20,12 @@ Table of Contents
 *	Endpoints
 *	Register
 *	Login
-6.	Analytics & Reporting
+6.	Upcoming Features *
 7.	License
 
 ⸻
 
+## 1
 Features
 *	Multi-tenant support: Organizations, administrators, tutors, and students.
 *	Session tracking: Record start/end times, durations, and scores.
@@ -32,12 +33,15 @@ Features
 *	Role-based dashboards: Customized views for root users, admins, and tutors.
 *	Analytics & Export: Light analytics and downloadable XLSX reports per tutor/student.
 
+
+## 2
 Tech Stack
 *	Language: Go (1.23+)
 *	Router: Gorilla Mux
 *	Database: PostgreSQL
 *	Containerization: Docker & Docker Compose
 
+## 3
 Prerequisites
 *	Go 1.23+ installed on your machine
 *	Docker & Docker Compose (for containerized run)
@@ -49,7 +53,7 @@ Frontend application is avilable on
 - https://presentifyclone.click
 - - - -
 
-
+## 4
 Installation & Setup
 
 Clone Repository
@@ -105,6 +109,7 @@ docker-compose up –build
 
 
 
+## 5
 ## API Reference
 
 ### Base URL
@@ -845,8 +850,9 @@ Status	Description	Body
 > ID parameter is required.
 
 
-
+## 6
 ### Some exciting features being implemented
+
 1. Attach files to materials [x]
 	- A useful feature when pre-defined documents are available. These files are easily viewable by relevant staff members.
 2. Add Images to Questions [x]
@@ -858,6 +864,7 @@ Status	Description	Body
 	- Context aware/ context injection using google gemini API.
 4. Artifical intelligence [Testing]
 	- Grade assessments, eleminate potential user error.
+
 
 
 ### How features above are implemented
@@ -882,7 +889,7 @@ Status	Description	Body
 
 
 
-
+## 7
 License
 
 This project is licensed under the MIT License.
