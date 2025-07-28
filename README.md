@@ -25,8 +25,7 @@ Table of Contents
 
 ⸻
 
-## 1
-Features
+## 1 Features
 *	Multi-tenant support: Organizations, administrators, tutors, and students.
 *	Session tracking: Record start/end times, durations, and scores.
 *	Assessment management: Create and deliver assessments and live sessions.
@@ -34,15 +33,13 @@ Features
 *	Analytics & Export: Light analytics and downloadable XLSX reports per tutor/student.
 
 
-## 2
-Tech Stack
+## 2 Tech Stack
 *	Language: Go (1.23+)
 *	Router: Gorilla Mux
 *	Database: PostgreSQL
 *	Containerization: Docker & Docker Compose
 
-## 3
-Prerequisites
+## 3 Prerequisites
 *	Go 1.23+ installed on your machine
 *	Docker & Docker Compose (for containerized run)
 *	PostgreSQL instance (local or managed)
@@ -53,8 +50,7 @@ Frontend application is avilable on
 - https://presentifyclone.click
 - - - -
 
-## 4
-Installation & Setup
+## 4 Installation & Setup
 
 Clone Repository
 
@@ -66,26 +62,22 @@ Environment Variables
 Copy the .env.example to .env and adjust the values:
 
 # .env
-JWT_SECRET=your_jwt_secret
-B_PORT=3333
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=pgpassword
-POSTGRES_URL=localhost
-POSTGRES_PORT=5433
-POSTGRES_HOST=db
-DB_NAME=postgres
-RABBIT_HOST=rabbitmq
-RABBIT_PORT=5672
-RABBIT_USERNAME=guest
-RABBIT_PASSWORD=guest
-ORG_ADD_KEY="2025-CREATE-0"
-ORG_ADD_KEY_1="2025-CREATE-1"
-ORG_ADD_KEY_2="2025-CREATE-2"
-ORG_ADD_KEY_3="2025-CREATE-3"
-SQL_URL="HTTP://"
-AWS_ACCESS_KEY_ID=AWS_SECRET_ACCESS_KEY
-AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY
-AWS_REGION=AWS_REGION
+* JWT_SECRET=your_jwt_secret
+* B_PORT=3333
+* POSTGRES_USER=postgres
+* POSTGRES_PASSWORD=pgpassword
+* POSTGRES_URL=localhost
+* POSTGRES_PORT=5433
+* POSTGRES_HOST=db
+* DB_NAME=postgres
+* RABBIT_HOST=rabbitmq
+* RABBIT_PORT=5672
+* RABBIT_USERNAME=guest
+* RABBIT_PASSWORD=guest
+* ORG_ADD_KEY="2025-CREATE-0"
+* AWS_ACCESS_KEY_ID=AWS_SECRET_ACCESS_KEY
+* AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY
+* AWS_REGION=AWS_REGION
 
 Running Locally
 
@@ -98,27 +90,21 @@ Running with Docker
 	1.	Ensure Docker daemon is running.
 	2.	Build and start containers:
 
-
-
 docker-compose up –build
 
 3. The API will be available at `http://localhost:3333`.
 
 
 
-
-
-
-## 5
-## API Reference
+## 5 API Reference
 
 ### Base URL
 {NODE_ENV == production ? AWS_LINK : http://localhost:3333}/api
 
 Authentication
-	•	Uses JWT stored in an HTTP-only cookie (_auth).
-	•	Response headers include x-access-token for token refresh.
-	•	Interceptors handle 401/403 and token renewal.
+•	Uses JWT stored in an HTTP-only cookie (_auth).
+•	Response headers include x-access-token for token refresh.
+•	Interceptors handle 401/403 and token renewal.
 
 ## Endpoints
 
@@ -850,8 +836,7 @@ Status	Description	Body
 > ID parameter is required.
 
 
-## 6
-### Some exciting features being implemented
+## 6 Some exciting features being implemented
 
 1. Attach files to materials [x]
 	- A useful feature when pre-defined documents are available. These files are easily viewable by relevant staff members.
@@ -889,8 +874,7 @@ Status	Description	Body
 
 
 
-## 7
-License
+## 7 License
 
 This project is licensed under the MIT License.
 
