@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"time"
+	"tracker/app/config"
 	"tracker/app/database"
 	"tracker/app/middleware"
 	"tracker/app/services"
@@ -28,9 +29,23 @@ func main() {
 	}
 	defer db.Close()
 
+	mq, mq_err := database.ConnectRabbitMQ()
+	if mq_err != nil {
+		fmt.Printf("Rabbit MQ connection failed: %v", mq_err)
+		log.Fatalf("Rabbit MQ connection failed: %v", mq_err)
+	}
+	defer mq.Connection.Close()
+
+	s3Client, s3_err := config.ConnectS3Client()
+	if s3_err != nil {
+		fmt.Printf("s3 client connection failed: %v", mq_err)
+		log.Fatalf("s3 client connection failed: %v", mq_err)
+	}
+
 	r := mux.NewRouter()
 
-	authService := services.NewAuthService(db)
+	authService := services.NewAuthService(db, s3Client, mq)
+
 	authHandler := transport.NewAuthHandler(authService)
 
 	apiMiddleware := mux.NewRouter().PathPrefix("/api").Subrouter()
@@ -45,6 +60,7 @@ func main() {
 		AllowCredentials: true,
 		Debug:            false, // Log CORS issues
 	})
+
 	//api.ConnectSheetsAPI()
 
 	r.HandleFunc("/hello", hello).Methods("GET")
@@ -52,7 +68,7 @@ func main() {
 	r.HandleFunc("/login", authHandler.Login).Methods("POST")
 	r.HandleFunc("/get_assessment_questions_external", authHandler.GetAssessmentQuestionsExternal).Methods("GET")
 	r.HandleFunc("/create_organization", authHandler.CreateOrganization).Methods("POST")
-	r.HandleFunc("/health_check", authHandler.HealthCheck).Methods("GET") // FOR APPLICATIO LOAD BALANCER
+	r.HandleFunc("/health_check", authHandler.HealthCheck).Methods("GET")
 	r.HandleFunc("/create_student_assessment_response", authHandler.CreateStudentAssessmentResponse).Methods("POST")
 	r.HandleFunc("/get_student_details", authHandler.GetStudentDetails).Methods("GET")
 
@@ -107,6 +123,9 @@ func main() {
 	apiMiddleware.HandleFunc("/get_tutor_sessions", authHandler.GetTutorSessionAnalytics).Methods("GET")
 	apiMiddleware.HandleFunc("/get_sessions", authHandler.GetTutorsSessions).Methods("GET")
 
+	apiMiddleware.HandleFunc("/create_s3_object", authHandler.CreateS3Object).Methods("POST")
+	apiMiddleware.HandleFunc("/delete_s3_object", authHandler.DeleteS3Object).Methods("POST")
+
 	apiMiddleware.HandleFunc("/create_teacher", authHandler.CreateTeacher).Methods("POST")
 	apiMiddleware.HandleFunc("/update_teacher", authHandler.UpdateTeacher).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_teacher", authHandler.DeleteTeacher).Methods("POST")
@@ -145,6 +164,7 @@ func main() {
 	apiMiddleware.HandleFunc("/get_locations", authHandler.GetLocations).Methods("GET")
 
 	// Return session id as well for duplicate
+	apiMiddleware.HandleFunc("/get_signed_url_materials", authHandler.GetSignedUrlMaterials).Methods("GET")
 	apiMiddleware.HandleFunc("/get_session_accountability", authHandler.GetSessionAccountability).Methods("GET")
 	apiMiddleware.HandleFunc("/get_tutors", authHandler.GetTutors).Methods("GET")
 	apiMiddleware.HandleFunc("/get_assessment_questions", authHandler.GetAssessmentQuestions).Methods("GET")
@@ -180,10 +200,12 @@ func main() {
 	apiMiddleware.HandleFunc("/create_assessment_sessions", authHandler.CreateAssessmentSessions).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_assessment_sessions", authHandler.DeleteAssessmentSessions).Methods("POST")
 	apiMiddleware.HandleFunc("/get_student_assessment_choices", authHandler.GetStudentAssessmentChoices).Methods("GET")
-
 	apiMiddleware.HandleFunc("/delete_student_session", authHandler.DeleteStudentSession).Methods("POST")
-
 	apiMiddleware.HandleFunc("/get_student_assessment_sessions", authHandler.GetStudentAssessmentSessions).Methods("GET")
+
+	apiMiddleware.HandleFunc("/get_generated_questions", authHandler.GetGeneratedQuestion).Methods("GET")
+	apiMiddleware.HandleFunc("/delete_generated_assessment", authHandler.MicroEventDeleteQuestions).Methods("POST")
+	apiMiddleware.HandleFunc("/micro_generate_questions", authHandler.MicroEventGenQuestions).Methods("POST")
 
 	r.PathPrefix("/api").Handler(apiMiddleware)
 

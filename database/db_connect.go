@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"tracker/app/config"
 
 	_ "github.com/lib/pq"
@@ -33,11 +34,17 @@ func ConnectDB() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	// This is the configured port for docker-compose
 	if port == 5433 {
 		ssl += `disable`
 	}
+	// Port for production
 	if port == 5432 {
 		ssl += `require`
+	}
+	// This was used to run docker independently.
+	if port == 2222 {
+		ssl += `disable`
 	}
 	psql_info := fmt.Sprintf("host=%s port=%d user=%s "+"password=%s dbname=%s sslmode=%s",
 		host,
@@ -47,6 +54,7 @@ func ConnectDB() (*sql.DB, error) {
 		name,
 		ssl,
 	)
+	fmt.Println(psql_info)
 	db, err := sql.Open("postgres", psql_info)
 	if err != nil {
 		return nil, err
@@ -93,9 +101,17 @@ func CreateSchemaIfNotExist(db *sql.DB) error {
 		return fmt.Errorf("error reading schema file: %v", err)
 	}
 	// Execute SQL script
-	_, err = db.Exec(string(schemaSQL))
-	if err != nil {
-		return fmt.Errorf("error executing schema SQL: %v", err)
+	stmts := strings.Split(string(schemaSQL), ";")
+
+	for i, stmt := range stmts {
+		stmt = strings.TrimSpace(stmt)
+		if stmt == "" {
+			continue
+		}
+		_, err := db.Exec(stmt)
+		if err != nil {
+			return fmt.Errorf("error executing statement %d: %v\nSQL: %s", i+1, err, stmt)
+		}
 	}
 	// Execute permissions SQL page
 	permissionPath := filepath.Join("database", "db_init_permissions.sql")

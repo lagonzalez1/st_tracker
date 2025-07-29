@@ -19,12 +19,12 @@ func (s *AuthService) AddStudent(ctx context.Context, req models.RegisterRequest
 				email, grade_level, active,
 				location_id, period, created_by,
 				direct_partnership, tutor_id, semester_id,
-				teacher_id, timeframe, timeframe_start, timeframe_end)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id;`
+				teacher_id, timeframe, timeframe_start, timeframe_end, duration_required)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id;`
 
 	err := s.db.QueryRow(query, req.FirstName, req.LastName,
 		req.MiddleName, req.Email, req.GradeLevel, req.Active, req.LocationId, req.Period,
-		req.CreatedBy, req.DirectPartnership, req.TutorID, req.SemesterID, req.TeacherID, req.Timeframe, req.TimeframeStart, req.TimeframeEnd).Scan(&newID)
+		req.CreatedBy, req.DirectPartnership, req.TutorID, req.SemesterID, req.TeacherID, req.Timeframe, req.TimeframeStart, req.TimeframeEnd, req.DurationRequired).Scan(&newID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}
@@ -43,18 +43,19 @@ func (s *AuthService) UpdateStudent(ctx context.Context, req models.RegisterRequ
 	query := `UPDATE stu_tracker.Students SET first_name = $1, last_name = $2, 
 			middle_name = $3, email = $4, grade_level = $5, active = $6, location_id = $7,
 			period = $8, direct_partnership = $9, tutor_id = $10, semester_id = $11,
-			teacher_id = $12, timeframe = $13, timeframe_start = $14, timeframe_end = $15
-            WHERE id = $16;`
+			teacher_id = $12, timeframe = $13, timeframe_start = $14, timeframe_end = $15, duration_required = $16
+            WHERE id = $17;`
 
 	_, err := s.db.ExecContext(ctx, query, req.FirstName, req.LastName, req.MiddleName,
 		req.Email, req.GradeLevel, req.Active, req.LocationId, req.Period, req.DirectPartnership,
-		req.TutorID, req.SemesterID, req.TeacherID, req.Timeframe, req.TimeframeStart, req.TimeframeEnd, req.ID)
+		req.TutorID, req.SemesterID, req.TeacherID, req.Timeframe, req.TimeframeStart, req.TimeframeEnd, req.DurationRequired, req.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update student: %w", err)
 	}
 	return &models.ResponseUpdate{
 		Status: "Updated",
 	}, nil
+
 }
 
 func (s *AuthService) DeleteStudent(ctx context.Context, req models.RemoveRequest) (*models.RemoveResponse, error) {

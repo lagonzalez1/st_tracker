@@ -79,6 +79,7 @@ type RegisterRequestStudents struct {
 	TeacherID         *int64  `json:"teacher_id"`
 	CreatedBy         string  `json:"created_by"`
 	Timeframe         *bool   `json:"timeframe"`
+	DurationRequired  *bool   `json:"duration_required"`
 	TimeframeStart    *string `json:"timeframe_start"`
 	TimeframeEnd      *string `json:"timeframe_end"`
 }
@@ -99,6 +100,7 @@ type ResponseRequestStudentList struct {
 	TeacherID         *int64  `json:"teacher_id"`
 	TeacherName       *string `json:"teacher_name"`
 	LocationId        *int64  `json:"location_id"`
+	DurationRequired  *bool   `json:"duration_required"`
 	Timeframe         *bool   `json:"timeframe"`
 	TimeframeStart    *string `json:"timeframe_start"`
 	TimeframeEnd      *string `json:"timeframe_end"`
@@ -232,23 +234,26 @@ type ResponseRequestMaterialsList struct {
 	Post         bool    `json:"post"`
 	Visible      bool    `json:"visible"`
 	ProgramId    *int64  `json:"program_id"`
+	SReference   *string `json:"s3_reference"`
 	CreatedAt    string  `json:"created_at"`
 }
 
 type RegisterRequestMaterials struct {
-	ID             *int64  `json:"id"`
-	Title          string  `json:"title"`
-	ExternalLink   string  `json:"external_link"`
-	Description    string  `json:"description"`
-	Version        float64 `json:"version"`
-	Pre            bool    `json:"pre"`
-	Mid            bool    `json:"mid"`
-	Post           bool    `json:"post"`
-	Visible        bool    `json:"visible"`
-	CreatedAt      string  `json:"created_at"`
-	LocationId     *int64  `json:"location_id"`
-	ProgramId      *int64  `json:"program_id"`
-	OrganizationId *int64  `json:"organization_id"`
+	ID               *int64  `json:"id"`
+	Title            string  `json:"title"`
+	ExternalLink     string  `json:"external_link"`
+	Description      string  `json:"description"`
+	Version          float64 `json:"version"`
+	Pre              bool    `json:"pre"`
+	Mid              bool    `json:"mid"`
+	Post             bool    `json:"post"`
+	Visible          bool    `json:"visible"`
+	CreatedAt        string  `json:"created_at"`
+	LocationId       *int64  `json:"location_id"`
+	ProgramId        *int64  `json:"program_id"`
+	SReference       *string `json:"s3_reference"`
+	OrganizationId   *int64  `json:"organization_id"`
+	SReferenceDelete bool    `json:"s3_reference_remove"`
 }
 
 type ResponseRequestMaterials struct {
@@ -343,7 +348,8 @@ type RemoveResponse struct {
 }
 
 type RemoveRequest struct {
-	ID *int64 `json:"id"`
+	ID             *int64 `json:"id"`
+	OrganizationId int64  `json:"organization_id"`
 }
 
 type RegisterOrganization struct {
@@ -495,6 +501,7 @@ type ResponseAssessmentList struct {
 	SubjectId       *int64  `json:"subject_id,omitempty"`
 	ProgramId       *int64  `json:"program_id"`
 	MaterialID      *int64  `json:"material_id,omitempty"`
+	GradeLevel      *int    `json:"grade_level"`
 	SubjectName     string  `json:"subject_name,omitempty"`
 	ProgramName     string  `json:"program_name,omitempty"`
 	MaterialName    string  `json:"material_name,omitempty"`
@@ -509,17 +516,17 @@ type ResponseAssessmentList struct {
 }
 
 type ResponseAssessmentQuestionsChoice struct {
-	QuestionID        *int64 `json:"question_id"`
-	AssessmentID      *int64 `json:"assessment_id"`
-	ImageURL          string `json:"image_url"`
-	QuestionText      string `json:"question_text"`
-	QuestionType      string `json:"question_type"`
-	Points            int    `json:"points"`
-	OrderNumber       int    `json:"order_number"`
-	ChoiceID          *int64 `json:"choice_id"`
-	ChoiceText        string `json:"choice_text"`
-	IsCorrect         bool   `json:"is_correct"`
-	ChoiceOrderNumber int    `json:"choice_order"`
+	QuestionID        *int64  `json:"question_id"`
+	AssessmentID      *int64  `json:"assessment_id"`
+	ImageURL          *string `json:"image_url"`
+	QuestionText      string  `json:"question_text"`
+	QuestionType      string  `json:"question_type"`
+	Points            int     `json:"points"`
+	OrderNumber       int     `json:"order_number"`
+	ChoiceID          *int64  `json:"choice_id"`
+	ChoiceText        *string `json:"choice_text"`
+	IsCorrect         bool    `json:"is_correct"`
+	ChoiceOrderNumber int     `json:"choice_order"`
 }
 
 type RegisterAssessment struct {
@@ -536,6 +543,7 @@ type RegisterAssessment struct {
 	OrganizationID  *int64                `json:"organization_id"`
 	MaterialID      *int                  `json:"material_id,omitempty"`
 	ProgramId       *int64                `json:"program_id"`
+	GradeLevel      *int                  `json:"grade_level"`
 	CreatedAt       string                `json:"created_at"`
 	Version         float64               `json:"version"`
 	Pre             bool                  `json:"pre"`
@@ -544,6 +552,12 @@ type RegisterAssessment struct {
 	EasyScore       bool                  `json:"easy_score"`
 	Questions       []AssessmentQuestions `json:"questions"`
 	RemoveQuestions []int64               `json:"remove_questions"`
+	Images          []ImagePayload        `json:"images"`
+}
+
+type ImagePayload struct {
+	Index int64  `json:"index"`
+	ID    string `json:"id"`
 }
 
 type AssessmentQuestions struct {
@@ -686,7 +700,7 @@ type SessionTrail struct {
 	StudentDuration int       `json:"student_duration"`
 	SubstituteName  string    `json:"substitute_name,omitempty"`
 	SessionDate     time.Time `json:"session_date"`
-	Timeframe       bool      `json:"timeframe"`
+	Timeframe       *bool     `json:"timeframe"`
 	TimeframeStart  *string   `json:"timeframe_start"`
 	TimeframeEnd    *string   `json:"timeframe_end"`
 }
@@ -871,4 +885,7 @@ type StudentDetails struct {
 	LastName   string `json:"last_name"`
 	MiddleName string `json:"middle_name"`
 	GradeLevel int64  `json:"grade_level"`
+}
+type DeleteImageRequest struct {
+	ID string `json:"id"`
 }
