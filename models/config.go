@@ -30,6 +30,7 @@ type MQ struct {
 	Password string
 	Host     string
 	Port     string
+	AmazonMQ string
 }
 
 type S3Client struct {

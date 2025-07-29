@@ -43,6 +43,7 @@ func LoadConfig() (*models.Config, error) {
 			Username: os.Getenv("RABBIT_USERNAME"),
 			Password: os.Getenv("RABBIT_PASSWORD"),
 			Port:     os.Getenv("RABBIT_PORT"),
+			AmazonMQ: os.Getenv("AMAZON_MQ"),
 		},
 		S3: models.S3Client{
 			AccessKey: os.Getenv("AWS_ACCESS_KEY_ID"),

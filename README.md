@@ -78,6 +78,7 @@ Copy the .env.example to .env and adjust the values:
 * AWS_ACCESS_KEY_ID=AWS_SECRET_ACCESS_KEY
 * AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY
 * AWS_REGION=AWS_REGION
+* AMAZON_MQ="YOUR_AMAZON_MQ_LINK"
 
 Running Locally
 

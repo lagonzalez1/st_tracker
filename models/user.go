@@ -700,7 +700,7 @@ type SessionTrail struct {
 	StudentDuration int       `json:"student_duration"`
 	SubstituteName  string    `json:"substitute_name,omitempty"`
 	SessionDate     time.Time `json:"session_date"`
-	Timeframe       bool      `json:"timeframe"`
+	Timeframe       *bool     `json:"timeframe"`
 	TimeframeStart  *string   `json:"timeframe_start"`
 	TimeframeEnd    *string   `json:"timeframe_end"`
 }
