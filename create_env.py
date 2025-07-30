@@ -17,6 +17,7 @@ class Secrets:
         self.ORG_ADD_KEY_1 = data.get("ORG_ADD_KEY_1")
         self.ORG_ADD_KEY_2 = data.get("ORG_ADD_KEY_2")
         self.ORG_ADD_KEY_3 = data.get("ORG_ADD_KEY_3")
+        self.AMAZON_MQ = data.get("AMAZON_MQ")
 
     def to_env_dict(self):
         return {
@@ -32,6 +33,7 @@ class Secrets:
             "ORG_ADD_KEY_1": self.ORG_ADD_KEY_1,
             "ORG_ADD_KEY_2": self.ORG_ADD_KEY_2,
             "ORG_ADD_KEY_3": self.ORG_ADD_KEY_3,
+            "AMAZON_MQ": self.AMAZON_MQ,
         }
 
 def get_aws_secrets():

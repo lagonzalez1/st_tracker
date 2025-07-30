@@ -50,9 +50,11 @@ func ConnectRabbitMQ() (*MQChannels, error) {
 		return nil, err
 	}
 	url := env.MQ.AmazonMQ
+
 	if url == "" {
 		url = fmt.Sprintf("amqp://%s:%s@%s:%s/", env.MQ.Username, env.MQ.Password, env.MQ.Host, env.MQ.Port)
 	}
+	fmt.Print(url)
 	conn, err := amqp091.Dial(url)
 	if err != nil {
 		return nil, err

@@ -457,7 +457,7 @@ ALTER TABLE stu_tracker.Students ADD tardy BOOLEAN DEFAULT FALSE;
 ALTER TABLE stu_tracker.Assessments ADD grade_level INT;
 ALTER TABLE stu_tracker.assessments drop constraint assessments_alpha_identifier_key;
 
-ALTER TABLE stu_tracker.Assessments drop constraint assessments_students_assessment_id_fkey;
+-- Does not exist ALTER TABLE stu_tracker.Assessments drop constraint assessments_students_assessment_id_fkey;
 
 
 CREATE TABLE stu_tracker.Generate_questions_task (
