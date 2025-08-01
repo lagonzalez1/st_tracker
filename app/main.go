@@ -38,8 +38,8 @@ func main() {
 
 	s3Client, s3_err := config.ConnectS3Client()
 	if s3_err != nil {
-		fmt.Printf("s3 client connection failed: %v", mq_err)
-		log.Fatalf("s3 client connection failed: %v", mq_err)
+		fmt.Printf("s3 client connection failed: %v", s3Client)
+		log.Fatalf("s3 client connection failed: %v", s3Client)
 	}
 
 	r := mux.NewRouter()

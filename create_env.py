@@ -18,6 +18,8 @@ class Secrets:
         self.ORG_ADD_KEY_2 = data.get("ORG_ADD_KEY_2")
         self.ORG_ADD_KEY_3 = data.get("ORG_ADD_KEY_3")
         self.AMAZON_MQ = data.get("AMAZON_MQ")
+        self.RABBIT_USERNAME = data.get("RABBIT_USERNAME")
+        self.RABBIT_PASSWORD = data.get("RABBIT_PASSWORD")
 
     def to_env_dict(self):
         return {
@@ -34,6 +36,8 @@ class Secrets:
             "ORG_ADD_KEY_2": self.ORG_ADD_KEY_2,
             "ORG_ADD_KEY_3": self.ORG_ADD_KEY_3,
             "AMAZON_MQ": self.AMAZON_MQ,
+            "RABBIT_PASSWORD": self.RABBIT_PASSWORD,
+            "RABBIT_USERNAME": self.RABBIT_USERNAME,
         }
 
 def get_aws_secrets():
@@ -72,6 +76,7 @@ def write_env_file(filename, secrets_dict):
 
 def aws_config():
     secrets_data = get_aws_secrets()
+    # Please fix this, no need to parse each value out.
     secrets = Secrets(secrets_data)
 
     env = os.getenv("APP_ENV", "development")
