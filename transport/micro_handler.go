@@ -156,7 +156,7 @@ func (h *AuthHandler) MicroEventDeleteQuestions(w http.ResponseWriter, r *http.R
 			return
 		}
 		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "Unable to start AddQueueQuestionEvent ", http.StatusInternalServerError)
+		http.Error(w, "Unable to delete generated assessment. ", http.StatusInternalServerError)
 		fmt.Printf("service error: %v\n", err)
 		return
 	}

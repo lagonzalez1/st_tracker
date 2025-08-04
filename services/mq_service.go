@@ -30,6 +30,7 @@ func (s *AuthService) AddQueueQuestionEvent(ctx context.Context, req models.Requ
 	if err != nil {
 		return nil, err
 	}
+
 	var status string = "STARTED"
 	var inputKey *string
 	query := `INSERT INTO stu_tracker.Generate_questions_task (status, s3_output_key, organization_id) VALUES ($1, $2, $3) RETURNING input_key;`
