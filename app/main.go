@@ -35,6 +35,7 @@ func main() {
 		log.Fatalf("Rabbit MQ connection failed: %v", mq_err)
 	}
 	defer mq.Connection.Close()
+	defer mq.Channels["generate"].Close()
 
 	s3Client, s3_err := config.ConnectS3Client()
 	if s3_err != nil {

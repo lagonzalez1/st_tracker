@@ -17,8 +17,15 @@ func (s *AuthService) AddQueueQuestionEvent(ctx context.Context, req models.Requ
 		return nil, err
 	}
 
-	mq := s.mq.Channels
-	err = mq["generate"].Publish(
+	mq := s.mq.Channels["generate"]
+	if mq == nil {
+		err := fmt.Errorf("RabbitMQ channel 'generate' not found")
+		log.Printf("Failure: %v", err)
+		return nil, err
+	}
+	log.Printf("Attempting to publish message to exchange 'ai_events_exchange'...")
+
+	err = mq.Publish(
 		"ai_events_exchange",
 		"generate",
 		false, false,
@@ -28,16 +35,21 @@ func (s *AuthService) AddQueueQuestionEvent(ctx context.Context, req models.Requ
 		},
 	)
 	if err != nil {
+		log.Printf("Failure: Failed to publish message to RabbitMQ: %v", err)
 		return nil, err
 	}
-
+	log.Println("Success: Message published to RabbitMQ.")
 	var status string = "STARTED"
 	var inputKey *string
 	query := `INSERT INTO stu_tracker.Generate_questions_task (status, s3_output_key, organization_id) VALUES ($1, $2, $3) RETURNING input_key;`
 	err = s.db.QueryRowContext(ctx, query, status, req.S3OutputKey, req.OrganizationID).Scan(&inputKey)
 	if err != nil {
+		log.Printf("Failure: Failed to insert record into database: %v", err)
 		return nil, err
 	}
+	log.Println("Success: Task inserted into database.")
+
+	log.Printf("Success: Queue event created for input key: %s", *inputKey)
 
 	return inputKey, nil
 }
