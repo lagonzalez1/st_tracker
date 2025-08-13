@@ -44,12 +44,43 @@ func setupTaskQueue(conn *amqp091.Connection, routingKey string, queueName strin
 	return ch, nil
 }
 
+func emailExchangeChannel(conn *amqp091.Connection, routingKey string, queueName string) (*amqp091.Channel, error) {
+	ch, err := conn.Channel()
+	if err != nil {
+		return nil, err
+	}
+
+	exchange := "ai_events_exchange"
+	err = ch.ExchangeDeclare(
+		exchange, "direct", true, false, false, false, nil,
+	)
+	if err != nil {
+		ch.Close()
+		return nil, err
+	}
+
+	_, err = ch.QueueDeclare(
+		queueName, true, false, false, false, nil,
+	)
+	if err != nil {
+		ch.Close()
+		return nil, err
+	}
+
+	err = ch.QueueBind(queueName, routingKey, exchange, false, nil)
+	if err != nil {
+		ch.Close()
+		return nil, err
+	}
+
+	return ch, nil
+}
+
 func ConnectRabbitMQ() (*MQChannels, error) {
 	env, err := config.LoadConfig()
 	if err != nil {
 		return nil, err
 	}
-
 	url := env.MQ.AmazonMQ
 	if url == "" {
 		url = fmt.Sprintf("amqp://%s:%s@%s:%s/", env.MQ.Username, env.MQ.Password, env.MQ.Host, env.MQ.Port)
@@ -69,6 +100,14 @@ func ConnectRabbitMQ() (*MQChannels, error) {
 		return nil, err
 	}
 	channels["generate"] = ch
+
+	chEmailSend, err := emailExchangeChannel(conn, "sender", "email_service")
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	channels["sender"] = chEmailSend
+
 	// Future Task B: score_tasks (just comment it out for now)
 	/*
 		chScore, err := setupTaskQueue(conn, "score", "score_tasks")

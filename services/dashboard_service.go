@@ -483,7 +483,8 @@ func (s *AuthService) GetAssessmentsById(c context.Context, id int64, role strin
 			COALESCE(sb.title, 'NA') AS subject_name, 
 			COALESCE(pg.program_name, 'NA') AS program_name, 
 			pg.id as program_id,
-			aas.version, aas.pre, aas.mid, aas.post, aas.visible, aas.easy_score, aas.grade_level
+			aas.version, aas.pre, aas.mid, aas.post, aas.visible, aas.easy_score, aas.grade_level,
+			aas.questionnaire
 			FROM stu_tracker.Assessments aas 
 			LEFT JOIN stu_tracker.Subjects sb
 			ON sb.id = aas.subject_id
@@ -520,6 +521,7 @@ func (s *AuthService) GetAssessmentsById(c context.Context, id int64, role strin
 			&assessment.Visible,
 			&assessment.EasyScore,
 			&assessment.GradeLevel,
+			&assessment.Questionnaire,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -544,7 +546,6 @@ func (s *AuthService) GetAssessmentsQuestionsChoice(c context.Context, assessmen
 			q.order_number,
 			c.id as choice_id,
 			c.choice_text,
-			CAST(c.is_correct AS TEXT) as is_correct,
 			COALESCE(c.order_number, 0) as choice_order
 		FROM 
 			stu_tracker.Questions q
@@ -572,7 +573,6 @@ func (s *AuthService) GetAssessmentsQuestionsChoice(c context.Context, assessmen
 			&r.OrderNumber,
 			&r.ChoiceID,
 			&r.ChoiceText,
-			&r.IsCorrect,
 			&r.ChoiceOrderNumber,
 		)
 		if err != nil {
@@ -597,6 +597,41 @@ func (s *AuthService) GetAssessmentsQuestionsChoice(c context.Context, assessmen
 	}
 
 	return results, nil
+}
+
+func (s *AuthService) GetPreAssessment(ctx context.Context, assessmentID int64) (*bool, error) {
+	const q = `
+        SELECT questionnaire
+        FROM stu_tracker.Assessments
+        WHERE id = $1
+    `
+	var questionnaire bool
+	if err := s.db.QueryRowContext(ctx, q, assessmentID).Scan(&questionnaire); err != nil {
+		if err == sql.ErrNoRows {
+			// up to you: return (false, nil) or surface ErrNoRows
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get pre-assessment: %w", err)
+	}
+	return &questionnaire, nil
+}
+
+func (s *AuthService) PreAssessmentCompleted(ctx context.Context, assessmentID, studentID int64, sessionToken *string) (bool, error) {
+	// Use EXISTS, and handle NULL session_token with IS NOT DISTINCT FROM
+	const q = `
+        SELECT EXISTS (
+            SELECT 1
+            FROM stu_tracker.pre_assessment_questionnaire
+            WHERE assessment_id = $1
+              AND student_id    = $2
+              AND session_token IS NOT DISTINCT FROM $3
+        )
+    `
+	var exists bool
+	if err := s.db.QueryRowContext(ctx, q, assessmentID, studentID, sessionToken).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check pre-assessment completion: %w", err)
+	}
+	return exists, nil
 }
 
 func (s *AuthService) GetProgramsByLocation(c context.Context, locId int64, org_id int64) ([]models.ResponseRequestProgramList, error) {

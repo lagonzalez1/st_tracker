@@ -48,9 +48,6 @@ func (s *AuthService) AddAssessment(c context.Context, req models.RegisterAssess
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}
 	if len(req.Questions) > 0 && req.EasyScore {
-		if len(req.Questions) != len(req.Images) {
-			return nil, fmt.Errorf("unable to insert questions, missmatch len of questions(%v), images (%v)", len(req.Questions), len(req.Images))
-		}
 		for idx, question := range req.Questions {
 			var questionID int64
 			var questionImageID = &req.Images[idx].ID
@@ -91,6 +88,9 @@ func (s *AuthService) AddAssessment(c context.Context, req models.RegisterAssess
 					return nil, fmt.Errorf("failed to insert choice for question %d: %w", questionID, err)
 				}
 			}
+			if len(req.Questions) != len(req.Images) {
+			return nil, fmt.Errorf("Something went wrong inserting images. Created assessment OK.", len(req.Questions), len(req.Images))
+		}
 		}
 	}
 

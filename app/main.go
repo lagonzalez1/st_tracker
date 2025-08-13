@@ -64,14 +64,18 @@ func main() {
 
 	//api.ConnectSheetsAPI()
 
+	r.HandleFunc("/health_check", authHandler.HealthCheck).Methods("GET")
 	r.HandleFunc("/hello", hello).Methods("GET")
 	r.HandleFunc("/register", authHandler.Register).Methods("POST")
 	r.HandleFunc("/login", authHandler.Login).Methods("POST")
 	r.HandleFunc("/get_assessment_questions_external", authHandler.GetAssessmentQuestionsExternal).Methods("GET")
-	r.HandleFunc("/create_organization", authHandler.CreateOrganization).Methods("POST")
-	r.HandleFunc("/health_check", authHandler.HealthCheck).Methods("GET")
-	r.HandleFunc("/create_student_assessment_response", authHandler.CreateStudentAssessmentResponse).Methods("POST")
+	r.HandleFunc("/get_assessment_preassessment_external", authHandler.GetAssessmentQuestionsExternal).Methods("GET")
 	r.HandleFunc("/get_student_details", authHandler.GetStudentDetails).Methods("GET")
+
+	r.HandleFunc("/create_organization", authHandler.CreateOrganization).Methods("POST")
+
+	r.HandleFunc("/create_student_assessment_response", authHandler.CreateStudentAssessmentResponse).Methods("POST")
+	r.HandleFunc("/create_pre_assessment", authHandler.CreatePreAssessment).Methods("POST")
 
 	apiMiddleware.HandleFunc("/create_student", authHandler.CreateStudent).Methods("POST")
 	apiMiddleware.HandleFunc("/create_location", authHandler.CreateLocation).Methods("POST")

@@ -196,6 +196,82 @@ func (h *AuthHandler) GetAssessmentQuestionsExternal(w http.ResponseWriter, r *h
 	defer cancel()
 	query := r.URL.Query()
 	assessmentID := query.Get("assessment_id")
+	sessionToken := query.Get("session_token")
+	studentID := query.Get("student_id")
+
+	if assessmentID == "" || sessionToken == "" || studentID == "" {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+
+	assessmentIDParsed, err := strconv.ParseInt(assessmentID, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid assessment_id", http.StatusBadRequest)
+		return
+	}
+	studentIDParsed, err := strconv.ParseInt(studentID, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid student id", http.StatusBadRequest)
+		return
+	}
+
+	rows, err := h.authService.GetAssessmentsQuestionsChoice(ctx, assessmentIDParsed)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		http.Error(w, "Unable to retrieve assessment questions", http.StatusInternalServerError)
+		fmt.Printf("Error retrieving assessment questions: %v\n", err)
+		return
+	}
+	preassessment, err := h.authService.GetPreAssessment(ctx, assessmentIDParsed)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		http.Error(w, "Unable to get preassessment requirement", http.StatusInternalServerError)
+		fmt.Printf("Error retrieving preassessment requirement: %v\n", err)
+		return
+	}
+	var pre_assessment_completed = false
+	if *preassessment {
+		completed, err := h.authService.PreAssessmentCompleted(ctx, assessmentIDParsed, studentIDParsed, &sessionToken)
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				http.Error(w, "request timeout", http.StatusGatewayTimeout)
+				return
+			}
+			if errors.Is(err, context.Canceled) {
+				http.Error(w, "request canceled", http.StatusRequestTimeout)
+				return
+			}
+			http.Error(w, "Unable to get preassessment requirement", http.StatusInternalServerError)
+			fmt.Printf("Error retrieving preassessment requirement: %v\n", err)
+			return
+		}
+		pre_assessment_completed = completed
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	response := map[string]interface{}{"data": rows, "pre_assessment": preassessment, "pre_assessment_completed": pre_assessment_completed}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetAssessmentPreassessmentExternal(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+	assessmentID := query.Get("assessment_id")
 
 	if assessmentID == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
@@ -294,6 +370,39 @@ func (h *AuthHandler) CreateStudentAssessmentResponse(w http.ResponseWriter, r *
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
 	user, err := h.authService.CreateStudentAssessmentResponse(ctx, models)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		// 6. You could also inspect SQL errors here if you like.
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+func (h *AuthHandler) CreatePreAssessment(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	var models models.RegisterPreAssessment
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+	user, err := h.authService.CreatePreAssessment(ctx, models)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "request timeout", http.StatusGatewayTimeout)

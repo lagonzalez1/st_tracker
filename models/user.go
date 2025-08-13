@@ -513,6 +513,7 @@ type ResponseAssessmentList struct {
 	Mid             bool    `json:"mid"`
 	Post            bool    `json:"post"`
 	EasyScore       bool    `json:"easy_score"`
+	Questionnaire   bool    `json:"questionnaire"`
 }
 
 type ResponseAssessmentQuestionsChoice struct {
@@ -525,8 +526,34 @@ type ResponseAssessmentQuestionsChoice struct {
 	OrderNumber       int     `json:"order_number"`
 	ChoiceID          *int64  `json:"choice_id"`
 	ChoiceText        *string `json:"choice_text"`
-	IsCorrect         bool    `json:"is_correct"`
 	ChoiceOrderNumber int     `json:"choice_order"`
+}
+
+/**
+	student_id INT REFERENCES stu_tracker.Students(id) ON DELETE CASCADE,
+    assessment_id INT REFERENCES stu_tracker.Assessments(id) ON DELETE CASCADE,
+    session_token UUID NOT NULL,
+    semester_id INT REFERENCES stu_tracker.Semester(id) ON DELETE SET NULL,
+	sleep_hours FLOAT DEFAULT 0,
+    effort_score smallint NOT NULL CHECK (effort_score BETWEEN 0 AND 10),
+    tutor_sessions INT DEFAULT 0,
+    parental_help smallint NOT NULL CHECK (parental_help BETWEEN 0 AND 3),
+    sports_hours INT DEFAULT 0,
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
+    peer_influence smallint NOT NULL CHECK (peer_influence BETWEEN 0 AND 3),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+**/
+
+type RegisterPreAssessment struct {
+	StudentId     *int64  `json:"student_id"`
+	AssessmentId  *int64  `json:"assessment_id"`
+	SessionToken  *string `json:"session_token"`
+	SleepHours    float32 `json:"sleep_hours"`
+	ParentalHelp  int64   `json:"parental_help"`
+	EffortScore   int64   `json:"effort_score"`
+	TutorSessions int64   `json:"tutor_sessions"`
+	SportHours    int64   `json:"sport_hours"`
+	PeerInfluence int64   `json:"peer_influence"`
 }
 
 type RegisterAssessment struct {
@@ -553,6 +580,7 @@ type RegisterAssessment struct {
 	Questions       []AssessmentQuestions `json:"questions"`
 	RemoveQuestions []int64               `json:"remove_questions"`
 	Images          []ImagePayload        `json:"images"`
+	Questionnaire   bool                  `json:"questionnaire"`
 }
 
 type ImagePayload struct {
@@ -888,4 +916,9 @@ type StudentDetails struct {
 }
 type DeleteImageRequest struct {
 	ID string `json:"id"`
+}
+
+type ResponsePreAssessment struct {
+	Status string `json:"status"`
+	ID     int64  `json:"id"`
 }

@@ -382,7 +382,7 @@ CREATE INDEX idx_student_semester_id ON stu_tracker.Students(semester_id);
 
 CREATE TABLE stu_tracker.Assessment_sessions (
     id SERIAL PRIMARY KEY,
-    tutor_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
+    tutor_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE SET NULL,
     student_id INT REFERENCES stu_tracker.Students(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     first_name TEXT,
@@ -455,7 +455,8 @@ ALTER TABLE stu_tracker.Materials ADD s3_reference TEXT DEFAULT NULL;
 ALTER TABLE stu_tracker.Students ADD duration_required BOOLEAN DEFAULT FALSE;
 ALTER TABLE stu_tracker.Students ADD tardy BOOLEAN DEFAULT FALSE;
 ALTER TABLE stu_tracker.Assessments ADD grade_level INT;
-ALTER TABLE stu_tracker.assessments drop constraint assessments_alpha_identifier_key;
+ALTER TABLE stu_tracker.Assessments ADD questionnaire BOOLEAN DEFAULT TRUE;
+
 
 -- Does not exist ALTER TABLE stu_tracker.Assessments drop constraint assessments_students_assessment_id_fkey;
 
@@ -466,5 +467,20 @@ CREATE TABLE stu_tracker.Generate_questions_task (
     retry_count INT DEFAULT 0,
     s3_output_key TEXT,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE stu_tracker.Pre_assessment_questionnaire (
+    id SERIAL PRIMARY KEY,
+    student_id INT REFERENCES stu_tracker.Students(id) ON DELETE CASCADE,
+    assessment_id INT REFERENCES stu_tracker.Assessments(id) ON DELETE CASCADE,
+    session_token UUID NOT NULL,
+    sleep_hours FLOAT DEFAULT 0,
+    effort_score smallint NOT NULL CHECK (effort_score BETWEEN 0 AND 10),
+    tutor_sessions INT DEFAULT 0,
+    parental_help smallint NOT NULL CHECK (parental_help BETWEEN 0 AND 3),
+    sports_hours INT DEFAULT 0,
+    peer_influence smallint NOT NULL CHECK (peer_influence BETWEEN 0 AND 3),  
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

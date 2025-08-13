@@ -33,3 +33,4 @@ func validateRequest(claims jwt.MapClaims, permissionsRequired string) (bool, er
 	// If no match is found, return an error
 	return false, errors.New("unable to validate request")
 }
+
