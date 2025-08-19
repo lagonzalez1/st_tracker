@@ -136,7 +136,9 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 		stu.timeframe,
 		stu.timeframe_start,
 		stu.timeframe_end,
-		stu.duration_required
+		stu.duration_required,
+		stu.gender,
+		stu.race
 		FROM stu_tracker.Students stu
 		JOIN stu_tracker.Locations loc
 		ON stu.location_id = loc.id
@@ -153,10 +155,12 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 		stu.created_at, stu.semester_id, stu.direct_partnership, 
 		COALESCE(stu.created_by, 'NA') AS created_by, stu.teacher_id,
 		COALESCE(lt.name, '') AS teacher_name,
-		stu.timeframe,
+	stu.timeframe,
 		stu.timeframe_start,
 		stu.timeframe_end,
-		stu.duration_required
+		stu.duration_required,
+		stu.gender,
+		stu.race
 		FROM stu_tracker.Students stu
 		JOIN stu_tracker.Locations loc
 		ON stu.location_id = loc.id
@@ -200,6 +204,8 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 			&student.TimeframeStart,
 			&student.TimeframeEnd,
 			&student.DurationRequired,
+			&student.Gender,
+			&student.Race,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan row: %v", err)

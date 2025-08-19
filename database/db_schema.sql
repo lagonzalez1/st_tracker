@@ -484,3 +484,16 @@ CREATE TABLE stu_tracker.Pre_assessment_questionnaire (
     peer_influence smallint NOT NULL CHECK (peer_influence BETWEEN 0 AND 3),  
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+
+ALTER TABLE stu_tracker.Students
+ADD COLUMN gender VARCHAR(50) CHECK (
+    gender IS NULL OR gender IN ('Male', 'Female', 'NA')
+);
+
+ALTER TABLE stu_tracker.Students
+ADD race VARCHAR(100) CHECK (
+    race IS NULL OR race IN ('American Indian or Alaska Native', 'Asian', 
+    'Black or African American','Hispanic or Latino', 'Native Hawaiian or Other Pacific Islander',
+    'White', 'Two or More Races', 'Other', 'Prefer not to say')
+);

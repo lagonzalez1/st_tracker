@@ -82,6 +82,8 @@ type RegisterRequestStudents struct {
 	DurationRequired  *bool   `json:"duration_required"`
 	TimeframeStart    *string `json:"timeframe_start"`
 	TimeframeEnd      *string `json:"timeframe_end"`
+	Race              *string `json:"race"`
+	Gender            *string `json:"gender"`
 }
 
 type ResponseRequestStudentList struct {
@@ -104,6 +106,8 @@ type ResponseRequestStudentList struct {
 	Timeframe         *bool   `json:"timeframe"`
 	TimeframeStart    *string `json:"timeframe_start"`
 	TimeframeEnd      *string `json:"timeframe_end"`
+	Race              *string `json:"race"`
+	Gender            *string `json:"gender"`
 }
 
 type ResponseRequestStudents struct {
