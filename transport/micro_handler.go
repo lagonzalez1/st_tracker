@@ -44,6 +44,8 @@ func (h *AuthHandler) MicroEventStartStudentReport(w http.ResponseWriter, r *htt
 		fmt.Printf("Error decoding json %v", err)
 		return
 	}
+	outputKey := uuid.New().String()
+	model.S3OutputKey = &outputKey
 	id, err := h.authService.AddStudentReportQuery(ctx, model)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {

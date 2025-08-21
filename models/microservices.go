@@ -18,6 +18,7 @@ type RemoveGeneratedQuestion struct {
 }
 
 type RequestStudentReport struct {
-	StudentID  *int64 `json:"student_id"`
-	SemesterID *int64 `json:"semester_id"`
+	StudentID   *int64  `json:"student_id"`
+	SemesterID  *int64  `json:"semester_id"`
+	S3OutputKey *string `json:"s3_output_key"`
 }
