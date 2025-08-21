@@ -212,6 +212,9 @@ func main() {
 	apiMiddleware.HandleFunc("/delete_generated_assessment", authHandler.MicroEventDeleteQuestions).Methods("POST")
 	apiMiddleware.HandleFunc("/micro_generate_questions", authHandler.MicroEventGenQuestions).Methods("POST")
 
+	apiMiddleware.HandleFunc("/micro_student_report", authHandler.MicroEventStartStudentReport).Methods("POST")
+	apiMiddleware.HandleFunc("/get_student_report", authHandler.MicroGetStudentReport).Methods("POST")
+
 	r.PathPrefix("/api").Handler(apiMiddleware)
 
 	fmt.Println("Number of cores avilable: ", runtime.GOMAXPROCS(0))

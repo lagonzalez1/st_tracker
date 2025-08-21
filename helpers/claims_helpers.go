@@ -17,3 +17,15 @@ func ExtractFloat64Claim(claims jwt.MapClaims, key string) (float64, error) {
 	}
 	return f, nil
 }
+
+func ExtractInt64Claim(claims jwt.MapClaims, key string) (int64, error) {
+	val, ok := claims[key]
+	if !ok {
+		return 0, fmt.Errorf("claim not found: %v", key)
+	}
+	f, ok := val.(float64)
+	if !ok {
+		return 0, fmt.Errorf("claim not a float: %v", key)
+	}
+	return int64(f), nil
+}

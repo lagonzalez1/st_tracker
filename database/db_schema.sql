@@ -74,7 +74,7 @@ CREATE TABLE stu_tracker.Locations (
 );
 
 
-CREATE TABLE stu_tracker.Subjects(
+CREATE TABLE stu_tracker.Subjects (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE SET NULL,
@@ -496,4 +496,17 @@ ADD race VARCHAR(100) CHECK (
     race IS NULL OR race IN ('American Indian or Alaska Native', 'Asian', 
     'Black or African American','Hispanic or Latino', 'Native Hawaiian or Other Pacific Islander',
     'White', 'Two or More Races', 'Other', 'Prefer not to say')
+);
+
+CREATE TABLE stu_tracker.Student_report (
+    id SERIAL PRIMARY KEY,
+    input_key UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id INT REFERENCES stu_tracker.Students(id) ON DELETE CASCADE,
+    semester_id INT REFERENCES stu_tracker.Semester(id) ON DELETE SET NULL,
+    s3_output_key TEXT,
+    retry_count INT DEFAULT 0,
+    status VARCHAR(100) CHECK (status IS NULL OR completed IN ('DONE', 'PENDING', 'ERROR', 'STARTED', 'RETRY')),
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

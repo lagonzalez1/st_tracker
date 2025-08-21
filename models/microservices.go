@@ -16,3 +16,8 @@ type RemoveGeneratedQuestion struct {
 	InputKey       *string `json:"input_key"`
 	OrganizationID int64   `json:"organization_id"`
 }
+
+type RequestStudentReport struct {
+	StudentID  *int64 `json:"student_id"`
+	SemesterID *int64 `json:"semester_id"`
+}

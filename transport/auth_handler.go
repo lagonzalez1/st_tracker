@@ -4088,28 +4088,28 @@ func (h *AuthHandler) GetStudentInfo(w http.ResponseWriter, r *http.Request) {
 	email := query.Get("email")
 	role := query.Get("role")
 	id := query.Get("id")
-	org_id := query.Get("organization_id")
 	student_id := query.Get("student_id")
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	organization_id, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
+		return
+	}
+
 	valid, err := validateRequest(claims, "view:session")
 	if err != nil || !valid {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	if email == "" || role == "" || id == "" || org_id == "" || student_id == "" {
+	if email == "" || role == "" || id == "" || student_id == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
 	}
 	idd, err := strconv.ParseInt(student_id, 10, 64)
-	if err != nil {
-		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-		return
-	}
-	organization_id, err := strconv.ParseInt(org_id, 10, 64)
 	if err != nil {
 		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
 		return

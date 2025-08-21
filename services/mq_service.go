@@ -7,8 +7,46 @@ import (
 	"log"
 	"tracker/app/models"
 
+	"github.com/google/uuid"
 	"github.com/rabbitmq/amqp091-go"
 )
+
+func (s *AuthService) AddStudentReportQuery(ctx context.Context, req models.RequestStudentReport) (*string, error) {
+	jsonBody, err := json.Marshal(req)
+	if err != nil {
+		log.Printf("Failed to marchal json for MQ: %v", err)
+		return nil, err
+	}
+	mq := s.mq.Channels["report"]
+	if mq == nil {
+		err := fmt.Errorf("RabbitMQ channel 'report' not found")
+		log.Printf("Failed : %v", err)
+		return nil, err
+	}
+	err = mq.Publish(
+		"ai_events_exchange",
+		"report",
+		false, false,
+		amqp091.Publishing{
+			ContentType: "application/json",
+			Body:        []byte(jsonBody),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	log.Println("Success: Message published to RabbitMQ")
+	outputKey := uuid.New().String()
+	var status = "STARTED"
+	var inputKey *string
+	query := `INSERT INTO stu_tracker.Student_report (student_id, semester_id, status, s3_output_key) VALUES ($1,$2, $3,$4) RETURNNING input_key;`
+
+	err = s.db.QueryRowContext(ctx, query, req.StudentID, req.SemesterID, status, outputKey).Scan(&inputKey)
+	if err != nil {
+		return nil, err
+	}
+	return inputKey, nil
+}
 
 func (s *AuthService) AddQueueQuestionEvent(ctx context.Context, req models.RequestQuestions) (*string, error) {
 	jsonBody, err := json.Marshal(req)
