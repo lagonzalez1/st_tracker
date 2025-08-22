@@ -285,7 +285,6 @@ CREATE TABLE stu_tracker.Assessments_students (
     FOREIGN KEY (session_id) REFERENCES stu_tracker.Sessions(id) ON DELETE CASCADE
 );
 
-
 CREATE TABLE stu_tracker.Notifications (
     id SERIAL PRIMARY KEY,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
@@ -488,8 +487,6 @@ CREATE TABLE stu_tracker.Pre_assessment_questionnaire (
 
 -- Aug 21 
 ALTER TABLE stu_tracker.Pre_assessment_questionnaire ADD study_hours FLOAT DEFAULT 0;
-ALTER TABLE stu_tracker.Assessments ADD questionnaire BOOLEAN DEFAULT TRUE;
-
 
 
 ALTER TABLE stu_tracker.Students
@@ -517,3 +514,5 @@ CREATE TABLE stu_tracker.Student_report (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE stu_tracker.Assessments_students ADD questionnaire_id INT REFERENCES stu_tracker.Pre_assessment_questionnaire(id) ON DELETE SET NULL;

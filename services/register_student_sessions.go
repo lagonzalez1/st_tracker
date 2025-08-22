@@ -199,7 +199,14 @@ func (s AuthService) ProccessAssessmentsSessions(ctx context.Context, tx *sql.Tx
 		} else if student.AssessmentScore != nil {
 			score += float32(*student.AssessmentScore)
 		}
-		insertedId, err := InsertAssessmentStudents(ctx, student, score, sessionID, tx)
+
+		questionnaireId, err := QuestionnaireExist(ctx, student.ID, student.AssessmentId, sessionToken, tx)
+		if err != nil {
+			fmt.Printf("Error in QuestionnairExist %v", err)
+			return nil, err
+		}
+
+		insertedId, err := InsertAssessmentStudents(ctx, student, score, sessionID, tx, questionnaireId)
 		if err != nil {
 			return nil, err
 		}
@@ -325,12 +332,37 @@ func InsertAssessmentQuestionsEntries(ctx context.Context, questionEntries []mod
 	return &insertedAssessmentAnswers, nil
 }
 
-func InsertAssessmentStudents(ctx context.Context, student models.RegisterStudentSession, score float32, sessionID int64, tx *sql.Tx) (*int64, error) {
+func QuestionnaireExist(ctx context.Context, studentId *int64, assessmentId *int64, sessionToken *string, tx *sql.Tx) (*int64, error) {
+	var questionnaire_id int64
+	var exist bool
+	query := `SELECT EXISTS (
+		SELECT 1 FROM stu_tracker.Pre_assessment_questionnaire 
+		WHERE session_token = $1 AND student_id = $2 AND assessment_id = $3)`
+
+	err := tx.QueryRowContext(ctx, query, sessionToken, studentId, assessmentId).Scan(&exist)
+	if err != nil {
+		fmt.Printf("Error select exist %v", err)
+		return nil, err
+	}
+	if !exist {
+		fmt.Printf("Error select exist %v", err)
+		return nil, nil
+	}
+	_query := `SELECT id FROM stu_tracker.Pre_assessment_questionnaire 
+		WHERE session_token = $1 AND student_id = $2 AND assessment_id = $3;`
+	err = tx.QueryRowContext(ctx, _query, sessionToken, studentId, assessmentId).Scan(&questionnaire_id)
+	if err != nil {
+		return nil, err
+	}
+	return &questionnaire_id, nil
+}
+
+func InsertAssessmentStudents(ctx context.Context, student models.RegisterStudentSession, score float32, sessionID int64, tx *sql.Tx, questionnaireId *int64) (*int64, error) {
 	var insertedID int64
 	query := `
 		INSERT INTO stu_tracker.Assessments_students
-		(session_id, student_id, score, assessment_id, subject_id)
-		VALUES ($1, $2, $3, $4, $5)
+		(session_id, student_id, score, assessment_id, subject_id, questionnaire_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (student_id, assessment_id, session_id) DO NOTHING
 		RETURNING id
 				`
@@ -342,6 +374,7 @@ func InsertAssessmentStudents(ctx context.Context, student models.RegisterStuden
 		score,
 		student.AssessmentId,
 		student.SubjectId,
+		questionnaireId,
 	).Scan(&insertedID)
 
 	if err != nil {
