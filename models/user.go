@@ -553,6 +553,7 @@ type RegisterPreAssessment struct {
 	AssessmentId  *int64  `json:"assessment_id"`
 	SessionToken  *string `json:"session_token"`
 	SleepHours    float32 `json:"sleep_hours"`
+	StudyHours    float32 `json:"study_hours"`
 	ParentalHelp  int64   `json:"parental_help"`
 	EffortScore   int64   `json:"effort_score"`
 	TutorSessions int64   `json:"tutor_sessions"`

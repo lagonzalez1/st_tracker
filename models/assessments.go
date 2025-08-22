@@ -79,11 +79,12 @@ type StudentSubmitResponse struct {
 }
 
 type RegisterStudentAssessment struct {
-	Answers      map[string]interface{} `json:"answers"`
-	AssessmentID *int64                 `json:"assessment_id"`
-	TutorID      *int64                 `json:"tutor_id"`
-	SessionID    string                 `json:"session_id"`
-	StudentID    *int64                 `json:"student_id"`
+	Answers         map[string]interface{} `json:"answers"`
+	AssessmentID    *int64                 `json:"assessment_id"`
+	TutorID         *int64                 `json:"tutor_id"`
+	SessionID       string                 `json:"session_id"`
+	StudentID       *int64                 `json:"student_id"`
+	QuestionnaireID *int64                 `json:"questionnaire_id"`
 }
 
 type StudentAssessmentChoices struct {

@@ -30,10 +30,10 @@ func (s *AuthService) CreatePreAssessment(ctx context.Context, req models.Regist
 	var newID int64
 	query := `INSERT INTO stu_tracker.Pre_assessment_questionnaire (
 				student_id, assessment_id, session_token, sleep_hours,
-				effort_score, tutor_sessions, parental_help, sports_hours, peer_influence) 
+				effort_score, tutor_sessions, parental_help, sports_hours, peer_influence, study_hours) 
 			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id;`
 	err := s.db.QueryRow(query, *req.StudentId, *req.AssessmentId, req.SessionToken, req.SleepHours, req.EffortScore,
-		req.TutorSessions, req.ParentalHelp, req.SportHours, req.PeerInfluence).Scan(&newID)
+		req.TutorSessions, req.ParentalHelp, req.SportHours, req.PeerInfluence, req.StudyHours).Scan(&newID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}

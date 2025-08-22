@@ -477,6 +477,7 @@ CREATE TABLE stu_tracker.Pre_assessment_questionnaire (
     assessment_id INT REFERENCES stu_tracker.Assessments(id) ON DELETE CASCADE,
     session_token UUID NOT NULL,
     sleep_hours FLOAT DEFAULT 0,
+    study_hours FLOAT DEFAULT 0,
     effort_score smallint NOT NULL CHECK (effort_score BETWEEN 0 AND 10),
     tutor_sessions INT DEFAULT 0,
     parental_help smallint NOT NULL CHECK (parental_help BETWEEN 0 AND 3),
@@ -484,6 +485,11 @@ CREATE TABLE stu_tracker.Pre_assessment_questionnaire (
     peer_influence smallint NOT NULL CHECK (peer_influence BETWEEN 0 AND 3),  
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Aug 21 
+ALTER TABLE stu_tracker.Pre_assessment_questionnaire ADD study_hours FLOAT DEFAULT 0;
+ALTER TABLE stu_tracker.Assessments ADD questionnaire BOOLEAN DEFAULT TRUE;
+
 
 
 ALTER TABLE stu_tracker.Students
@@ -497,6 +503,7 @@ ADD race VARCHAR(100) CHECK (
     'Black or African American','Hispanic or Latino', 'Native Hawaiian or Other Pacific Islander',
     'White', 'Two or More Races', 'Other', 'Prefer not to say')
 );
+
 
 CREATE TABLE stu_tracker.Student_report (
     id SERIAL PRIMARY KEY,

@@ -14,7 +14,6 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 	if len(req.SessionList) <= 0 {
 		return nil, fmt.Errorf("missing required fields: Session list is empty")
 	}
-
 	duplicate, err := s.CheckDuplicateSession(req)
 	if err != nil {
 		return nil, err
@@ -22,15 +21,12 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 	if duplicate {
 		return nil, fmt.Errorf("found a duplicate entry")
 	}
-
 	ctx := context.Background()
-
 	// Begin a transaction
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
-
 	// Defer rollback in case of failure
 	defer func() {
 		if err != nil {
@@ -203,7 +199,6 @@ func (s AuthService) ProccessAssessmentsSessions(ctx context.Context, tx *sql.Tx
 		} else if student.AssessmentScore != nil {
 			score += float32(*student.AssessmentScore)
 		}
-
 		insertedId, err := InsertAssessmentStudents(ctx, student, score, sessionID, tx)
 		if err != nil {
 			return nil, err
