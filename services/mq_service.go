@@ -38,7 +38,7 @@ func (s *AuthService) AddStudentReportQuery(ctx context.Context, req models.Requ
 
 	var status = "STARTED"
 	var inputKey *string
-	query := `INSERT INTO stu_tracker.Student_report (student_id, semester_id, status, s3_output_key) VALUES ($1,$2, $3,$4) RETURNNING input_key;`
+	query := `INSERT INTO stu_tracker.Student_report(student_id, semester_id, status, s3_output_key) VALUES ($1,$2, $3,$4) RETURNING input_key;`
 
 	err = s.db.QueryRowContext(ctx, query, req.StudentID, req.SemesterID, status, req.S3OutputKey).Scan(&inputKey)
 	if err != nil {

@@ -857,7 +857,7 @@ type Students struct {
 	MiddleName     string  `json:"middle_name"`
 	LastName       string  `json:"last_name"`
 	Grade          int     `json:"grade_level"`
-	Timeframe      bool    `json:"timeframe"`
+	Timeframe      *bool   `json:"timeframe"`
 	TimeframeStart *string `json:"timeframe_start"`
 	TimeframeEnd   *string `json:"timeframe_end"`
 }
