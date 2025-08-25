@@ -552,7 +552,8 @@ func (s *AuthService) GetAssessmentsQuestionsChoice(c context.Context, assessmen
 			q.order_number,
 			c.id as choice_id,
 			c.choice_text,
-			COALESCE(c.order_number, 0) as choice_order
+			COALESCE(c.order_number, 0) as choice_order,
+			c.is_correct
 		FROM 
 			stu_tracker.Questions q
 		LEFT JOIN 
@@ -569,6 +570,72 @@ func (s *AuthService) GetAssessmentsQuestionsChoice(c context.Context, assessmen
 
 	for rows.Next() {
 		var r models.ResponseAssessmentQuestionsChoice
+		err := rows.Scan(
+			&r.QuestionID,
+			&r.AssessmentID,
+			&r.ImageURL,
+			&r.QuestionText,
+			&r.QuestionType,
+			&r.Points,
+			&r.OrderNumber,
+			&r.ChoiceID,
+			&r.ChoiceText,
+			&r.ChoiceOrderNumber,
+			&r.IsCorrect,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		results = append(results, r)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("row iteration error: %w", err)
+	}
+
+	for i := range results {
+		if results[i].ImageURL != nil && *results[i].ImageURL != "NA" && *results[i].ImageURL != "" {
+			signedUrl, err := s.GenerateAssessmentsPresignedUrl(c, *results[i].ImageURL)
+			fmt.Printf("Signed url %s", signedUrl)
+			if err != nil {
+				return nil, fmt.Errorf("unable to sign url, possible corrupt image: %v", err)
+			}
+			results[i].ImageURL = &signedUrl
+		}
+	}
+
+	return results, nil
+}
+
+func (s *AuthService) GetAssessmentsQuestionsChoiceExternal(c context.Context, assessment_id int64) ([]models.ResponseAssessmentQuestionsChoiceExternal, error) {
+	query := `
+		SELECT 
+			q.id as question_id,
+			q.assessment_id,
+			q.image_url,
+			q.question_text,
+			q.question_type,
+			q.points,
+			q.order_number,
+			c.id as choice_id,
+			c.choice_text,
+			COALESCE(c.order_number, 0) as choice_order
+		FROM 
+			stu_tracker.Questions q
+		LEFT JOIN 
+			stu_tracker.Choices c ON c.question_id = q.id
+		WHERE q.assessment_id = $1
+		ORDER BY q.order_number ASC, c.order_number ASC;`
+	rows, err := s.db.QueryContext(c, query, assessment_id)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var results []models.ResponseAssessmentQuestionsChoiceExternal
+
+	for rows.Next() {
+		var r models.ResponseAssessmentQuestionsChoiceExternal
 		err := rows.Scan(
 			&r.QuestionID,
 			&r.AssessmentID,

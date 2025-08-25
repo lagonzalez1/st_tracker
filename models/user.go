@@ -531,6 +531,20 @@ type ResponseAssessmentQuestionsChoice struct {
 	ChoiceID          *int64  `json:"choice_id"`
 	ChoiceText        *string `json:"choice_text"`
 	ChoiceOrderNumber int     `json:"choice_order"`
+	IsCorrect         *bool   `json:"is_correct"`
+}
+
+type ResponseAssessmentQuestionsChoiceExternal struct {
+	QuestionID        *int64  `json:"question_id"`
+	AssessmentID      *int64  `json:"assessment_id"`
+	ImageURL          *string `json:"image_url"`
+	QuestionText      string  `json:"question_text"`
+	QuestionType      string  `json:"question_type"`
+	Points            int     `json:"points"`
+	OrderNumber       int     `json:"order_number"`
+	ChoiceID          *int64  `json:"choice_id"`
+	ChoiceText        *string `json:"choice_text"`
+	ChoiceOrderNumber int     `json:"choice_order"`
 }
 
 /**

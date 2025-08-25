@@ -284,7 +284,7 @@ func (h *AuthHandler) GetAssessmentPreassessmentExternal(w http.ResponseWriter, 
 		return
 	}
 
-	rows, err := h.authService.GetAssessmentsQuestionsChoice(ctx, assessmentIDParsed)
+	rows, err := h.authService.GetAssessmentsQuestionsChoiceExternal(ctx, assessmentIDParsed)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "request timeout", http.StatusGatewayTimeout)
