@@ -2,7 +2,13 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"tracker/app/models"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 func (s *AuthService) GetQuestionGenerationStatus(ctx context.Context, inputKey *string) (*string, *string, error) {
@@ -30,5 +36,24 @@ func (s *AuthService) GetStudentReportStatus(ctx context.Context, inputKey *stri
 	if err != nil {
 		return nil, nil, err
 	}
+	if *status == "DONE" && outputKey != nil {
+		out, err := s.s3.GetObject(ctx, &s3.GetObjectInput{
+			Bucket: aws.String("client-student-report"),
+			Key:    aws.String(*outputKey),
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+		body, err := io.ReadAll(out.Body)
+		if err != nil {
+			return nil, nil, err
+		}
+		var model models.StudentReport
+		if err := json.Unmarshal(body, &model); err != nil {
+			return nil, nil, err
+		}
+		fmt.Println(model)
+	}
+
 	return status, outputKey, nil
 }

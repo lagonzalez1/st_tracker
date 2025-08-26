@@ -22,3 +22,11 @@ type RequestStudentReport struct {
 	SemesterID  *int64  `json:"semester_id"`
 	S3OutputKey *string `json:"s3_output_key"`
 }
+
+type StudentReport struct {
+	GeneratedAt                   int `json:"generated_at"`
+	AllScores                     any `json:"all_scores"`
+	SubjectScores                 any `json:"subject_scores"`
+	ScoresLinearRegression        any `json:"scores_linear_regression"`
+	SubjectScoresLinearRegression any `json:"subject_scores_linear_regression"`
+}
