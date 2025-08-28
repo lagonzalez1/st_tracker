@@ -213,7 +213,7 @@ func main() {
 	apiMiddleware.HandleFunc("/micro_generate_questions", authHandler.MicroEventGenQuestions).Methods("POST")
 
 	apiMiddleware.HandleFunc("/micro_student_report", authHandler.MicroEventStartStudentReport).Methods("POST")
-	apiMiddleware.HandleFunc("/get_student_report", authHandler.MicroGetStudentReport).Methods("POST")
+	apiMiddleware.HandleFunc("/get_student_report", authHandler.MicroGetStudentReport).Methods("GET")
 
 	r.PathPrefix("/api").Handler(apiMiddleware)
 

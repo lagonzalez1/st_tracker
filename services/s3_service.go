@@ -46,9 +46,9 @@ func (s *AuthService) GenerateAssessmentsPresignedUrl(ctx context.Context, id st
 	return presignResult.URL, nil
 }
 
-func (s *AuthService) GetS3Object(ctx context.Context, id string) (*string, error) {
+func (s *AuthService) GetS3Object(ctx context.Context, id string, bucket string) (*string, error) {
 	response, err := s.s3.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String("tracker-client-storage"),
+		Bucket: aws.String(bucket),
 		Key:    aws.String(id),
 	})
 	if err != nil {

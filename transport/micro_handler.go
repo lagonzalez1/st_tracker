@@ -153,7 +153,7 @@ func (h *AuthHandler) GetGeneratedQuestion(w http.ResponseWriter, r *http.Reques
 	}
 	var response *string
 	if *status == "COMPLETE" {
-		response, err = h.authService.GetS3Object(ctx, *outputKey)
+		response, err = h.authService.GetS3Object(ctx, *outputKey, "tracker-client-storage")
 		if err != nil {
 			http.Error(w, "unable to get s3 object", http.StatusInternalServerError)
 			return
@@ -190,18 +190,18 @@ func (h *AuthHandler) MicroGetStudentReport(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "error on GetStudentReportStatus", http.StatusInternalServerError)
 		return
 	}
-	var response *string
+	var report *string
 	if *status == "DONE" {
-		response, err = h.authService.GetS3Object(ctx, *outputKey)
+		report, err = h.authService.GetS3Object(ctx, *outputKey, "tracker-student-reports")
 		if err != nil {
-			http.Error(w, "unable to get s3 object", http.StatusInternalServerError)
+			http.Error(w, "Completed task, but unable to get s3 object", http.StatusInternalServerError)
 			return
 		}
 	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	payload := map[string]interface{}{"status": status, "response": response}
+	payload := map[string]interface{}{"status": status, "report": report}
 	json.NewEncoder(w).Encode(payload)
 }
 
