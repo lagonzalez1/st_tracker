@@ -12,6 +12,13 @@ type RequestQuestions struct {
 	QuestionsCount *int64  `json:"questions_count"`
 }
 
+type RequestMaterials struct {
+	S3OutputKey    *string `json:"s3_output_key"`
+	OrganizationID *int64  `json:"organization_id"`
+	AssessmentId   *int64  `json:"assessment_id"`
+	BiasType       *string `json:"bias_type"`
+}
+
 type RemoveGeneratedQuestion struct {
 	InputKey       *string `json:"input_key"`
 	OrganizationID int64   `json:"organization_id"`

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"tracker/app/models"
+
+	"github.com/lib/pq"
 )
 
 /**
@@ -50,15 +52,17 @@ func buildScheduleQuery(req *models.RegisterSchedule) (string, []interface{}) {
 		VALUES ($1,$2,$3,$4,$5,$6) RETURNING id;`
 	}
 	if req.ScheduleType == "inclusion" {
+
 		args = append(args, req.TutorID)
 		args = append(args, req.ProgramID)
 		args = append(args, req.ScheduleType)
 		args = append(args, req.StartDate)
 		args = append(args, req.EndDate)
 		args = append(args, req.Notes)
+		args = append(args, pq.Array(req.WorkWeek))
 		query += `INSERT INTO stu_tracker.tutor_schedules 
-		(tutor_id, program_id, schedule_type, start_date, end_date, notes) 
-		VALUES ($1,$2,$3,$4,$5,$6) RETURNING id;`
+		(tutor_id, program_id, schedule_type, start_date, end_date, notes, workweek) 
+		VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id;`
 	}
 	return query, args
 }

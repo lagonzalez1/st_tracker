@@ -485,8 +485,7 @@ CREATE TABLE stu_tracker.Pre_assessment_questionnaire (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Aug 21 
-ALTER TABLE stu_tracker.Pre_assessment_questionnaire ADD study_hours FLOAT DEFAULT 0;
+
 
 
 ALTER TABLE stu_tracker.Students
@@ -515,4 +514,49 @@ CREATE TABLE stu_tracker.Student_report (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+
+CREATE TABLE stu_tracker.Organization_report (
+    id SERIAL PRIMARY KEY,
+    input_key UUID DEFAULT gen_random_uuid(),
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
+    sorted_by TEXT,
+	entity varchar(50),
+    s3_output_key TEXT,
+    retry_count INT DEFAULT 0,
+    status VARCHAR(100) CHECK (status IS NULL OR status IN ('DONE', 'PENDING', 'ERROR', 'STARTED', 'RETRY')),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE stu_tracker.Generate_materials_task (
+    input_key UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    status VARCHAR(20) CHECK (status IS NULL OR status IN ('DONE', 'PENDING', 'ERROR', 'STARTED', 'RETRY')),
+    retry_count INT DEFAULT 0,
+    s3_output_key TEXT,
+    assessment_id INT  REFERENCES stu_tracker.Assessments(id) ON DELETE CASCADE,
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 ALTER TABLE stu_tracker.Assessments_students ADD questionnaire_id INT REFERENCES stu_tracker.Pre_assessment_questionnaire(id) ON DELETE SET NULL;
+
+
+ALTER TABLE stu_tracker.Generate_materials_task ADD input_tokens INT DEFAULT 0;
+ALTER TABLE stu_tracker.Generate_materials_task ADD output_tokens INT DEFAULT 0; 
+
+
+ALTER TABLE stu_tracker.Generate_questions_task ADD input_tokens INT DEFAULT 0;
+ALTER TABLE stu_tracker.Generate_questions_task ADD output_tokens INT DEFAULT 0; 
+
+ALTER TABLE stu_tracker.Tutors ADD active BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE stu_tracker.Admin_staff ADD district_id INT REFERENCES stu_tracker.District(id) ON DELETE SET NULL;
+ALTER TABLE stu_tracker.Tutor_schedules ADD COLUMN workweek TEXT[];
+ALTER TABLE stu_tracker.Admin_staff ADD active BOOLEAN DEFAULT FALSE;
+
+ALTER TABLE stu_tracker.Semester ADD archive BOOLEAN DEFAULT FALSE;
+ALTER TABLE stu_tracker.Locations ADD archive BOOLEAN DEFAULT FALSE;
+
+
+

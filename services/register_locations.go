@@ -12,10 +12,10 @@ func (s *AuthService) AddLocation(c context.Context, req models.RegisterRequestL
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, or email")
 	}
 	var newID int64
-	query := `INSERT INTO stu_tracker.Locations(name, address, city, state, zip_code, district_id, organization_id)
-              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id;`
+	query := `INSERT INTO stu_tracker.Locations(name, address, city, state, zip_code, district_id, organization_id, archive)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;`
 
-	err := s.db.QueryRowContext(c, query, req.Name, req.Address, req.City, req.State, req.ZipCode, req.DistrictId, *req.OrganizationId).Scan(&newID)
+	err := s.db.QueryRowContext(c, query, req.Name, req.Address, req.City, req.State, req.ZipCode, req.DistrictId, *req.OrganizationId, req.Archive).Scan(&newID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert Locations: %w", err)
 	}
@@ -30,10 +30,10 @@ func (s *AuthService) UpdateLocation(c context.Context, req models.RegisterReque
 	if req.Name == "" || req.Address == "" || req.OrganizationId == nil {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, or email")
 	}
-	query := `UPDATE stu_tracker.Locations SET name = $1, address = $2, city = $3, state = $4, zip_code = $5, district_id = $6, organization_id = $7
-              WHERE id = $8`
+	query := `UPDATE stu_tracker.Locations SET name = $1, address = $2, city = $3, state = $4, zip_code = $5, district_id = $6, organization_id = $7, archive = $8
+              WHERE id = $9;`
 
-	_, err := s.db.ExecContext(c, query, req.Name, req.Address, req.City, req.State, req.ZipCode, req.DistrictId, *req.OrganizationId, req.ID)
+	_, err := s.db.ExecContext(c, query, req.Name, req.Address, req.City, req.State, req.ZipCode, req.DistrictId, *req.OrganizationId, req.Archive, req.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert Locations: %w", err)
 	}

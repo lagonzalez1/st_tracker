@@ -46,6 +46,52 @@ func (s *AuthService) GenerateAssessmentsPresignedUrl(ctx context.Context, id st
 	return presignResult.URL, nil
 }
 
+func (s *AuthService) GeneratePresignedUrl(ctx context.Context, id string) (string, error) {
+	presigner := s3.NewPresignClient(s.s3)
+	presignParams := &s3.GetObjectInput{
+		Bucket: aws.String("tracker-client-storage"),
+		Key:    aws.String(id),
+	}
+	presignOpts := func(po *s3.PresignOptions) {
+		po.Expires = 5 * time.Minute
+	}
+	presignResult, err := presigner.PresignGetObject(context.TODO(), presignParams, presignOpts)
+	if err != nil {
+		return "nil", err
+	}
+	return presignResult.URL, nil
+}
+
+func (s *AuthService) GeneratePutPresignedUrl(ctx context.Context, contentType *string, minMultiplier int64) (*string, *string, error) {
+	key := uuid.New()
+	keyString := key.String()
+	presigner := s3.NewPresignClient(s.s3)
+	duration := time.Minute * time.Duration(minMultiplier)
+	presignUrl, err := presigner.PresignPutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String("tracker-client-storage"),
+		Key:         aws.String(keyString),
+		ContentType: aws.String(*contentType),
+	}, s3.WithPresignExpires(duration))
+	if err != nil {
+		return nil, nil, err
+	}
+	return &presignUrl.URL, &keyString, nil
+}
+
+func (s *AuthService) GeneratePutPresignedUrlMaterials(ctx context.Context, key *string, contentType string, minMultiplier int64) (*string, error) {
+	presigner := s3.NewPresignClient(s.s3)
+	duration := time.Minute * time.Duration(minMultiplier)
+	presignUrl, err := presigner.PresignPutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String("tracker-client-storage"),
+		Key:         aws.String(*key),
+		ContentType: aws.String(contentType),
+	}, s3.WithPresignExpires(duration))
+	if err != nil {
+		return nil, err
+	}
+	return &presignUrl.URL, nil
+}
+
 func (s *AuthService) GetS3Object(ctx context.Context, id string, bucket string) (*string, error) {
 	response, err := s.s3.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(bucket),

@@ -19,10 +19,10 @@ func (s *AuthService) AddTutor(c context.Context, req models.RegisterRequestTuto
 		return nil, fmt.Errorf("unable to hash password: %v", err)
 	}
 	var newID *int64
-	query := `INSERT INTO stu_tracker.Tutors(first_name, last_name, email, password_hash, organization_id, location_id) 
-			  VALUES ($1, $2, $3, $4, $5, $6) RETURNING id;`
+	query := `INSERT INTO stu_tracker.Tutors(first_name, last_name, email, password_hash, organization_id, location_id, active) 
+			  VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id;`
 
-	err = s.db.QueryRowContext(c, query, req.FirstName, req.LastName, req.Email, hash_password, *req.OrganizationId, req.LocationId).Scan(&newID)
+	err = s.db.QueryRowContext(c, query, req.FirstName, req.LastName, req.Email, hash_password, *req.OrganizationId, req.LocationId, req.Active).Scan(&newID)
 	if err != nil {
 		return nil, err
 	}
@@ -84,13 +84,13 @@ func (s *AuthService) UpdateTutor(c context.Context, req models.RegisterRequestT
 		}
 		values := []interface{}{}
 		query := `UPDATE stu_tracker.Tutors 
-		SET first_name = $1, last_name = $2, organization_id = $3, location_id = $4, password_hash = $5`
-		values = append(values, req.FirstName, req.LastName, *req.OrganizationId, *req.LocationId, string(hash_password))
+		SET first_name = $1, last_name = $2, organization_id = $3, location_id = $4, password_hash = $5, active = $6`
+		values = append(values, req.FirstName, req.LastName, *req.OrganizationId, *req.LocationId, string(hash_password), req.Active)
 		if req.EmailChange != "" {
-			query += `, email = $6 WHERE id = $7`
+			query += `, email = $7 WHERE id = $8`
 			values = append(values, req.EmailChange, req.ID)
 		}
-		query += " WHERE id = $6"
+		query += " WHERE id = $7"
 		values = append(values, req.ID)
 		_, err = s.db.Exec(query, values...)
 		if err != nil {
@@ -99,13 +99,13 @@ func (s *AuthService) UpdateTutor(c context.Context, req models.RegisterRequestT
 	} else {
 		values := []interface{}{}
 		query := `UPDATE stu_tracker.Tutors 
-		SET first_name = $1, last_name = $2, organization_id = $3, location_id = $4`
-		values = append(values, req.FirstName, req.LastName, *req.OrganizationId, *req.LocationId)
+		SET first_name = $1, last_name = $2, organization_id = $3, location_id = $4, active = $5`
+		values = append(values, req.FirstName, req.LastName, *req.OrganizationId, *req.LocationId, req.Active)
 		if req.EmailChange != "" {
-			query += `, email = $5 WHERE id = $6`
+			query += `, email = $6 WHERE id = $7`
 			values = append(values, req.EmailChange, req.ID)
 		}
-		query += " WHERE id = $5"
+		query += " WHERE id = $6"
 		values = append(values, req.ID)
 		_, err := s.db.ExecContext(c, query, values...)
 		if err != nil {

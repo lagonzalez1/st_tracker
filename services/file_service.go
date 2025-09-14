@@ -124,7 +124,8 @@ func (s *AuthService) queryAssessmentSessions(c context.Context, sessions []int6
 	query := `
 	SELECT a.title, a.max_score, ast.score, 
 	sn.session_date, a.letter, a.cycle, 
-	a.pre, a.mid, a.post, a.version, ss.first_name, ss.last_name, ss.id, ast.session_id
+	a.pre, a.mid, a.post, a.version, ss.first_name,
+	ss.last_name, ss.id, ast.session_id
 	FROM 
 		stu_tracker.Assessments_students ast
 	JOIN
@@ -694,7 +695,6 @@ func buildSessionStudentFileByStudents(studentSessions *[]models.StudentSession,
 			continue
 		}
 		firstSession := sessions[0]
-		fmt.Println(firstSession)
 		firstName := firstSession.FirstName
 		lastName := firstSession.LastName
 		var subjectList []string

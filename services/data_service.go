@@ -907,7 +907,6 @@ func buildSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 		args = append(args, ss.DateStart)
 		argIndex++
 	}
-
 	if ss.SubjectId != nil {
 		conditions = append(conditions, fmt.Sprintf("ss.subject_id = $%d", argIndex))
 		args = append(args, ss.SubjectId)
@@ -950,11 +949,6 @@ func buildStudentSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 		args = append(args, ss.LocationId)
 		argIndex++
 	}
-	if ss.OrganizationID != nil {
-		conditions = append(conditions, fmt.Sprintf("st.organization_id = $%d", argIndex))
-		args = append(args, ss.OrganizationID)
-		argIndex++
-	}
 	if ss.ProgramId != nil {
 		conditions = append(conditions, fmt.Sprintf("st.program_id = $%d", argIndex))
 		args = append(args, ss.ProgramId)
@@ -974,7 +968,6 @@ func buildStudentSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 		args = append(args, ss.DateStart)
 		argIndex++
 	}
-
 	if ss.SubjectId != nil {
 		conditions = append(conditions, fmt.Sprintf("ss.subject_id = $%d", argIndex))
 		args = append(args, ss.SubjectId)
@@ -982,9 +975,14 @@ func buildStudentSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 	}
 
 	if len(conditions) > 0 {
+		conditions = append(conditions, fmt.Sprintf("st.organization_id = $%d", argIndex))
+		args = append(args, ss.OrganizationID)
+		argIndex++
 		query += "WHERE " + strings.Join(conditions, " AND ")
 	}
 	query += ` GROUP BY s.id, s.first_name, s.last_name
 				ORDER BY session_count DESC, assessment_count DESC;`
+
+	fmt.Println(query)
 	return query, args
 }

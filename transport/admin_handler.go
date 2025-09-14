@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"tracker/app/helpers"
 	"tracker/app/models"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -218,6 +219,45 @@ func (h *AuthHandler) GetSessionBChart(w http.ResponseWriter, r *http.Request) {
 
 	// Example response
 	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetObject(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:students")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	// Undefined variables like optional location_id
+
+	var keyPath string
+	var signedUrl *string
+	if query.Has("key") {
+		keyPath = query.Get("key")
+	}
+	if keyPath != "" {
+		url, err := h.authService.GeneratePresignedUrl(ctx, keyPath)
+		if err != nil {
+			http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		signedUrl = &url
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"url": signedUrl}
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -777,6 +817,11 @@ func (h *AuthHandler) GetTutorFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
+		return
+	}
 	var model models.RequestDownloadData
 	if query.Get("location_id") != "" {
 		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
@@ -809,7 +854,7 @@ func (h *AuthHandler) GetTutorFile(w http.ResponseWriter, r *http.Request) {
 		DateStart, err := time.Parse("2006-01-02", query.Get("date"))
 		if err != nil {
 			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
-			fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
+			fmt.Printf("unable to parse start time %v", err)
 			return
 		}
 		model.DateStart = DateStart
@@ -818,38 +863,34 @@ func (h *AuthHandler) GetTutorFile(w http.ResponseWriter, r *http.Request) {
 		DateEnd, err := time.Parse("2006-01-02", query.Get("date_end"))
 		if err != nil {
 			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
-			fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
+			fmt.Printf("unable to parse start timet %v", err)
 			return
 		}
 		model.DateEnd = DateEnd
 	}
 
-	file, err := h.authService.GetTutorFileData(ctx, model)
+	if query.Get("subject_id") != "" {
+		subject_id, err := strconv.ParseInt(query.Get("subject_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SubjectID = &subject_id
+	}
+
+	var tutor = "tutor"
+	model.Entity = &tutor
+
+	inputKey, err := h.authService.AddFileDownloadEvent(ctx, model, orgID)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		fmt.Printf("service error: %v\n", err)
+		http.Error(w, "unable to add message to MQ", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	w.Header().Set("Content-Disposition", "attachment; filename=tutor_data.xlsx")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	// Write the Excel file to the response
-	file.WriteToBuffer() // This can be an issue if the file is to large
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(inputKey)
 
-	if err := file.Write(w); err != nil {
-		http.Error(w, "Failed to write Excel file", http.StatusInternalServerError)
-		return
-	}
 }
 
 func (h *AuthHandler) GetStudentFile(w http.ResponseWriter, r *http.Request) {
@@ -864,6 +905,11 @@ func (h *AuthHandler) GetStudentFile(w http.ResponseWriter, r *http.Request) {
 	valid, err := validateRequest(claims, "view:session")
 	if err != nil || !valid {
 		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
 		return
 	}
 	var model models.RequestDownloadData
@@ -882,6 +928,15 @@ func (h *AuthHandler) GetStudentFile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		model.SemesterID = &sem_id
+	}
+
+	if query.Get("subject_id") != "" {
+		subject_id, err := strconv.ParseInt(query.Get("subject_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SubjectID = &subject_id
 	}
 	if query.Get("sort_key") != "" {
 		model.SortKey = query.Get("sort_key")
@@ -913,33 +968,23 @@ func (h *AuthHandler) GetStudentFile(w http.ResponseWriter, r *http.Request) {
 		}
 		model.DateEnd = DateEnd
 	}
+	if query.Get("data_type") != "" {
+		stringPtr := query.Get("data_type")
+		model.DataType = &stringPtr
+	}
 
-	file, err := h.authService.GetStudentFileData(ctx, model)
+	var student = "student"
+	model.Entity = &student
+
+	inputKey, err := h.authService.AddFileDownloadEvent(ctx, model, orgID)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		fmt.Printf("service error: %v\n", err)
+		http.Error(w, "unable to send message to rabbitMQ", http.StatusBadRequest)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(inputKey)
 
-	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	w.Header().Set("Content-Disposition", "attachment; filename=student_data.xlsx")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	// Write the Excel file to the response
-	file.WriteToBuffer() // This can be an issue if the file is to large
-
-	if err := file.Write(w); err != nil {
-		http.Error(w, "Failed to write Excel file", http.StatusInternalServerError)
-		return
-	}
 }
 
 func (h *AuthHandler) GetTutorLowPerformance(w http.ResponseWriter, r *http.Request) {

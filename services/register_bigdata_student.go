@@ -22,6 +22,21 @@ func (s *AuthService) RegisterMultipleStudents(c context.Context, rows [][]strin
 		return nil, err
 	}
 	defer stmt.Close()
+
+	locationIds, err := s.GetLocationsByOrganization(c, *organizationID)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get locations by organization")
+	}
+
+	locationMap := make(map[int64]struct{}, len(locationIds))
+
+	for _, id := range locationIds {
+		locationMap[id] = struct{}{}
+	}
+	if _, exist := locationMap[locationID]; !exist {
+		return nil, fmt.Errorf("location id does not belong to organization")
+	}
+
 	successCount := 0
 	// Loop through rows (skip header)
 	for i, row := range rows {

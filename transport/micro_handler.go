@@ -67,6 +67,106 @@ func (h *AuthHandler) MicroEventStartStudentReport(w http.ResponseWriter, r *htt
 
 }
 
+func (h *AuthHandler) MicroGetStudentReport(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:student-data")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	inputKey := query.Get("input_key")
+	if inputKey == "" {
+		http.Error(w, "missing paramaters", http.StatusInternalServerError)
+		return
+	}
+	status, outputKey, err := h.authService.GetStudentReportStatus(ctx, &inputKey)
+	if err != nil {
+		http.Error(w, "error on GetStudentReportStatus", http.StatusInternalServerError)
+		return
+	}
+	var report *string
+	if *status == "DONE" {
+		var key = "student_reports/" + *outputKey
+		report, err = h.authService.GetS3Object(ctx, key, "tracker-student-reports")
+		if err != nil {
+			http.Error(w, "Completed task, but unable to get s3 object", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	payload := map[string]interface{}{"status": status, "report": report}
+	json.NewEncoder(w).Encode(payload)
+}
+
+func (h *AuthHandler) MicroEventGenMaterial(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:material")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
+		return
+	}
+	outputKey := uuid.New()
+	var models models.RequestMaterials
+	key := outputKey.String()
+	models.S3OutputKey = &key
+
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+		return
+	}
+	// Check if claims is the same as input data
+	if int64(orgID) != *models.OrganizationID {
+		http.Error(w, "Invalid claims and input missmatch", http.StatusBadRequest)
+		fmt.Printf("Claims is different from input data: %v", err)
+	}
+	// Need to handle 3 cases of logins for different permissions
+	id, err := h.authService.AddQueueMaterialsEvent(ctx, models)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		// 6. You could also inspect SQL errors here if you like.
+		http.Error(w, "Unable to start AddQueueQuestionEvent ", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(id)
+}
+
 func (h *AuthHandler) MicroEventGenQuestions(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
@@ -153,7 +253,8 @@ func (h *AuthHandler) GetGeneratedQuestion(w http.ResponseWriter, r *http.Reques
 	}
 	var response *string
 	if *status == "COMPLETE" {
-		response, err = h.authService.GetS3Object(ctx, *outputKey, "tracker-client-storage")
+		var key = "assessments/" + *outputKey
+		response, err = h.authService.GetS3Object(ctx, key, "tracker-client-storage")
 		if err != nil {
 			http.Error(w, "unable to get s3 object", http.StatusInternalServerError)
 			return
@@ -166,7 +267,87 @@ func (h *AuthHandler) GetGeneratedQuestion(w http.ResponseWriter, r *http.Reques
 	json.NewEncoder(w).Encode(payload)
 }
 
-func (h *AuthHandler) MicroGetStudentReport(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) GetGeneratedMaterials(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:material")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	inputKey := query.Get("input_key")
+	if inputKey == "" {
+		http.Error(w, "missing paramaters", http.StatusInternalServerError)
+		return
+	}
+	status, outputKey, err := h.authService.GetMaterialsGenerationStatus(ctx, &inputKey)
+	if err != nil {
+		http.Error(w, "error on GetMaterialsGenerationStatus", http.StatusInternalServerError)
+		return
+	}
+	var response *string
+	var signedUrl *string
+	if *status == "DONE" {
+		var objectKey = "materials/" + *outputKey
+		response, err = h.authService.GetS3Object(ctx, objectKey, "tracker-client-storage")
+		if err != nil {
+			http.Error(w, "unable to get s3 object", http.StatusInternalServerError)
+			return
+		}
+		var updateKey = string(objectKey + ".pdf")
+		url, err := h.authService.GeneratePutPresignedUrlMaterials(ctx, &updateKey, "application/pdf", 60)
+		if err != nil {
+			http.Error(w, "unable to get signed url object", http.StatusInternalServerError)
+			return
+		}
+		signedUrl = url
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	payload := map[string]interface{}{"status": status, "response": response, "signed_url": signedUrl, "output_key": *outputKey}
+	json.NewEncoder(w).Encode(payload)
+}
+
+func (h *AuthHandler) MicroGetTutorFile(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:tutor-data")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	inputKey := query.Get("input_key")
+	if inputKey == "" {
+		http.Error(w, "missing paramaters", http.StatusInternalServerError)
+		return
+	}
+	status, url, err := h.authService.GetOrganizationReportStatus(ctx, &inputKey)
+	if err != nil {
+		http.Error(w, "error on GetTutorFileStatus", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	payload := map[string]interface{}{"status": status, "url": url}
+	json.NewEncoder(w).Encode(payload)
+}
+
+func (h *AuthHandler) MicroGetStudentFile(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 	query := r.URL.Query()
@@ -185,23 +366,15 @@ func (h *AuthHandler) MicroGetStudentReport(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "missing paramaters", http.StatusInternalServerError)
 		return
 	}
-	status, outputKey, err := h.authService.GetStudentReportStatus(ctx, &inputKey)
+	status, url, err := h.authService.GetOrganizationReportStatus(ctx, &inputKey)
 	if err != nil {
-		http.Error(w, "error on GetStudentReportStatus", http.StatusInternalServerError)
+		http.Error(w, "error on GetTutorFileStatus", http.StatusInternalServerError)
 		return
-	}
-	var report *string
-	if *status == "DONE" {
-		report, err = h.authService.GetS3Object(ctx, *outputKey, "tracker-student-reports")
-		if err != nil {
-			http.Error(w, "Completed task, but unable to get s3 object", http.StatusInternalServerError)
-			return
-		}
 	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	payload := map[string]interface{}{"status": status, "report": report}
+	payload := map[string]interface{}{"status": status, "url": url}
 	json.NewEncoder(w).Encode(payload)
 }
 

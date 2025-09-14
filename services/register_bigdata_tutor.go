@@ -56,6 +56,28 @@ func (s *AuthService) GetPermissionsByRole(primaryRole string) ([]int, error) {
 	return ids, nil
 }
 
+func (s *AuthService) GetLocationsByOrganization(c context.Context, orgid int64) ([]int64, error) {
+	if orgid <= 0 {
+		return nil, fmt.Errorf("no role provided")
+	}
+	query := `SELECT id FROM stu_tracker.Locations WHERE organization_id = $1;`
+	rows, err := s.db.QueryContext(c, query, orgid)
+	if err != nil {
+		return nil, fmt.Errorf("unable to query from Permissions: %w", err)
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		err := rows.Scan(&id)
+		if err != nil {
+			return nil, fmt.Errorf("unable to scan from rows: %v", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
 func buildPermissionQueryTutors(permissionIDs []int, tutorID int) (string, []interface{}) {
 	if len(permissionIDs) == 0 {
 		return "", nil // or consider returning an error
@@ -63,7 +85,6 @@ func buildPermissionQueryTutors(permissionIDs []int, tutorID int) (string, []int
 	query := `INSERT INTO stu_tracker.Tutor_Permissions(tutor_id, permission_id) VALUES `
 	var args []interface{}
 	args = append(args, tutorID)
-
 	var placeholders []string
 	for i, permID := range permissionIDs {
 		placeholders = append(placeholders, fmt.Sprintf("($1, $%d)", i+2))
@@ -85,8 +106,7 @@ func (s *AuthService) RegisterMultipleTutors(c context.Context, rows [][]string,
 		INSERT INTO stu_tracker.Tutors 
 		(first_name, last_name, email, password_hash, location_id, organization_id, active) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7) 
-		RETURNING id;
-	`)
+		RETURNING id; `)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -96,7 +116,18 @@ func (s *AuthService) RegisterMultipleTutors(c context.Context, rows [][]string,
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to get permissions by role")
 	}
-	fmt.Println("GET permissions by role: ", permissionIDs)
+
+	locationIds, err := s.GetLocationsByOrganization(c, *organizationID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to get locations by organization")
+	}
+
+	locationMap := make(map[int64]struct{}, len(locationIds))
+
+	for _, id := range locationIds {
+		locationMap[id] = struct{}{}
+	}
+
 	// Loop through rows (skip header)
 	for i, row := range rows {
 		if i == 0 {
@@ -119,8 +150,12 @@ func (s *AuthService) RegisterMultipleTutors(c context.Context, rows [][]string,
 					fmt.Printf("Row %d: invalid location id: %v\n", i+1, err)
 					continue
 				}
-				locationID.Int64 = parsedID
-				locationID.Valid = true
+				if _, exist := locationMap[parsedID]; exist {
+					locationID.Int64 = parsedID
+					locationID.Valid = true
+				} else {
+					locationID.Valid = false
+				}
 			} else {
 				locationID.Valid = false
 			}
@@ -139,7 +174,7 @@ func (s *AuthService) RegisterMultipleTutors(c context.Context, rows [][]string,
 
 		var user models.ResponseMultipleRegisterUser
 		// Generate hashed password
-		rawPassword := fmt.Sprintf("!SSTAutopass%s%d!", firstName, i)
+		rawPassword := fmt.Sprintf("!PassGenXKD%s%d!", firstName, i)
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(rawPassword), bcrypt.DefaultCost)
 		if err != nil {
 			fmt.Printf("Row %d: Failed to hash password: %v\n", i+1, err)

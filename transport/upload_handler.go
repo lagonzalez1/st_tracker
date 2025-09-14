@@ -10,7 +10,9 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"tracker/app/helpers"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -24,12 +26,24 @@ func (h *AuthHandler) UploadTutorBigData(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	defer file.Close()
-	organization_id := r.FormValue("organization_id")
-	oid, err := strconv.ParseInt(organization_id, 10, 64)
-	if err != nil {
-		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	valid, err := validateRequest(claims, "write:tutors")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	oid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil || oid <= 0 {
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
+		return
+	}
+
 	// Save the uploaded file locally (optional)
 	tempFile, err := os.CreateTemp("", "uploaded-*.xlsx")
 	if err != nil {
@@ -95,10 +109,21 @@ func (h *AuthHandler) UploadStudentBigData(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	defer file.Close()
-	organization_id := r.FormValue("organization_id")
-	oid, err := strconv.ParseInt(organization_id, 10, 64)
-	if err != nil {
-		http.Error(w, "Unable to parse oid", http.StatusInternalServerError)
+
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:students")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	oid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil || oid <= 0 {
+		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
 		return
 	}
 

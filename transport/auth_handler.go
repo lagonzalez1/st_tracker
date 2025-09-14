@@ -660,7 +660,7 @@ func (h *AuthHandler) DeleteProgramLocation(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	orgID, err := helpers.ExtractInt64Claim(claims, "orgid")
 	if err != nil {
 		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
 		return
@@ -676,10 +676,7 @@ func (h *AuthHandler) DeleteProgramLocation(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
-	if *models.OrganizationID != int64(orgID) {
-		http.Error(w, "Invalid request data", http.StatusBadRequest)
-		return
-	}
+	models.OrganizationID = &orgID
 	// Need to handle 3 cases of logins for different permissions
 	user, err := h.authService.DeleteProgramLocation(ctx, models)
 	if err != nil {
@@ -822,45 +819,34 @@ func (h *AuthHandler) CreateMaterial(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse up to 10 MB of multipart form data
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		http.Error(w, "failed to parse multipart form", http.StatusBadRequest)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
 		return
 	}
 
-	// Try to grab "file"; ErrMissingFile means "no file uploaded"
-	file, _, err := r.FormFile("file")
-	if err != nil && err != http.ErrMissingFile {
-		http.Error(w, "error reading file", http.StatusBadRequest)
-		return
-	}
-	// Only close if we actually got a file
-	if file != nil {
-		defer file.Close()
-	}
-
-	// Read the JSON payload from the "data" field
-	jsonField := r.FormValue("data")
-	if jsonField == "" {
-		http.Error(w, "missing JSON data", http.StatusBadRequest)
-		return
-	}
 	var payload models.RegisterRequestMaterials
-	if err := json.Unmarshal([]byte(jsonField), &payload); err != nil {
+	if err := json.Unmarshal([]byte(body), &payload); err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
 	}
+
 	if *payload.OrganizationId != int64(orgID) {
 		http.Error(w, "Invalid request", http.StatusInternalServerError)
 		return
 	}
 	// If a file was provided, upload it to S3 and set the SReference
-	if file != nil {
-		keyPtr, err := h.authService.UploadMaterialFile(ctx, file, nil)
+	// If a file exist then get the presigned url with key
+	var presigned_url *string
+	if payload.File && payload.FileType != nil {
+		url, key, err := h.authService.GeneratePutPresignedUrl(ctx, payload.FileType, 5)
 		if err != nil {
+			fmt.Println(err)
 			http.Error(w, "unable to upload to s3", http.StatusInternalServerError)
 			return
 		}
-		payload.SReference = keyPtr
+		presigned_url = url
+		payload.SReference = key
 	}
 
 	// Persist whatever we’ve got (with or without S3 key)
@@ -870,6 +856,7 @@ func (h *AuthHandler) CreateMaterial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user.UploadUrl = presigned_url
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
@@ -877,22 +864,6 @@ func (h *AuthHandler) CreateMaterial(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) UpdateMaterial(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		http.Error(w, "failed to parse multipart form", http.StatusBadRequest)
-		return
-	}
-
-	// Try to grab "file"; ErrMissingFile means "no file uploaded"
-	file, _, err := r.FormFile("file")
-	if err != nil && err != http.ErrMissingFile {
-		http.Error(w, "error reading file", http.StatusBadRequest)
-		return
-	}
-	// Only close if we actually got a file
-	if file != nil {
-		defer file.Close()
-	}
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -905,17 +876,19 @@ func (h *AuthHandler) UpdateMaterial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonField := r.FormValue("data")
-	if jsonField == "" {
-		http.Error(w, "missing JSON data", http.StatusBadRequest)
-		return
-	}
-	var models models.RegisterRequestMaterials
-	if err := json.Unmarshal([]byte(jsonField), &models); err != nil {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
 	}
 
+	var models models.RegisterRequestMaterials
+	if err := json.Unmarshal([]byte(body), &models); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	// If there is a delete or update request delete the file associated with key
 	if models.SReferenceDelete {
 		stringPtr, err := h.authService.DoesReferenceExist(ctx, models.ID)
 		if err != nil {
@@ -929,24 +902,19 @@ func (h *AuthHandler) UpdateMaterial(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			models.SReference = nil
-			r.MultipartForm.RemoveAll()
-			file = nil
 		}
 	}
-
-	if file != nil {
-		stringPtr, err := h.authService.DoesReferenceExist(ctx, models.ID)
-		if err != nil {
-			http.Error(w, "unable to find reference value", http.StatusInternalServerError)
-			return
-		}
-
-		keyPtr, err := h.authService.UploadMaterialFile(ctx, file, stringPtr)
+	var presigned_url *string
+	// If there si another file attched then add
+	if models.File && models.FileType != nil {
+		url, key, err := h.authService.GeneratePutPresignedUrl(ctx, models.FileType, 5)
 		if err != nil {
 			http.Error(w, "unable to upload to s3", http.StatusInternalServerError)
 			return
 		}
-		models.SReference = keyPtr
+		presigned_url = url
+		models.SReference = key
+
 	}
 
 	user, err := h.authService.UpdateMaterial(ctx, models)
@@ -963,6 +931,7 @@ func (h *AuthHandler) UpdateMaterial(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Unable to update material: %v\n", err)
 		return
 	}
+	user.UploadUrl = presigned_url
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
@@ -2178,11 +2147,19 @@ func (h *AuthHandler) UpdateAnnouncement(w http.ResponseWriter, r *http.Request)
 	}
 
 	var models models.RegisterUpdateAnnouncements
+	orgId, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Missing organization id", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v\n", err)
+		return
+	}
+
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v\n", err)
 		return
 	}
+	models.OrganizationID = &orgId
 
 	user, err := h.authService.UpdateAnnouncement(ctx, models)
 	if err != nil {
@@ -2769,6 +2746,7 @@ func (h *AuthHandler) GetLocationPrograms(w http.ResponseWriter, r *http.Request
 	id := query.Get("id")
 	org_id := query.Get("organization_id")
 	loc_id := query.Get("location_id")
+	// Implement cache programs:org_id:loc_id on this endpoint using elasticache
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
@@ -3143,7 +3121,7 @@ func (h *AuthHandler) GetMaterials(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	valid, err := validateRequest(claims, "view:materials")
+	valid, err := validateRequest(claims, "view:material")
 	if err != nil || !valid {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
@@ -3249,7 +3227,8 @@ func (h *AuthHandler) GetSignedUrlMaterials(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
 	}
-	url, err := h.authService.GenerateMaterialsPresignedUrl(ctx, uuid)
+	var objectKey = "materials/" + uuid
+	url, err := h.authService.GenerateMaterialsPresignedUrl(ctx, objectKey)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "request timeout", http.StatusGatewayTimeout)

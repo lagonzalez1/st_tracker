@@ -98,7 +98,7 @@ func (s *AuthService) findRootUser(c context.Context, email string) (*models.Use
 }
 
 func (s *AuthService) findAdminUser(c context.Context, email string) (*models.User, error) {
-	query := `SELECT id, email, password_hash, organization_id, fullname FROM stu_tracker.Admin_staff WHERE email = $1`
+	query := `SELECT id, email, password_hash, organization_id, fullname, active FROM stu_tracker.Admin_staff WHERE email = $1`
 	user := &models.User{Type: "ADMIN"}
 	err := s.db.QueryRowContext(c, query, email).Scan(
 		&user.ID,
@@ -106,12 +106,16 @@ func (s *AuthService) findAdminUser(c context.Context, email string) (*models.Us
 		&user.Password,
 		&user.OrganizationId,
 		&user.FirstName,
+		&user.Active,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("no admin found with email: %s", email)
 		}
 		return nil, fmt.Errorf("database error: %w", err)
+	}
+	if !user.Active {
+		return nil, fmt.Errorf("account not active")
 	}
 	user.Permissions, err = s.getAdminPermissions(c, user.ID)
 	if err != nil {
@@ -122,7 +126,7 @@ func (s *AuthService) findAdminUser(c context.Context, email string) (*models.Us
 }
 
 func (s *AuthService) findTutorUser(c context.Context, email string) (*models.User, []models.TutorLocationList, []models.ResponseRequestProgramList, error) {
-	query := `SELECT id, email, password_hash, organization_id, first_name, last_name FROM stu_tracker.Tutors WHERE email = $1`
+	query := `SELECT id, email, password_hash, organization_id, first_name, last_name, active FROM stu_tracker.Tutors WHERE email = $1`
 	user := &models.User{Type: "TUTOR"}
 	err := s.db.QueryRow(query, email).Scan(
 		&user.ID,
@@ -131,6 +135,7 @@ func (s *AuthService) findTutorUser(c context.Context, email string) (*models.Us
 		&user.OrganizationId,
 		&user.FirstName,
 		&user.LastName,
+		&user.Active,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -138,7 +143,9 @@ func (s *AuthService) findTutorUser(c context.Context, email string) (*models.Us
 		}
 		return nil, nil, nil, fmt.Errorf("database error: %w", err)
 	}
-
+	if !user.Active {
+		return nil, nil, nil, fmt.Errorf("account not active")
+	}
 	// Get permissions
 	user.Permissions, err = s.getTutorPermissions(c, user.ID)
 	if err != nil {

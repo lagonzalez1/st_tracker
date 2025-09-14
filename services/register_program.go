@@ -79,7 +79,7 @@ func (s *AuthService) DeleteProgramLocation(c context.Context, req models.Remove
 	}
 	query := `DELETE FROM stu_tracker.Location_programs WHERE location_id = $1 AND program_id = $2`
 
-	_, err := s.db.ExecContext(c, query, req.LocationId, req.ProgramId)
+	_, err := s.db.ExecContext(c, query, *req.LocationId, *req.ProgramId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}

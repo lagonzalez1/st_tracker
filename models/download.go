@@ -12,13 +12,16 @@ type RequestStudentData struct {
 }
 
 type RequestDownloadData struct {
-	LocationID *int64    `json:"location_id"`
-	ProgramID  *int64    `json:"program_id"`
-	SubjectID  *int64    `json:"subject_id"`
-	SemesterID *int64    `json:"semester_id"`
-	DateStart  time.Time `json:"date"`
-	DateEnd    time.Time `json:"date_end"`
-	SortKey    string    `json:"sort_key"`
+	LocationID  *int64    `json:"location_id"`
+	ProgramID   *int64    `json:"program_id"`
+	SubjectID   *int64    `json:"subject_id"`
+	SemesterID  *int64    `json:"semester_id"`
+	DateStart   time.Time `json:"date"`
+	DateEnd     time.Time `json:"date_end"`
+	SortKey     string    `json:"sort_key"`
+	Entity      *string   `json:"entity"`
+	S3OutputKey *string   `json:"s3_output_key"`
+	DataType    *string   `json:"data_type"`
 }
 type AssessmentsData struct {
 	Title           string    `json:"title"`

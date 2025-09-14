@@ -159,6 +159,8 @@ func main() {
 	apiMiddleware.HandleFunc("/create_announcement", authHandler.CreateAnnouncement).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_announcement", authHandler.DeleteAnnouncement).Methods("POST")
 
+	apiMiddleware.HandleFunc("/get_object", authHandler.GetObject).Methods("GET")
+
 	apiMiddleware.HandleFunc("/get_subjects", authHandler.GetSubjects).Methods("GET")
 	apiMiddleware.HandleFunc("/get_session_info", authHandler.GetSessionInfo).Methods("GET")
 	apiMiddleware.HandleFunc("/get_student_info", authHandler.GetStudentInfo).Methods("GET")
@@ -209,11 +211,17 @@ func main() {
 	apiMiddleware.HandleFunc("/get_student_assessment_sessions", authHandler.GetStudentAssessmentSessions).Methods("GET")
 
 	apiMiddleware.HandleFunc("/get_generated_questions", authHandler.GetGeneratedQuestion).Methods("GET")
-	apiMiddleware.HandleFunc("/delete_generated_assessment", authHandler.MicroEventDeleteQuestions).Methods("POST")
+	apiMiddleware.HandleFunc("/get_generated_materials", authHandler.GetGeneratedMaterials).Methods("GET")
+	//apiMiddleware.HandleFunc("/delete_generated_assessment", authHandler.MicroEventDeleteQuestions).Methods("POST")
 	apiMiddleware.HandleFunc("/micro_generate_questions", authHandler.MicroEventGenQuestions).Methods("POST")
+
+	apiMiddleware.HandleFunc("/micro_generate_materials", authHandler.MicroEventGenMaterial).Methods("POST")
 
 	apiMiddleware.HandleFunc("/micro_student_report", authHandler.MicroEventStartStudentReport).Methods("POST")
 	apiMiddleware.HandleFunc("/get_student_report", authHandler.MicroGetStudentReport).Methods("GET")
+
+	apiMiddleware.HandleFunc("/get_tutor_file_url", authHandler.MicroGetTutorFile).Methods("GET")
+	apiMiddleware.HandleFunc("/get_student_file_url", authHandler.MicroGetStudentFile).Methods("GET")
 
 	r.PathPrefix("/api").Handler(apiMiddleware)
 

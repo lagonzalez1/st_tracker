@@ -7,6 +7,7 @@ type RegisterSchedule struct {
 	ProgramID    *int64     `json:"program_id"`
 	ScheduleType string     `json:"schedule_type"`
 	StartDate    time.Time  `json:"start_date"`
+	WorkWeek     *[]string  `json:"work_week"`
 	EndDate      *time.Time `json:"end_date"`
 	Notes        string     `json:"notes"`
 }
@@ -25,6 +26,7 @@ type RegisterScheduleList struct {
 	Recurring    bool       `json:"recurring"`
 	StartDate    time.Time  `json:"start_date"`
 	EndDate      *time.Time `json:"end_date"`
+	WorkWeek     []string   `json:"work_week"`
 	Notes        string     `json:"notes"`
 	CreatedAt    time.Time  `json:"created_at"`
 }

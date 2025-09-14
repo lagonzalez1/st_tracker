@@ -7,8 +7,46 @@ import (
 	"log"
 	"tracker/app/models"
 
+	"github.com/google/uuid"
 	"github.com/rabbitmq/amqp091-go"
 )
+
+func (s *AuthService) AddFileDownloadEvent(ctx context.Context, req models.RequestDownloadData, org_id float64) (*string, error) {
+	var S3OutputKey = uuid.New().String()
+	req.S3OutputKey = &S3OutputKey
+
+	jsonBody, err := json.Marshal(req)
+	if err != nil {
+		log.Printf("Failed to marchal json for MQ: %v", err)
+		return nil, err
+	}
+	mq := s.mq.Channels["pgdata"]
+	if mq == nil {
+		err := fmt.Errorf("RabbitMQ channel 'report' not found")
+		log.Printf("Failed : %v", err)
+		return nil, err
+	}
+	err = mq.Publish(
+		"ai_events_exchange",
+		"pgdata",
+		false, false,
+		amqp091.Publishing{
+			ContentType: "application/json",
+			Body:        []byte(jsonBody),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	var status = "STARTED"
+	var inputKey *string
+	query := `INSERT INTO stu_tracker.Organization_report(organization_id, entity, s3_output_key, status) VALUES ($1,$2, $3, $4) RETURNING input_key;`
+	err = s.db.QueryRowContext(ctx, query, org_id, req.Entity, *req.S3OutputKey, status).Scan(&inputKey)
+	if err != nil {
+		return nil, err
+	}
+	return inputKey, nil
+}
 
 func (s *AuthService) AddStudentReportQuery(ctx context.Context, req models.RequestStudentReport) (*string, error) {
 	jsonBody, err := json.Marshal(req)
@@ -45,6 +83,37 @@ func (s *AuthService) AddStudentReportQuery(ctx context.Context, req models.Requ
 		return nil, err
 	}
 	return inputKey, nil
+}
+
+func (s *AuthService) AddQueueMaterialsEvent(ctx context.Context, req models.RequestMaterials) (*string, error) {
+	jsonBody, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+	mq := s.mq.Channels["generate"]
+	if mq == nil {
+		return nil, fmt.Errorf("channel is not open")
+	}
+	err = mq.Publish(
+		"ai_events_exchange",
+		"produce",
+		false, false,
+		amqp091.Publishing{
+			ContentType: "application/json",
+			Body:        []byte(jsonBody),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	var status string = "STARTED"
+	var intputKey *string
+	query := `INSERT INTO stu_tracker.Generate_materials_task(status, s3_output_key, organization_id, assessment_id) VALUES ($1,$2, $3,$4) RETURNING input_key;`
+	err = s.db.QueryRowContext(ctx, query, status, req.S3OutputKey, req.OrganizationID, req.AssessmentId).Scan(&intputKey)
+	if err != nil {
+		return nil, err
+	}
+	return intputKey, nil
 }
 
 func (s *AuthService) AddQueueQuestionEvent(ctx context.Context, req models.RequestQuestions) (*string, error) {
@@ -84,10 +153,6 @@ func (s *AuthService) AddQueueQuestionEvent(ctx context.Context, req models.Requ
 		log.Printf("Failure: Failed to insert record into database: %v", err)
 		return nil, err
 	}
-	log.Println("Success: Task inserted into database.")
-
-	log.Printf("Success: Queue event created for input key: %s", *inputKey)
-
 	return inputKey, nil
 }
 

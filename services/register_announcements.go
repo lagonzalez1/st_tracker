@@ -18,7 +18,7 @@ import (
 
 func (s *AuthService) AddAnnouncement(c context.Context, req models.RegisterAnnouncements) (*models.ResponseAnnouncement, error) {
 	// Input validation
-	if req.Title == "" || req.Body == "" || req.OrganizationID == 0 {
+	if req.Title == "" || req.Body == "" || req.OrganizationID == nil {
 		return nil, fmt.Errorf("missing required fields: title, body, admin_id, or organization_id")
 	}
 	if req.AdminID == nil && req.StaffID == nil {
@@ -67,8 +67,9 @@ func (s *AuthService) AddAnnouncement(c context.Context, req models.RegisterAnno
 	}, nil
 }
 
+// Need to block admin from being able to update other admin announcements.
 func (s *AuthService) UpdateAnnouncement(c context.Context, req models.RegisterUpdateAnnouncements) (*models.ResponseAnnouncement, error) {
-	if req.ID == nil || req.Title == "" || req.Body == "" || req.OrganizationID == 0 {
+	if req.ID == nil || req.Title == "" || req.Body == "" || req.OrganizationID == nil {
 		return nil, fmt.Errorf("missing required fields: id, title, body, admin_id, or organization_id")
 	}
 	if req.AdminID == nil && req.StaffID == nil {

@@ -76,15 +76,19 @@ func ConnectRabbitMQ() (*MQChannels, error) {
 	}
 	channels["report"] = chEmailSend
 
-	// Future Task B: score_tasks (just comment it out for now)
-	/*
-		chScore, err := setupTaskQueue(conn, "score", "score_tasks")
-		if err != nil {
-			conn.Close()
-			return nil, err
-		}
-		channels["score"] = chScore
-	*/
+	pgReportSender, err := setupTaskQueue(conn, "pgdata", "micro_pgreport")
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	channels["pgdata"] = pgReportSender
+
+	chMaterials, err := setupTaskQueue(conn, "produce", "micro_materials")
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	channels["produce"] = chMaterials
 
 	return &MQChannels{
 		Connection: conn,

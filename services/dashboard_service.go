@@ -13,7 +13,7 @@ import (
 func (s *AuthService) GetLocationsByID(ctx context.Context, id int64, role string) ([]models.ResponseRequestLocations, error) {
 	var query string
 	query += `
-		SELECT loc.id, loc.name, loc.address, loc.city, loc.state, loc.zip_code, loc.created_at, loc.district_id
+		SELECT loc.id, loc.name, loc.address, loc.city, loc.state, loc.zip_code, loc.created_at, loc.district_id, archive
 		FROM stu_tracker.Locations loc WHERE loc.organization_id = $1;`
 	rows, err := s.db.QueryContext(ctx, query, id)
 	if err != nil {
@@ -33,6 +33,7 @@ func (s *AuthService) GetLocationsByID(ctx context.Context, id int64, role strin
 			&location.ZipCode,
 			&location.CreatedAt,
 			&location.DistrictId,
+			&location.Archive,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -216,7 +217,7 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 			student.MiddleName = middleName.String
 		}
 		if gradeLevel.Valid {
-			grade := int(gradeLevel.Int64)
+			grade := int64(gradeLevel.Int64)
 			student.GradeLevel = grade
 		}
 
@@ -230,7 +231,7 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 
 func (s *AuthService) GetAdminStaffById(c context.Context, id int64, role string) ([]models.ResponseRequestAdminList, error) {
 	var query string
-	query += `SELECT id,fullname, email, region, state 
+	query += `SELECT id,fullname, email, region, state, district_id, active
 			  FROM stu_tracker.Admin_staff
 			  WHERE organization_id = $1;`
 
@@ -249,6 +250,8 @@ func (s *AuthService) GetAdminStaffById(c context.Context, id int64, role string
 			&admin.Email,
 			&admin.Region,
 			&admin.State,
+			&admin.DistrictId,
+			&admin.Active,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -363,12 +366,12 @@ func (s *AuthService) GetTutorsById(c context.Context, id int64, role string, lo
 	var query string
 	var args []interface{}
 	if locid <= 0 {
-		query += `SELECT id, first_name, last_name, email, created_at, location_id
+		query += `SELECT id, first_name, last_name, email, created_at, location_id, active
 			  FROM stu_tracker.Tutors tr
 			  WHERE tr.organization_id = $1;`
 		args = append(args, id)
 	} else {
-		query += `SELECT tr.id, tr.first_name, tr.last_name, tr.email, tr.created_at, tr.location_id
+		query += `SELECT tr.id, tr.first_name, tr.last_name, tr.email, tr.created_at, tr.location_id, active
 					FROM stu_tracker.Tutors tr
 					WHERE tr.location_id = $1
 					OR EXISTS (
@@ -393,6 +396,7 @@ func (s *AuthService) GetTutorsById(c context.Context, id int64, role string, lo
 			&tutor.Email,
 			&tutor.CreatedAt,
 			&tutor.LocationId,
+			&tutor.Active,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -407,7 +411,7 @@ func (s *AuthService) GetTutorsById(c context.Context, id int64, role string, lo
 
 func (s *AuthService) GetSemestersById(ctx context.Context, id int64, role string) ([]models.ResponseRequestSemesterList, error) {
 	var query string
-	query += `SELECT id, year, title, date_start, date_end, active
+	query += `SELECT id, year, title, date_start, date_end, active, archive
 			  FROM stu_tracker.Semester sm
 			  WHERE sm.organization_id = $1;`
 	rows, err := s.db.QueryContext(ctx, query, id)
@@ -425,6 +429,7 @@ func (s *AuthService) GetSemestersById(ctx context.Context, id int64, role strin
 			&semester.DateStart,
 			&semester.DateEnd,
 			&semester.Active,
+			&semester.Archive,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -442,10 +447,10 @@ func (s *AuthService) GetSemesterLocationById(c context.Context, role string, lo
 	query += `SELECT 
 				sl.location_id, sl.semester_id,
 				sl.created_at, ss.title, ss.year, 
-				ss.date_start, ss.date_end
+				ss.date_start, ss.date_end, sl.id
 			  FROM 
 			  	stu_tracker.Semester_Location sl
-			  JOIN
+			  LEFT JOIN
 			  	stu_tracker.Semester ss
 			  ON
 			  	ss.id = sl.semester_id
@@ -467,6 +472,7 @@ func (s *AuthService) GetSemesterLocationById(c context.Context, role string, lo
 			&semester.Year,
 			&semester.DateStart,
 			&semester.DateEnd,
+			&semester.ID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -712,7 +718,7 @@ func (s *AuthService) GetProgramsByLocation(c context.Context, locId int64, org_
 	query += `
 		SELECT p.id, p.program_name, p.created_at, lp.location_id
 		FROM stu_tracker.Location_programs lp
-		JOIN stu_tracker.Programs p ON lp.program_id = p.id
+		LEFT JOIN stu_tracker.Programs p ON lp.program_id = p.id
 		WHERE lp.location_id = $1 AND p.organization_id = $2`
 
 	rows, err := s.db.QueryContext(c, query, locId, org_id)
@@ -870,7 +876,7 @@ func (s *AuthService) GetTutorSchedules(c context.Context, tutor_id int64) ([]mo
 	query += `
 		SELECT 
 		ts.id, ts.tutor_id, p.program_name AS program_name, schedule_type, 
-		ts.start_date, ts.end_date, ts.recurring, ts.notes, ts.created_at
+		ts.start_date, ts.end_date, ts.recurring, ts.notes, ts.created_at, ts.workweek
 		FROM stu_tracker.Tutor_schedules ts
 		JOIN stu_tracker.Programs p
 		ON p.id = ts.program_id
@@ -896,6 +902,7 @@ func (s *AuthService) GetTutorSchedules(c context.Context, tutor_id int64) ([]mo
 			&schedule.Recurring,
 			&schedule.Notes,
 			&schedule.CreatedAt,
+			pq.Array(&schedule.WorkWeek),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
