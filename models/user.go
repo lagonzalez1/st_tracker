@@ -881,15 +881,16 @@ type RequestTutorSessions struct {
 }
 
 type Students struct {
-	SessionID      *int64  `json:"session_id"`
-	StudentID      *int64  `json:"student_id"`
-	FirstName      string  `json:"first_name"`
-	MiddleName     string  `json:"middle_name"`
-	LastName       string  `json:"last_name"`
-	Grade          int64   `json:"grade_level"`
-	Timeframe      *bool   `json:"timeframe"`
-	TimeframeStart *string `json:"timeframe_start"`
-	TimeframeEnd   *string `json:"timeframe_end"`
+	SessionID        *int64  `json:"session_id"`
+	StudentID        *int64  `json:"student_id"`
+	FirstName        string  `json:"first_name"`
+	MiddleName       string  `json:"middle_name"`
+	LastName         string  `json:"last_name"`
+	Grade            int64   `json:"grade_level"`
+	Timeframe        *bool   `json:"timeframe"`
+	DurationRequired *bool   `json:"duration_required"`
+	TimeframeStart   *string `json:"timeframe_start"`
+	TimeframeEnd     *string `json:"timeframe_end"`
 }
 
 type TutorSessionsList struct {

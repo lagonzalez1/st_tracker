@@ -549,7 +549,6 @@ ALTER TABLE stu_tracker.Generate_materials_task ADD output_tokens INT DEFAULT 0;
 ALTER TABLE stu_tracker.Generate_questions_task ADD input_tokens INT DEFAULT 0;
 ALTER TABLE stu_tracker.Generate_questions_task ADD output_tokens INT DEFAULT 0; 
 
-ALTER TABLE stu_tracker.Tutors ADD active BOOLEAN DEFAULT TRUE;
 
 ALTER TABLE stu_tracker.Admin_staff ADD district_id INT REFERENCES stu_tracker.District(id) ON DELETE SET NULL;
 ALTER TABLE stu_tracker.Tutor_schedules ADD COLUMN workweek TEXT[];

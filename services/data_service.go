@@ -249,7 +249,8 @@ func (s *AuthService) GetSessionsTutors(c context.Context, ss models.RequestTuto
 			st.id,
 			st.timeframe,
 			st.timeframe_start,
-			st.timeframe_end
+			st.timeframe_end,
+			st.duration_required
 		FROM 
 			stu_tracker.Session_students ss
 		INNER JOIN
@@ -280,6 +281,7 @@ func (s *AuthService) GetSessionsTutors(c context.Context, ss models.RequestTuto
 			&student.Timeframe,
 			&student.TimeframeStart,
 			&student.TimeframeEnd,
+			&student.DurationRequired,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
