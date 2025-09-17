@@ -169,6 +169,8 @@ func main() {
 	apiMiddleware.HandleFunc("/get_tutor_file", authHandler.GetTutorFile).Methods("GET")
 	apiMiddleware.HandleFunc("/get_student_file", authHandler.GetStudentFile).Methods("GET")
 	apiMiddleware.HandleFunc("/get_locations", authHandler.GetLocations).Methods("GET")
+	apiMiddleware.HandleFunc("/get_organization", authHandler.GetOrganization).Methods("GET")
+	apiMiddleware.HandleFunc("/get_generation_usage", authHandler.GetGenerationUsage).Methods("GET")
 
 	// Return session id as well for duplicate
 	apiMiddleware.HandleFunc("/get_signed_url_materials", authHandler.GetSignedUrlMaterials).Methods("GET")

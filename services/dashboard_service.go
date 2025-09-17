@@ -10,6 +10,76 @@ import (
 	"github.com/lib/pq"
 )
 
+func (s *AuthService) GetOrganizationById(ctx context.Context, orgid *int64) (*models.ResponseGenerationOrganization, error) {
+	var query string
+	query += `SELECT id, title, address, zip_code, city, state FROM stu_tracker.Organization WHERE id = $1;`
+	var organization models.ResponseGenerationOrganization
+	err := s.db.QueryRowContext(ctx, query, *orgid).Scan(&organization.Id, &organization.Title, &organization.Address, &organization.ZipCode, &organization.City, &organization.State)
+	if err != nil {
+		return nil, fmt.Errorf("unable to query organization %v", err)
+	}
+	return &organization, nil
+}
+
+func (s *AuthService) GetGenerationUsage(ctx context.Context, orgid *int64) ([]models.ResponseGenerationMaterials, []models.ResponseGenerationQuestions, error) {
+	var query1 string
+	query1 += `SELECT sum(input_tokens),
+			sum(output_tokens),
+			TO_CHAR(created_at,'YYYY:MM') AS year_month 
+			FROM stu_tracker.Generate_materials_task WHERE organization_id = $1 GROUP BY year_month ORDER BY year_month;`
+	row1, err := s.db.QueryContext(ctx, query1, *orgid)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to query organization %v", err)
+	}
+	defer row1.Close()
+	var materials []models.ResponseGenerationMaterials
+	for row1.Next() {
+		var mat models.ResponseGenerationMaterials
+		err := row1.Scan(
+			&mat.InputSum,
+			&mat.OutputSum,
+			&mat.YearMonth,
+		)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		// Check for any errors encountered during iteration
+		if err = row1.Err(); err != nil {
+			return nil, nil, fmt.Errorf("error iterating over rows: %w", err)
+		}
+		materials = append(materials, mat)
+	}
+	var query2 string
+	query2 += `SELECT sum(input_tokens),
+			sum(output_tokens),
+			TO_CHAR(created_at,'YYYY:MM') AS year_month 
+			FROM stu_tracker.Generate_questions_task WHERE organization_id = $1 GROUP BY year_month ORDER BY year_month;`
+	row2, err := s.db.QueryContext(ctx, query2, *orgid)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to query organization %v", err)
+	}
+	defer row2.Close()
+	var questions []models.ResponseGenerationQuestions
+	for row2.Next() {
+		var que models.ResponseGenerationQuestions
+		err := row2.Scan(
+			&que.InputSum,
+			&que.OutputSum,
+			&que.YearMonth,
+		)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		// Check for any errors encountered during iteration
+		if err = row2.Err(); err != nil {
+			return nil, nil, fmt.Errorf("error iterating over rows: %w", err)
+		}
+		questions = append(questions, que)
+	}
+
+	return materials, questions, nil
+}
+
 func (s *AuthService) GetLocationsByID(ctx context.Context, id int64, role string) ([]models.ResponseRequestLocations, error) {
 	var query string
 	query += `
@@ -326,8 +396,11 @@ func (s *AuthService) GetProgramsId(c context.Context, id int64, role string) ([
 
 func (s *AuthService) GetMaterialsById(c context.Context, id int64, role string) ([]models.ResponseRequestMaterialsList, error) {
 	var query string
-	query += `SELECT id, title, external_link, description, version, pre, mid, post, visible, created_at, program_id, s3_reference
+	query += `SELECT mt.id, mt.title, mt.external_link, mt.description, mt.version,
+			 mt.pre, mt.mid, mt.post, mt.visible, mt.created_at, mt.program_id, mt.s3_reference, pg.program_name
 			  FROM stu_tracker.materials mt
+			  LEFT JOIN stu_tracker.Programs pg
+			  ON pg.id = mt.program_id
 			  WHERE mt.organization_id = $1;`
 	rows, err := s.db.QueryContext(c, query, id)
 	if err != nil {
@@ -350,6 +423,7 @@ func (s *AuthService) GetMaterialsById(c context.Context, id int64, role string)
 			&material.CreatedAt,
 			&material.ProgramId,
 			&material.SReference,
+			&material.ProgramName,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)

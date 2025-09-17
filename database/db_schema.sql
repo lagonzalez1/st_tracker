@@ -559,3 +559,5 @@ ALTER TABLE stu_tracker.Locations ADD archive BOOLEAN DEFAULT FALSE;
 
 
 
+
+

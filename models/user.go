@@ -42,6 +42,27 @@ type RegisterOrganizationResponse struct {
 	Status string `json:"status,omitempty"`
 }
 
+type ResponseGenerationOrganization struct {
+	Id      *int64  `json:"id"`
+	Title   *string `json:"title"`
+	Address *string `json:"address"`
+	ZipCode *string `json:"zip_code"`
+	City    *string `json:"city"`
+	State   *string `json:"state"`
+}
+
+type ResponseGenerationMaterials struct {
+	InputSum  *int64  `json:"input_sum"`
+	OutputSum *int64  `json:"output_sum"`
+	YearMonth *string `json:"year_month"`
+}
+
+type ResponseGenerationQuestions struct {
+	InputSum  *int64  `json:"input_sum"`
+	OutputSum *int64  `json:"output_sum"`
+	YearMonth *string `json:"year_month"`
+}
+
 type RegisterResponse struct {
 	Token string `json:"token"`
 	User  User   `json:"user"`
@@ -239,6 +260,7 @@ type ResponseRequestMaterialsList struct {
 	Title        string  `json:"title"`
 	ExternalLink string  `json:"external_link"`
 	Description  string  `json:"description"`
+	ProgramName  *string `json:"program_name"`
 	Version      float64 `json:"version"`
 	Pre          bool    `json:"pre"`
 	Mid          bool    `json:"mid"`

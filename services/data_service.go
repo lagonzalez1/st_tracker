@@ -80,12 +80,10 @@ func (s *AuthService) SessionSearch(c context.Context, ss models.SearchQuery) ([
 			&session.SubFirstName,
 			&session.SubLastName,
 			&session.StartTime,
-			&session.Subject,
 			&session.Notes,
 			&session.EditedAt,
 			&session.CreatedAt,
 			&session.ProgramName,
-			&session.SubjectName,
 			&session.StudentCount,
 			&session.SessionDate,
 		)
@@ -378,19 +376,10 @@ func (s *AuthService) StudentAssessmentInfo(c context.Context, student_id int64,
 		a.easy_score,
 		ses.session_date
 		FROM 
-			stu_tracker.Assessments_students ast
-		LEFT JOIN 
-			stu_tracker.Students ss
-		ON	
-			ast.session_id = ss.id
-		JOIN
-			stu_tracker.Assessments a
-		ON
-			a.id = ast.assessment_id
-		JOIN
-			stu_tracker.Sessions ses
-		on
-			ses.id = ast.session_id
+			stu_tracker.Assessments_students ast 
+		LEFT JOIN stu_tracker.Students ss ON ast.session_id = ss.id
+		LEFT JOIN stu_tracker.Assessments a ON a.id = ast.assessment_id
+		JOIN stu_tracker.Sessions ses ON ses.id = ast.session_id
 		WHERE 
 			ast.student_id = $1`
 	rows, err := s.db.QueryContext(c, query, student_id)
@@ -853,12 +842,10 @@ func buildSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 				ELSE NULL 
 			END AS substitute_last_name, 
 			ss.start_time, 
-			COALESCE(ss.subject_id, null) AS subject_id,
 			ss.notes, 
 			ss.edited_at, 
 			ss.created_at,
 			COALESCE(pg.program_name, 'No program') AS program_name,
-    		COALESCE(sb.title, 'No Subject') AS subject_name,
 			ss.student_count,
 			ss.session_date
 		FROM 
@@ -869,8 +856,6 @@ func buildSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 			stu_tracker.Locations ll ON ll.id = ss.location_id
 		LEFT JOIN 
 			stu_tracker.Programs pg ON pg.id = ss.program_id 
-		LEFT JOIN 
-    		stu_tracker.Subjects sb ON ss.subject_id = sb.id
 		LEFT JOIN 
     		stu_tracker.Tutors sub ON ss.substitute_id = sub.id AND ss.substitute = true 
 		`
@@ -909,11 +894,6 @@ func buildSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 		args = append(args, ss.DateStart)
 		argIndex++
 	}
-	if ss.SubjectId != nil {
-		conditions = append(conditions, fmt.Sprintf("ss.subject_id = $%d", argIndex))
-		args = append(args, ss.SubjectId)
-		argIndex++
-	}
 
 	if len(conditions) > 0 {
 		query += "WHERE " + strings.Join(conditions, " AND ")
@@ -934,9 +914,9 @@ func buildStudentSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 			COUNT(DISTINCT a.id) AS assessment_count
 		FROM 
 			stu_tracker.Students s
-		LEFT JOIN 
+		JOIN 
 			stu_tracker.Session_students ss ON s.id = ss.student_id
-		LEFT JOIN 
+		JOIN 
 			stu_tracker.Assessments_students a ON s.id = a.student_id
 		JOIN 
 			stu_tracker.Sessions st ON st.id = ss.session_id `
@@ -971,7 +951,7 @@ func buildStudentSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 		argIndex++
 	}
 	if ss.SubjectId != nil {
-		conditions = append(conditions, fmt.Sprintf("ss.subject_id = $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("a.subject_id = $%d", argIndex))
 		args = append(args, ss.SubjectId)
 		argIndex++
 	}
