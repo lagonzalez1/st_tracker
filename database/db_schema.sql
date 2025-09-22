@@ -185,7 +185,7 @@ CREATE TABLE stu_tracker.Assessments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE stu_tracker.Semester(
+CREATE TABLE stu_tracker.Semester (
     id SERIAL PRIMARY KEY,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
     year INT,
@@ -558,6 +558,53 @@ ALTER TABLE stu_tracker.Semester ADD archive BOOLEAN DEFAULT FALSE;
 ALTER TABLE stu_tracker.Locations ADD archive BOOLEAN DEFAULT FALSE;
 
 
+CREATE TABLE stu_tracker.Surveys (
+    id SERIAL PRIMARY KEY,
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE SET NULL,
+    title TEXT,
+    description TEXT,
+    order_by INT DEFAULT 1,
+    is_active BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
+CREATE TABLE stu_tracker.survey_questions (
+  id               SERIAL PRIMARY KEY,
+  survey_id        INT NOT NULL REFERENCES stu_tracker.surveys(id) ON DELETE CASCADE,
+  order_index      INT NOT NULL,                            -- for dynamic ordering
+  question_text    TEXT NOT NULL,
+  question_type    TEXT NOT NULL CHECK (question_type IN ('short_text','long_text','single_choice','multi_choice','number','yes_no')),
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (survey_id, order_index)                           
+);
 
+CREATE TABLE stu_tracker.Survey_choice (
+    id SERIAL PRIMARY KEY,
+    question_survey_id INT NOT NULL REFERENCES stu_tracker.survey_questions(id) ON DELETE CASCADE,
+    choice_text TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
+CREATE TABLE stu_tracker.Program_survey (
+    id SERIAL PRIMARY KEY,
+    survey_id INT NOT NULL REFERENCES stu_tracker.surveys(id) ON DELETE CASCADE,
+    program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE CASCADE,
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE
+);
+
+ALTER TABLE stu_tracker.Programs ADD survey_required BOOLEAN DEFAULT FALSE;
+
+CREATE TABLE stu_tracker.Survey_response (
+    id SERIAL PRIMARY KEY,
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE SET NULL,
+    session_id INT REFERENCES stu_tracker.Sessions(id) ON DELETE CASCADE,
+    question_survey_id INT NOT NULL REFERENCES stu_tracker.survey_questions(id) ON DELETE SET NULL,
+    response_text TEXT,
+    response_choice INT REFERENCES stu_tracker.Survey_choice(id) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE stu_tracker.Survey_response add question_text TEXT;

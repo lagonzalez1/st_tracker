@@ -153,6 +153,250 @@ func (s *AuthService) GetSubjectById(ctx context.Context, id int64, role string)
 	return subjects, nil
 }
 
+func (s *AuthService) GetSurveysById(ctx context.Context, org_id int64) ([]models.Survey, error) {
+	var query string
+	query += `
+		SELECT id, title, description, is_active, order_by, created_at
+		FROM stu_tracker.Surveys WHERE organization_id = $1;`
+	rows, err := s.db.QueryContext(ctx, query, org_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying locations: %w", err)
+	}
+	defer rows.Close()
+
+	var surveys []models.Survey
+	for rows.Next() {
+		var survey models.Survey
+		err := rows.Scan(
+			&survey.ID,
+			&survey.Title,
+			&survey.Description,
+			&survey.IsActive,
+			&survey.OrderBy,
+			&survey.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		surveys = append(surveys, survey)
+	}
+
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+
+	return surveys, nil
+}
+
+func (s *AuthService) GetProgramSurveysById(ctx context.Context, org_id int64, pid int64) ([]models.ResponseQuestionsSurvey, error) {
+	var query string
+	query += `
+		SELECT ss.id AS survey_id, ss.title, ss.description
+		FROM stu_tracker.Program_survey ps
+		JOIN stu_tracker.Surveys ss ON ps.survey_id = ss.id
+		WHERE ps.program_id = $1 AND ps.organization_id = $2
+		`
+	rows, err := s.db.QueryContext(ctx, query, pid, org_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying locations: %w", err)
+	}
+	defer rows.Close()
+
+	var surveys []models.ResponseQuestionsSurvey
+	for rows.Next() {
+		var s models.ResponseQuestionsSurvey
+		err := rows.Scan(
+			&s.SurveyID,
+			&s.SurveyTitle,
+			&s.SurveyDescription,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		surveys = append(surveys, s)
+	}
+
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+
+	return surveys, nil
+}
+
+func (s *AuthService) GetSurveyProgramsById(ctx context.Context, org_id int64, pid int64) ([]models.ResponseQuestionsSurvey, error) {
+	var query string
+	query += `
+		SELECT ss.id AS survey_id, ss.title, ss.description, sq.id AS survey_question_id, sq.order_index, sq.question_text, sq.question_type, sc.id AS choice_id, sc.choice_text
+		FROM stu_tracker.Program_survey ps
+		JOIN stu_tracker.Surveys ss ON ps.survey_id = ss.id
+		JOIN stu_tracker.Survey_questions sq ON sq.survey_id = ss.id
+		LEFT JOIN stu_tracker.survey_choice sc ON sc.question_survey_id = sq.id
+		WHERE ps.program_id = $1 AND ps.organization_id = $2
+		`
+	rows, err := s.db.QueryContext(ctx, query, pid, org_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying locations: %w", err)
+	}
+	defer rows.Close()
+
+	var surveys []models.ResponseQuestionsSurvey
+	for rows.Next() {
+		var s models.ResponseQuestionsSurvey
+		err := rows.Scan(
+			&s.SurveyID,
+			&s.SurveyTitle,
+			&s.SurveyDescription,
+			&s.QuestionID,
+			&s.QuestionIndex,
+			&s.QuestionText,
+			&s.QuestionType,
+			&s.QuestionChoiceID,
+			&s.QuestionChoiceText,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		surveys = append(surveys, s)
+	}
+
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+
+	return surveys, nil
+}
+func ptrInt64(n sql.NullInt64) *int64 {
+	if n.Valid {
+		v := n.Int64
+		return &v
+	}
+	return nil
+}
+func ptrString(s sql.NullString) *string {
+	if s.Valid {
+		v := s.String
+		return &v
+	}
+	return nil
+}
+func (s *AuthService) GetSurveyQuestions(ctx context.Context, surveyIDs []int64) ([]models.SurveyQuestions, error) {
+	if len(surveyIDs) == 0 {
+		return []models.SurveyQuestions{}, nil
+	}
+
+	const q = `
+		SELECT
+		sq.id,
+		sq.survey_id,
+		sq.order_index,
+		sq.question_text,
+		sq.question_type,
+		sc.id              AS choice_id,
+		sc.question_survey_id,
+		sc.choice_text
+		FROM stu_tracker.survey_questions sq
+		LEFT JOIN stu_tracker.survey_choice sc
+		ON sc.question_survey_id = sq.id
+		WHERE sq.survey_id = ANY($1)
+		ORDER BY sq.order_index, sc.id;
+`
+	rows, err := s.db.QueryContext(ctx, q, pq.Array(surveyIDs))
+	if err != nil {
+		return nil, fmt.Errorf("query survey questions: %w", err)
+	}
+	defer rows.Close()
+
+	// Aggregate by question id
+	type key = int64
+	byQ := make(map[key]*models.SurveyQuestions)
+	order := make([]key, 0)
+
+	for rows.Next() {
+		var (
+			qID, surveyID, orderIdx sql.NullInt64
+			qText, qType            sql.NullString
+			chID, chQID             sql.NullInt64
+			chText                  sql.NullString
+		)
+		if err := rows.Scan(
+			&qID, &surveyID, &orderIdx, &qText, &qType,
+			&chID, &chQID, &chText,
+		); err != nil {
+			return nil, fmt.Errorf("scan row: %w", err)
+		}
+
+		id := qID.Int64
+		q, ok := byQ[id]
+		if !ok {
+			q = &models.SurveyQuestions{
+				ID:           ptrInt64(qID),
+				SurveyID:     ptrInt64(surveyID),
+				OrderIndex:   ptrInt64(orderIdx),
+				QuestionText: ptrString(qText),
+				QuestionType: ptrString(qType),
+				Choices:      make([]models.SurveyQuestionChoice, 0, 4), // empty by default
+			}
+			byQ[id] = q
+			order = append(order, id)
+		}
+
+		// Append a choice only when the LEFT JOIN row has a real choice
+		if chID.Valid {
+			q.Choices = append(q.Choices, models.SurveyQuestionChoice{
+				ID:               ptrInt64(chID),
+				SurveyQuestionId: ptrInt64(chQID),
+				ChoiceText:       ptrString(chText),
+			})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows err: %w", err)
+	}
+
+	// Preserve question order as returned (by order_index)
+	out := make([]models.SurveyQuestions, 0, len(order))
+	for _, id := range order {
+		out = append(out, *byQ[id])
+	}
+	return out, nil
+}
+
+func (s *AuthService) GetSurveyChoiceById(ctx context.Context, qsid []int64) ([]models.SurveyChoicesList, error) {
+	var query string
+	query += `
+		SELECT id, question_survey_id, choice_text
+		FROM stu_tracker.Survey_choice WHERE question_survey_id = ANY($1);`
+	rows, err := s.db.QueryContext(ctx, query, pq.Array(qsid))
+	if err != nil {
+		return nil, fmt.Errorf("error querying locations: %w", err)
+	}
+	defer rows.Close()
+
+	var surveys []models.SurveyChoicesList
+	for rows.Next() {
+		var survey models.SurveyChoicesList
+		err := rows.Scan(
+			&survey.ID,
+			&survey.QuestionServeyId,
+			&survey.ChoiceText,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		surveys = append(surveys, survey)
+	}
+
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+
+	return surveys, nil
+}
+
 func (s *AuthService) GetSubjectByLocation(ctx context.Context, org_id int64, loc_id int64) ([]models.SubjectList, error) {
 	var query string
 	query += `
@@ -367,7 +611,7 @@ func (s *AuthService) GetDistrictsById(c context.Context, id int64, role string)
 
 func (s *AuthService) GetProgramsId(c context.Context, id int64, role string) ([]models.ResponseRequestProgramList, error) {
 	var query string
-	query += `SELECT id, program_name, timeframe_required
+	query += `SELECT id, program_name, timeframe_required, pg.survey_required
 			  FROM stu_tracker.programs pg
 			  WHERE pg.organization_id = $1;`
 	rows, err := s.db.QueryContext(c, query, id)
@@ -382,6 +626,7 @@ func (s *AuthService) GetProgramsId(c context.Context, id int64, role string) ([
 			&program.ID,
 			&program.ProgramName,
 			&program.TimeFrameRequired,
+			&program.SurveyRequired,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -671,17 +916,6 @@ func (s *AuthService) GetAssessmentsQuestionsChoice(c context.Context, assessmen
 
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("row iteration error: %w", err)
-	}
-
-	for i := range results {
-		if results[i].ImageURL != nil && *results[i].ImageURL != "NA" && *results[i].ImageURL != "" {
-			signedUrl, err := s.GenerateAssessmentsPresignedUrl(c, *results[i].ImageURL)
-			fmt.Printf("Signed url %s", signedUrl)
-			if err != nil {
-				return nil, fmt.Errorf("unable to sign url, possible corrupt image: %v", err)
-			}
-			results[i].ImageURL = &signedUrl
-		}
 	}
 
 	return results, nil

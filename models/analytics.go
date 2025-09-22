@@ -33,6 +33,16 @@ type RequestSessionBChart struct {
 	EndDate        time.Time `json:"end_date"`
 }
 
+type RequestCycleGrowth struct {
+	ID             *int64    `json:"id"`
+	Email          string    `json:"email"`
+	OrganizationID *int64    `json:"organization_id"`
+	SemesterID     *int64    `json:"semester_id"`
+	LocationID     *int64    `json:"location_id"`
+	ProgramID      *int64    `json:"program_id"`
+	StartDate      time.Time `json:"start_date"`
+	EndDate        time.Time `json:"end_date"`
+}
 type ResponseSessionBChart struct {
 	SessionDate           time.Time `json:"session_date"`
 	TotalSessions         int       `json:"total_sessions"`
@@ -42,6 +52,46 @@ type ResponseSessionBChart struct {
 	MaxStudents           int       `json:"max_students"`
 	StudentAverageRounded float32   `json:"student_average_rounded"`
 	Month                 string    `json:"month"`
+}
+
+type ResponseAbsentPresent struct {
+	Present *int64 `json:"present_count"`
+	Absent  *int64 `json:"absent_count"`
+}
+
+type ResponseAssessmentCompletion struct {
+	EnrolledCount   *int64 `json:"enrolled_count"`
+	AssessedCount   *int64 `json:"assessed_count"`
+	PostAssessed    *int64 `json:"post_assessed_count"`
+	IntremAssessend *int64 `json:"intrem_assessed_count"`
+}
+type ResponseCycleGrowthDelim struct {
+	LocationID        *int64   `json:"location_id"`
+	ProgramID         *int64   `json:"program_id"`
+	ProgramName       *string  `json:"program_name"`
+	LocationName      *string  `json:"location_name"`
+	AverageScore      *float32 `json:"average_score"`
+	MaxScore          *float32 `json:"max_score"`
+	MinScore          *float32 `json:"min_score"`
+	Pre               bool     `json:"pre"`
+	Mid               bool     `json:"mid"`
+	Post              bool     `json:"post"`
+	StandardDeviation *float32 `json:"standard_deviation"`
+	TotalAssessments  *int64   `json:"total_assessments"`
+	Cycle             *int64   `json:"cycle"`
+}
+
+type ResponseCycleGrowth struct {
+	LocationID        *int64   `json:"location_id"`
+	ProgramID         *int64   `json:"program_id"`
+	ProgramName       *string  `json:"program_name"`
+	LocationName      *string  `json:"location_name"`
+	AverageScore      *float32 `json:"average_score"`
+	MaxScore          *float32 `json:"max_score"`
+	MinScore          *float32 `json:"min_score"`
+	StandardDeviation *float32 `json:"standard_deviation"`
+	TotalAssessments  *int64   `json:"total_assessments"`
+	Cycle             *int64   `json:"cycle"`
 }
 
 type ResponseAssessmentsBChart struct {
@@ -148,6 +198,7 @@ type RequestTutorsSessions struct {
 	SemesterID     *int64 `json:"semester_id"`
 	LocationID     *int64 `json:"location_id"`
 	ProgramID      *int64 `json:"program_id"`
+	SurveyRequired bool   `json:"survey_required"`
 }
 
 type StudentsSession struct {

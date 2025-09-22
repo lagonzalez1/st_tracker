@@ -85,7 +85,7 @@ func (s *AuthService) AddStudentReportQuery(ctx context.Context, req models.Requ
 	return inputKey, nil
 }
 
-func (s *AuthService) AddQueueMaterialsEvent(ctx context.Context, req models.RequestMaterials) (*string, error) {
+func (s *AuthService) AddQueueMaterialsEvent(ctx context.Context, req *models.RequestEventGeneration) (*string, error) {
 	jsonBody, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
@@ -96,7 +96,7 @@ func (s *AuthService) AddQueueMaterialsEvent(ctx context.Context, req models.Req
 	}
 	err = mq.Publish(
 		"ai_events_exchange",
-		"produce",
+		"generate",
 		false, false,
 		amqp091.Publishing{
 			ContentType: "application/json",
@@ -109,14 +109,14 @@ func (s *AuthService) AddQueueMaterialsEvent(ctx context.Context, req models.Req
 	var status string = "STARTED"
 	var intputKey *string
 	query := `INSERT INTO stu_tracker.Generate_materials_task(status, s3_output_key, organization_id, assessment_id) VALUES ($1,$2, $3,$4) RETURNING input_key;`
-	err = s.db.QueryRowContext(ctx, query, status, req.S3OutputKey, req.OrganizationID, req.AssessmentId).Scan(&intputKey)
+	err = s.db.QueryRowContext(ctx, query, status, req.RequestMaterials.S3OutputKey, req.OrganizationID, req.RequestMaterials.AssessmentId).Scan(&intputKey)
 	if err != nil {
 		return nil, err
 	}
 	return intputKey, nil
 }
 
-func (s *AuthService) AddQueueQuestionEvent(ctx context.Context, req models.RequestQuestions) (*string, error) {
+func (s *AuthService) AddQueueQuestionEvent(ctx context.Context, req *models.RequestEventGeneration) (*string, error) {
 	jsonBody, err := json.Marshal(req)
 	if err != nil {
 		log.Printf("Failed to marshal JSON for MQ: %v", err)
@@ -148,7 +148,7 @@ func (s *AuthService) AddQueueQuestionEvent(ctx context.Context, req models.Requ
 	var status string = "STARTED"
 	var inputKey *string
 	query := `INSERT INTO stu_tracker.Generate_questions_task (status, s3_output_key, organization_id) VALUES ($1, $2, $3) RETURNING input_key;`
-	err = s.db.QueryRowContext(ctx, query, status, req.S3OutputKey, req.OrganizationID).Scan(&inputKey)
+	err = s.db.QueryRowContext(ctx, query, status, req.RequestQuestions.S3OutputKey, req.OrganizationID).Scan(&inputKey)
 	if err != nil {
 		log.Printf("Failure: Failed to insert record into database: %v", err)
 		return nil, err

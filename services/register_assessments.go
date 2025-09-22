@@ -89,8 +89,8 @@ func (s *AuthService) AddAssessment(c context.Context, req models.RegisterAssess
 				}
 			}
 			if len(req.Questions) != len(req.Images) {
-			return nil, fmt.Errorf("Something went wrong inserting images. Created assessment OK.", len(req.Questions), len(req.Images))
-		}
+				return nil, fmt.Errorf("Something went wrong inserting images. Created assessment OK.", len(req.Questions), len(req.Images))
+			}
 		}
 	}
 
@@ -120,8 +120,9 @@ func (s *AuthService) UpdateAssessment(c context.Context, req models.RegisterAss
 
 	// Update any questions by adding or updating current questions in place.
 	if req.EasyScore && len(req.Questions) > 0 {
-		for _, question := range req.Questions {
+		for idx, question := range req.Questions {
 			// Question is already on file update..
+			var questionImageID = &req.Images[idx].ID
 			if question.QuestionID != nil {
 				// Update the question
 				updateQuery := `UPDATE stu_tracker.Questions 
@@ -138,7 +139,7 @@ func (s *AuthService) UpdateAssessment(c context.Context, req models.RegisterAss
 					c,
 					updateQuery,
 					req.ID,
-					question.ImageURL,
+					questionImageID,
 					question.QuestionText,
 					question.QuestionType,
 					question.Points,
@@ -196,11 +197,12 @@ func (s *AuthService) UpdateAssessment(c context.Context, req models.RegisterAss
 				(assessment_id, image_url, question_text, question_type, points, order_number, standard_text)
 				VALUES ($1, $2, $3, $4, $5, $6, $7)
 				RETURNING id;`
+				var questionImageID = &req.Images[idx].ID
 				err := s.db.QueryRowContext(
 					c,
 					questionQuery,
 					req.ID,
-					question.ImageURL,
+					questionImageID,
 					question.QuestionText,
 					question.QuestionType,
 					question.Points,

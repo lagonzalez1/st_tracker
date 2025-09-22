@@ -253,7 +253,7 @@ func StudentSessionAttendance(SessionID int64, SessionList *[]models.RegisterStu
 	values := []interface{}{}
 	studentQuery := `INSERT INTO stu_tracker.Session_students(
             session_id, student_id, duration, subject_id, 
-            timeframe, timeframe_start, timeframe_end
+            timeframe, timeframe_start, timeframe_end, absent
         ) VALUES `
 
 	studentPlaceHolderIdx := 1
@@ -261,15 +261,15 @@ func StudentSessionAttendance(SessionID int64, SessionList *[]models.RegisterStu
 		if i > 0 {
 			studentQuery += ", "
 		}
-		studentQuery += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+		studentQuery += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d,  $%d)",
 			studentPlaceHolderIdx, studentPlaceHolderIdx+1, studentPlaceHolderIdx+2,
 			studentPlaceHolderIdx+3, studentPlaceHolderIdx+4, studentPlaceHolderIdx+5,
-			studentPlaceHolderIdx+6)
+			studentPlaceHolderIdx+6, studentPlaceHolderIdx+7)
 
 		values = append(values,
 			SessionID, student.ID, student.Duration, student.SubjectId,
-			student.Timeframe, student.TimeframeStart, student.TimeframeEnd)
-		studentPlaceHolderIdx += 7
+			student.Timeframe, student.TimeframeStart, student.TimeframeEnd, student.Absent)
+		studentPlaceHolderIdx += 8
 	}
 	studentQuery += ` ON CONFLICT (session_id, student_id) DO NOTHING`
 	return studentQuery, values, nil

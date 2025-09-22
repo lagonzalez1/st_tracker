@@ -98,7 +98,6 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 			defer cancel()
-
 			if err != nil {
 				http.Error(w, "Unable to load config files.", http.StatusUnauthorized)
 				return
@@ -128,7 +127,7 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 
 			if jwtError.Code == 501 {
 				// Not valid return Unauthorized
-				fmt.Printf("jwtError code 401, %v", err)
+				fmt.Printf("jwtError code 501, %v", err)
 				fmt.Println(jwtError.Message)
 				w.WriteHeader(http.StatusUnauthorized)
 				w.Write([]byte("Unauthorized"))

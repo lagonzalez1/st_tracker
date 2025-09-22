@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   app:
@@ -10,8 +9,9 @@ services:
     env_file:
       - .env.development
     depends_on:
-      - db
       - rabbitmq
+      - db
+      - valkey
     volumes:
       - .:/app
     working_dir: /app
@@ -35,6 +35,28 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+  
+  valkey:
+    image: valkey/valkey:9.0-alpine3.22
+    command: > 
+      valkey-server --appendonly yes
+                    --save 60 1000
+                    --requirepass s3cr3t
+                    --maxmemory 512mb
+                    --maxmemory-policy allkeys-lru
+    volumes:
+      - valkey-data:/data
+    expose:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-a", "s3cr3t", "PING"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    
+volumes:
+  valkey-data:
+    
   
 
     

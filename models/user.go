@@ -207,6 +207,7 @@ type ResponseRequestProgramList struct {
 	LocationID        *int64 `json:"location_id"`
 	ProgramName       string `json:"program_name"`
 	TimeFrameRequired bool   `json:"timeframe_required"`
+	SurveyRequired    bool   `json:"survey_required"`
 	CreatedAt         string `json:"created_at"`
 }
 
@@ -230,7 +231,33 @@ type RegisterRequestProgram struct {
 	ProgramName       string `json:"program_name"`
 	AdminID           int64  `json:"admin_id"`
 	OrganizationId    *int64 `json:"organization_id"`
+	SurveyRequired    bool   `json:"survey_required"`
 	TimeFrameRequired bool   `json:"timeframe_required"`
+}
+
+type RegisterRequestSurvey struct {
+	ID              *int64            `json:"id"`
+	Title           *string           `json:"title"`
+	Description     *string           `json:"description"`
+	IsActive        bool              `json:"is_active"`
+	OrderBy         *int64            `json:"order_by"`
+	Questions       []SurveyQuestions `json:"questions"`
+	RemoveQuestions []int64           `json:"remove_questions"`
+}
+
+type SurveyQuestions struct {
+	ID           *int64                 `json:"id"`
+	SurveyID     *int64                 `json:"survey_id"`
+	OrderIndex   *int64                 `json:"order_index"`
+	QuestionText *string                `json:"question_text"`
+	QuestionType *string                `json:"question_type"`
+	Choices      []SurveyQuestionChoice `json:"choices"`
+}
+
+type SurveyQuestionChoice struct {
+	ID               *int64  `json:"id"`
+	SurveyQuestionId *int64  `json:"survey_question_id"`
+	ChoiceText       *string `json:"choice_text"`
 }
 
 type PermissionsMap struct {
@@ -250,6 +277,10 @@ type RegisterPermissionResponse struct {
 	Status string `json:"status"`
 }
 
+type ResponseRequestSurvey struct {
+	Status    string `json:"status"`
+	ProgramId int64  `json:"id"`
+}
 type ResponseRequestProgram struct {
 	Status    string `json:"status"`
 	ProgramId int64  `json:"id"`
@@ -394,6 +425,31 @@ type RemoveRequest struct {
 	OrganizationId int64  `json:"organization_id"`
 }
 
+type RegisterSurveyProgram struct {
+	ID        *int64 `json:"id"`
+	ProgramID *int64 `json:"program_id"`
+	SurveyID  *int64 `json:"survey_id"`
+}
+type ResponseSurveyProgram struct {
+	ID          *int64  `json:"id"`
+	ProgramID   *int64  `json:"program_id"`
+	SurveyTitle *string `json:"survey_title"`
+	SurveyID    *int64  `json:"survey_id"`
+}
+
+// ss.id, ss.title, ss.description, sq.id, sq.order_index, sq.question_text, sq.question_type, sc.id, sc.choice_text
+type ResponseQuestionsSurvey struct {
+	SurveyTitle        *string `json:"survey_title"`
+	SurveyID           *int64  `json:"id"`
+	SurveyDescription  *string `json:"survey_description"`
+	QuestionID         *int64  `json:"question_id"`
+	QuestionIndex      *int64  `json:"question_index"`
+	QuestionText       *string `json:"question_text"`
+	QuestionType       *string `json:"question_type"`
+	QuestionChoiceID   *int64  `json:"question_choice_id"`
+	QuestionChoiceText *string `json:"question_choice_text"`
+}
+
 type RegisterOrganization struct {
 	Fullname         *string `json:"fullname"`
 	Email            *string `json:"email"`
@@ -456,6 +512,11 @@ type RegisterSubject struct {
 	Title          string `json:"title"`
 	Description    string `json:"description"`
 	OrganizationId *int64 `json:"organization_id"`
+}
+
+type SimpleReponse struct {
+	ID     *int64 `json:"id"`
+	Status string `json:"status"`
 }
 
 type ResponseRegisterSubject struct {
@@ -675,10 +736,20 @@ type RegisterLocationProgram struct {
 	OrganizationID *int64 `json:"organization_id"`
 }
 
+type RegisterProgramSurvey struct {
+	ProgramId      *int64 `json:"program_id"`
+	SurveyId       *int64 `json:"survey_id"`
+	OrganizationID *int64 `json:"organization_id"`
+}
+
 type RemoveLocationProgram struct {
 	ProgramId      *int64 `json:"program_id"`
 	LocationId     *int64 `json:"location_id"`
 	OrganizationID *int64 `json:"organization_id"`
+}
+
+type RegisterResponseProgramSurvey struct {
+	Status string `json:"status"`
 }
 
 type RegisterResponseLocationProgram struct {
@@ -916,19 +987,21 @@ type Students struct {
 }
 
 type TutorSessionsList struct {
-	SessionID    *int64     `json:"session_id"`
-	ProgramName  string     `json:"program_name"`
-	LocationID   *int64     `json:"location_id"`
-	SemesterID   *int64     `json:"semester_id"`
-	ProgramID    *int64     `json:"program_id"`
-	SessionDate  time.Time  `json:"session_date"`
-	StartTime    string     `json:"start_time"`
-	Students     []Students `json:"students"`
-	StudentCount int64      `json:"student_count"`
-	InSchool     bool       `json:"in_school"`
-	Substitute   bool       `json:"substitute"`
-	Semester     string     `json:"semester"`
-	LocationName string     `json:"location_name"`
+	SessionID         *int64                 `json:"session_id"`
+	ProgramName       string                 `json:"program_name"`
+	LocationID        *int64                 `json:"location_id"`
+	SemesterID        *int64                 `json:"semester_id"`
+	ProgramID         *int64                 `json:"program_id"`
+	SessionDate       time.Time              `json:"session_date"`
+	StartTime         string                 `json:"start_time"`
+	Students          []Students             `json:"students"`
+	SurveyRequirement SessionCompletedSurvey `json:"survey_requirement"`
+	StudentCount      int64                  `json:"student_count"`
+	InSchool          bool                   `json:"in_school"`
+	SurveyRequired    bool                   `json:"survey_required"`
+	Substitute        bool                   `json:"substitute"`
+	Semester          string                 `json:"semester"`
+	LocationName      string                 `json:"location_name"`
 }
 
 type StudentAssessmentSearch struct {
@@ -972,6 +1045,10 @@ type StudentDetails struct {
 	MiddleName string `json:"middle_name"`
 	GradeLevel int64  `json:"grade_level"`
 }
+
+type SessionCompletedSurvey struct {
+	Completed bool `json:"completed"`
+}
 type DeleteImageRequest struct {
 	ID string `json:"id"`
 }
@@ -979,4 +1056,36 @@ type DeleteImageRequest struct {
 type ResponsePreAssessment struct {
 	Status string `json:"status"`
 	ID     int64  `json:"id"`
+}
+
+type Survey struct {
+	ID             *int64    `json:"id" db:"id"`
+	OrganizationID *int64    `json:"organization_id,omitempty" db:"organization_id"` // nullable
+	Title          string    `json:"title" db:"title"`
+	Description    string    `json:"description" db:"description"`
+	OrderBy        int       `json:"order_by" db:"order_by"`
+	IsActive       bool      `json:"is_active" db:"is_active"`
+	CreatedAt      time.Time `json:"created_at" db:"created_at"`
+}
+
+type SurveyChoicesList struct {
+	ID               *int64  `json:"id"`
+	QuestionServeyId *int64  `json:"question_survey_id"` // nullable
+	ChoiceText       *string `json:"choice_text"`
+}
+
+type RegisterSurvey struct {
+	SessionID *int64                    `json:"session_id"`
+	Survey    []RegisterSurveyQuestions `json:"survey"`
+}
+
+type RegisterSurveyQuestions struct {
+	Questions []Questions `json:"questions"`
+}
+
+type Questions struct {
+	QuestionID     *int64  `json:"question_id"`
+	QuestionText   *string `json:"question_text"`
+	ResponseChoice *int64  `json:"response_choice"`
+	ResponseText   *string `json:"response_text"`
 }

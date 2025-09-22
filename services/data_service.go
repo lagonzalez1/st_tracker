@@ -181,7 +181,8 @@ func (s *AuthService) GetSessionsTutors(c context.Context, ss models.RequestTuto
 		ss.in_school,
 		ss.substitute,
 		sm.title,
-		lc.name
+		lc.name,
+		pg.survey_required
 		FROM
 			stu_tracker.Sessions ss
 		JOIN
@@ -223,19 +224,30 @@ func (s *AuthService) GetSessionsTutors(c context.Context, ss models.RequestTuto
 			&session.Substitute,
 			&session.Semester,
 			&session.LocationName,
+			&session.SurveyRequired,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
 		}
 		sessions = append(sessions, session)
 	}
+	var sessionIDsSurvey []int64
 	var sessionIDs []int64
 	if len(sessions) <= 0 {
 		return []models.TutorSessionsList{}, nil
 	}
 	for i := 0; i < len(sessions); i++ {
 		sessionIDs = append(sessionIDs, *sessions[i].SessionID)
+		if sessions[i].SurveyRequired {
+			sessionIDsSurvey = append(sessionIDsSurvey, *sessions[i].SessionID)
+		}
 	}
+	// Map of {session_id : program_id}
+	missingSurveys, err := s.GetMissingSurveyBySessionId(c, sessionIDsSurvey, ss.OrganizationID)
+	if err != nil {
+		return nil, err
+	}
+
 	// For each session_id return the students associated
 	query2 := `
 		SELECT
@@ -260,7 +272,7 @@ func (s *AuthService) GetSessionsTutors(c context.Context, ss models.RequestTuto
 		ORDER BY
 			ss.session_id`
 
-	rows, err = s.db.Query(query2, pq.Array(sessionIDs))
+	rows, err = s.db.QueryContext(c, query2, pq.Array(sessionIDs))
 	if err != nil {
 		return nil, err
 	}
@@ -288,8 +300,49 @@ func (s *AuthService) GetSessionsTutors(c context.Context, ss models.RequestTuto
 	}
 	for i := 0; i < len(sessions); i++ {
 		sessions[i].Students = studentMap[int64(*sessions[i].SessionID)]
+		sessions[i].SurveyRequirement = missingSurveys[int64(*sessions[i].SessionID)]
 	}
 	return sessions, nil
+}
+
+func (s *AuthService) GetMissingSurveyBySessionId(c context.Context, session_ids []int64, orgid *int64) (map[int64]models.SessionCompletedSurvey, error) {
+	var surveys = make(map[int64]models.SessionCompletedSurvey)
+	query := `
+        WITH input AS (
+          SELECT unnest($1::bigint[]) AS session_id
+        )
+        SELECT 
+          i.session_id,
+          EXISTS (
+            SELECT 1 
+            FROM stu_tracker.Survey_response r
+            WHERE r.session_id = i.session_id
+          ) AS has_response
+        FROM input i;
+    `
+
+	rows, err := s.db.QueryContext(c, query, pq.Array(session_ids))
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var sid int64
+		var hasResponse bool
+		if err := rows.Scan(&sid, &hasResponse); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+		surveys[sid] = models.SessionCompletedSurvey{
+			Completed: hasResponse,
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return surveys, nil
 }
 
 func (s *AuthService) GetStudentDetails(c context.Context, session_id *string, student_id *int64) (*models.StudentDetails, error) {

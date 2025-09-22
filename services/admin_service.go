@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 	"tracker/app/models"
 )
 
@@ -716,4 +717,353 @@ func (s *AuthService) GetTutorLowPerformance(c context.Context, req models.Reque
 	}
 
 	return performance, nil
+}
+
+func (s *AuthService) GetCycleGrowth(req models.RequestCycleGrowth) ([]models.ResponseCycleGrowth, error) {
+	base := `
+        SELECT 
+			ss.location_id,
+			ss.program_id,
+			l.name AS location_name,
+			pg.program_name,
+			k.cycle,
+			ROUND( (SUM(ast.score)::numeric / NULLIF(SUM(k.max_score),0)) * 100, 2 ) AS avg_score,
+			ROUND(MIN((ast.score / NULLIF(k.max_score,0)) * 100.0)::numeric, 2)    AS min_score,
+			ROUND(MAX((ast.score / NULLIF(k.max_score,0)) * 100.0)::numeric, 2)    AS max_score,
+			ROUND(STDDEV(ast.score)::NUMERIC, 2) AS stddev_score,
+			COUNT(ast.id) AS total_assessments
+		FROM stu_tracker.Assessments_students ast
+		JOIN stu_tracker.Sessions ss 
+			ON ast.session_id = ss.id
+		JOIN stu_tracker.Assessments k 
+			ON k.id = ast.assessment_id
+		JOIN stu_tracker.Programs pg
+			ON pg.id = ss.program_id
+		JOIN stu_tracker.Locations l
+			ON l.id = ss.location_id
+	`
+	query, args := buildQuery(base, req)
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var sessions []models.ResponseCycleGrowth
+	for rows.Next() {
+		var s models.ResponseCycleGrowth
+		if err := rows.Scan(
+			&s.LocationID,
+			&s.ProgramID,
+			&s.LocationName,
+			&s.ProgramName,
+			&s.Cycle,
+			&s.AverageScore,
+			&s.MinScore,
+			&s.MaxScore,
+			&s.StandardDeviation,
+			&s.TotalAssessments,
+		); err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+	return sessions, nil
+}
+
+func buildQuery(baseQuery string, req models.RequestCycleGrowth) (string, []interface{}) {
+	var clauses []string
+	var args []interface{}
+	argCount := 1
+
+	if req.LocationID != nil {
+		clauses = append(clauses, fmt.Sprintf("ss.location_id = $%d", argCount))
+		args = append(args, req.LocationID)
+		argCount += 1
+	}
+	if req.OrganizationID != nil {
+		clauses = append(clauses, fmt.Sprintf("ss.organization_id = $%d", argCount))
+		args = append(args, req.OrganizationID)
+		argCount += 1
+	}
+	if req.ProgramID != nil {
+		clauses = append(clauses, fmt.Sprintf("ss.program_id = $%d", argCount))
+		args = append(args, req.ProgramID)
+		argCount += 1
+	}
+	if req.SemesterID != nil {
+		clauses = append(clauses, fmt.Sprintf("ss.semester_id = $%d", argCount))
+		args = append(args, req.SemesterID)
+		argCount += 1
+	}
+	if !req.StartDate.IsZero() && !req.EndDate.IsZero() {
+		clauses = append(clauses, fmt.Sprintf("ss.session_date BETWEEN $%d AND $%d", argCount, argCount+1))
+		args = append(args, req.StartDate, req.EndDate)
+		argCount += 2
+	} else if !req.StartDate.IsZero() {
+		clauses = append(clauses, fmt.Sprintf("ss.session_date >= $%d", argCount))
+		args = append(args, req.StartDate)
+		argCount++
+	}
+	if len(clauses) > 0 {
+		baseQuery += " WHERE " + strings.Join(clauses, " AND ")
+	}
+	baseQuery += `
+		GROUP BY ss.location_id, ss.program_id, k.cycle, l.name, pg.program_name
+		ORDER BY ss.location_id, ss.program_id;
+	`
+	return baseQuery, args
+}
+
+func (s *AuthService) GetCycleGrowthDelim(req models.RequestCycleGrowth) ([]models.ResponseCycleGrowthDelim, error) {
+	base := `
+        SELECT 
+			s.location_id,
+			s.program_id,
+			k.cycle,
+			k.pre,
+			k.mid,
+			k.post,
+			l.name AS location_name,
+			pg.program_name,
+			ROUND( (SUM(ast.score)::numeric / NULLIF(SUM(k.max_score),0)) * 100, 2 ) AS avg_score,
+			ROUND(MIN((ast.score / NULLIF(k.max_score,0)) * 100.0)::numeric, 2)    AS min_score,
+			ROUND(MAX((ast.score / NULLIF(k.max_score,0)) * 100.0)::numeric, 2)    AS max_score,
+			ROUND(STDDEV(ast.score)::NUMERIC, 2) AS stddev_score,
+			COUNT(ast.id) AS total_assessments
+		FROM stu_tracker.Assessments_students ast
+		JOIN stu_tracker.Sessions s 
+			ON ast.session_id = s.id
+		JOIN stu_tracker.Assessments k 
+			ON k.id = ast.assessment_id
+		JOIN stu_tracker.Programs pg
+			ON pg.id = s.program_id
+		JOIN stu_tracker.Locations l
+			ON l.id = s.location_id
+	`
+	query, args := buildQueryDelim(base, req)
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var sessions []models.ResponseCycleGrowthDelim
+	for rows.Next() {
+		var s models.ResponseCycleGrowthDelim
+		if err := rows.Scan(
+			&s.LocationID,
+			&s.ProgramID,
+			&s.Cycle,
+			&s.Pre,
+			&s.Mid,
+			&s.Post,
+			&s.LocationName,
+			&s.ProgramName,
+			&s.AverageScore,
+			&s.MinScore,
+			&s.MaxScore,
+			&s.StandardDeviation,
+			&s.TotalAssessments,
+		); err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+	return sessions, nil
+}
+
+func buildQueryDelim(baseQuery string, req models.RequestCycleGrowth) (string, []interface{}) {
+	var clauses []string
+	var args []interface{}
+	argCount := 1
+
+	if req.LocationID != nil {
+		clauses = append(clauses, fmt.Sprintf("s.location_id = $%d", argCount))
+		args = append(args, req.LocationID)
+		argCount += 1
+	}
+	if req.OrganizationID != nil {
+		clauses = append(clauses, fmt.Sprintf("s.organization_id = $%d", argCount))
+		args = append(args, req.OrganizationID)
+		argCount += 1
+	}
+	if req.ProgramID != nil {
+		clauses = append(clauses, fmt.Sprintf("s.program_id = $%d", argCount))
+		args = append(args, req.ProgramID)
+		argCount += 1
+	}
+	if req.SemesterID != nil {
+		clauses = append(clauses, fmt.Sprintf("s.semester_id = $%d", argCount))
+		args = append(args, req.SemesterID)
+		argCount += 1
+	}
+	if !req.StartDate.IsZero() && !req.EndDate.IsZero() {
+		clauses = append(clauses, fmt.Sprintf("s.session_date BETWEEN $%d AND $%d", argCount, argCount+1))
+		args = append(args, req.StartDate, req.EndDate)
+		argCount += 2
+	} else if !req.StartDate.IsZero() {
+		clauses = append(clauses, fmt.Sprintf("s.session_date >= $%d", argCount))
+		args = append(args, req.StartDate)
+		argCount++
+	}
+	if len(clauses) > 0 {
+		baseQuery += " WHERE " + strings.Join(clauses, " AND ")
+	}
+	baseQuery += `
+		GROUP BY s.location_id, s.program_id, k.cycle, k.pre, k.post, k.mid, l.name, pg.program_name
+		ORDER BY s.location_id, s.program_id;
+	`
+	return baseQuery, args
+}
+
+func (s *AuthService) GetAbsentPresent(c context.Context, req models.RequestCycleGrowth) (*models.ResponseAbsentPresent, error) {
+	base := `
+        SELECT
+		SUM(CASE WHEN ss.absent = FALSE THEN 1 ELSE 0 END) AS present_count,
+		SUM(CASE WHEN ss.absent = TRUE  THEN 1 ELSE 0 END) AS absent_count
+		FROM stu_tracker.session_students ss
+		JOIN stu_tracker.sessions s ON s.id = ss.session_id
+	`
+	var model models.ResponseAbsentPresent
+	query, args := buildQueryAbsentPresent(base, req)
+	err := s.db.QueryRowContext(c, query, args...).Scan(&model.Present, &model.Absent)
+	if err != nil {
+		return nil, err
+	}
+	return &model, nil
+}
+
+func buildQueryAbsentPresent(baseQuery string, req models.RequestCycleGrowth) (string, []interface{}) {
+	var clauses []string
+	var args []interface{}
+	argCount := 1
+
+	if req.LocationID != nil {
+		clauses = append(clauses, fmt.Sprintf("s.location_id = $%d", argCount))
+		args = append(args, req.LocationID)
+		argCount += 1
+	}
+	if req.OrganizationID != nil {
+		clauses = append(clauses, fmt.Sprintf("s.organization_id = $%d", argCount))
+		args = append(args, req.OrganizationID)
+		argCount += 1
+	}
+	if req.ProgramID != nil {
+		clauses = append(clauses, fmt.Sprintf("s.program_id = $%d", argCount))
+		args = append(args, req.ProgramID)
+		argCount += 1
+	}
+	if req.SemesterID != nil {
+		clauses = append(clauses, fmt.Sprintf("s.semester_id = $%d", argCount))
+		args = append(args, req.SemesterID)
+		argCount += 1
+	}
+	if !req.StartDate.IsZero() && !req.EndDate.IsZero() {
+		clauses = append(clauses, fmt.Sprintf("s.session_date BETWEEN $%d AND $%d", argCount, argCount+1))
+		args = append(args, req.StartDate, req.EndDate)
+		argCount += 2
+	} else if !req.StartDate.IsZero() {
+		clauses = append(clauses, fmt.Sprintf("s.session_date >= $%d", argCount))
+		args = append(args, req.StartDate)
+		argCount++
+	}
+	if len(clauses) > 0 {
+		baseQuery += " WHERE " + strings.Join(clauses, " AND ")
+	}
+	return baseQuery, args
+}
+
+func (s *AuthService) GetAssessmentCompletion(c context.Context, req models.RequestCycleGrowth) (*models.ResponseAssessmentCompletion, error) {
+	base := `
+		WITH params AS (
+			SELECT
+				$1::int          AS semester_id,         -- required
+				$2::int          AS location_id,         -- optional (nullable)
+				$3::int          AS organization_id,     -- optional (nullable)
+				$4::date  AS start_date,          -- optional (nullable)
+				$5::date  AS end_date            -- optional (nullable)
+			),
+
+			enrolled AS (
+			SELECT st.id AS student_id
+			FROM stu_tracker.students st
+			CROSS JOIN params p
+			WHERE st.semester_id = p.semester_id
+				AND (p.location_id IS NULL OR st.location_id = p.location_id)
+				AND (
+				p.organization_id IS NULL OR
+				EXISTS (
+					SELECT 1
+					FROM stu_tracker.locations l
+					WHERE l.id = st.location_id
+					AND l.organization_id = p.organization_id
+				)
+				)
+			),
+
+			assessed AS (
+			SELECT DISTINCT ast.student_id
+			FROM stu_tracker.assessments_students ast
+			JOIN stu_tracker.sessions s ON s.id = ast.session_id
+			CROSS JOIN params p
+			WHERE s.semester_id = p.semester_id
+				AND (p.location_id   IS NULL OR s.location_id   = p.location_id)
+				AND (p.organization_id IS NULL OR s.organization_id = p.organization_id)
+				AND (p.start_date    IS NULL OR s.session_date >= p.start_date)
+				AND (p.end_date      IS NULL OR s.session_date <  p.end_date)
+			),
+
+			interim_assessed AS (
+			SELECT DISTINCT ast.student_id
+			FROM stu_tracker.assessments_students ast
+			JOIN stu_tracker.sessions s ON s.id = ast.session_id
+			JOIN stu_tracker.assessments a ON a.id = ast.assessment_id
+			CROSS JOIN params p
+			WHERE s.semester_id = p.semester_id
+				AND (p.location_id   IS NULL OR s.location_id   = p.location_id)
+				AND (p.organization_id IS NULL OR s.organization_id = p.organization_id)
+				AND (p.start_date    IS NULL OR s.session_date >= p.start_date)
+				AND (p.end_date      IS NULL OR s.session_date <  p.end_date)
+				AND (a.mid IS TRUE)  -- or a.cycle = 'mid'
+			),
+
+			post_assessed AS (
+			SELECT DISTINCT ast.student_id
+			FROM stu_tracker.assessments_students ast
+			JOIN stu_tracker.sessions s ON s.id = ast.session_id
+			JOIN stu_tracker.assessments a ON a.id = ast.assessment_id
+			CROSS JOIN params p
+			WHERE s.semester_id = p.semester_id
+				AND (p.location_id   IS NULL OR s.location_id   = p.location_id)
+				AND (p.organization_id IS NULL OR s.organization_id = p.organization_id)
+				AND (p.start_date    IS NULL OR s.session_date >= p.start_date)
+				AND (p.end_date      IS NULL OR s.session_date <  p.end_date)
+				AND (a.post IS TRUE) -- or a.cycle = 'post'
+			)
+
+			SELECT
+			COALESCE((SELECT COUNT(*) FROM enrolled), 0)         AS enrolled_count,
+			COALESCE((SELECT COUNT(*) FROM assessed), 0)         AS assessed_count,
+			COALESCE((SELECT COUNT(*) FROM interim_assessed), 0) AS interim_assessed_count,
+			COALESCE((SELECT COUNT(*) FROM post_assessed), 0)    AS post_assessed_count;
+	`
+	var model models.ResponseAssessmentCompletion
+	var startTime *time.Time = nil
+	var endTime *time.Time = nil
+	if !req.StartDate.IsZero() {
+		startTime = &req.StartDate
+	}
+	if !req.EndDate.IsZero() {
+		endTime = &req.EndDate
+	}
+	err := s.db.QueryRowContext(c, base, req.SemesterID, req.LocationID, *req.OrganizationID, startTime, endTime).Scan(&model.EnrolledCount, &model.AssessedCount, &model.IntremAssessend, &model.PostAssessed)
+	if err != nil {
+		return nil, err
+	}
+	return &model, nil
 }

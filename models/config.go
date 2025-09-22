@@ -7,6 +7,7 @@ type Config struct {
 	SignUp SignUpConfig
 	MQ     MQ
 	S3     S3Client
+	ValKey ValKey
 }
 
 type PostGresConfig struct {
@@ -37,4 +38,9 @@ type S3Client struct {
 	AccessKey string
 	SecretKey string
 	Region    string
+}
+
+type ValKey struct {
+	Port string
+	Host string
 }

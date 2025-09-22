@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/rabbitmq/amqp091-go"
+	"github.com/valkey-io/valkey-go"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -28,14 +29,16 @@ type AuthService struct {
 	db *sql.DB
 	s3 *s3.Client
 	mq *database.MQChannels
+	vk *valkey.Client
 }
 
 // Return the struct object by reference.
-func NewAuthService(db *sql.DB, client *s3.Client, mq *database.MQChannels) *AuthService {
+func NewAuthService(db *sql.DB, client *s3.Client, mq *database.MQChannels, vk *valkey.Client) *AuthService {
 	return &AuthService{
 		db: db,
 		s3: client,
 		mq: mq,
+		vk: vk,
 	}
 }
 

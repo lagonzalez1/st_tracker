@@ -1,5 +1,12 @@
 package models
 
+type RequestEventGeneration struct {
+	GenerationType   *string           `json:"generation_type"`
+	RequestQuestions *RequestQuestions `json:"generate_questions"`
+	RequestMaterials *RequestMaterials `json:"generate_materials"`
+	OrganizationID   *int64            `json:"organization_id"`
+}
+
 type RequestQuestions struct {
 	S3OutputKey    *string `json:"s3_output_key"`
 	DistrictID     *int64  `json:"district_id"`

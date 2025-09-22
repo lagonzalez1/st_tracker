@@ -54,6 +54,7 @@ func (s *AuthService) LoginAction(c context.Context, req models.LoginRequest) (*
 	if err != nil {
 		return nil, fmt.Errorf("unable to create refresh token: %w", err)
 	}
+
 	return &models.LoginResponse{
 		Token:        &token,
 		RefreshToken: &refreshToken,

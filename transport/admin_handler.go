@@ -222,6 +222,311 @@ func (h *AuthHandler) GetSessionBChart(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (h *AuthHandler) GetCycleGrowth(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	// Undefined variables like optional location_id
+	// Check if exist before
+	if !query.Has("email") || !query.Has("role") || !query.Has("id") {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	var model models.RequestCycleGrowth
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "unable to find orgid", http.StatusInternalServerError)
+		return
+	}
+	model.OrganizationID = &orgid
+
+	if query.Get("location_id") != "" {
+		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.LocationID = &loc_id
+	}
+	if query.Get("semester_id") != "" {
+		sem_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SemesterID = &sem_id
+	}
+	if query.Get("start_date") != "" {
+		start_time, err := time.Parse("2006-01-02", query.Get("start_date"))
+		if err != nil {
+			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.StartDate = start_time
+	}
+	if query.Get("end_date") != "" {
+		end_date, err := time.Parse("2006-01-02", query.Get("end_date"))
+		if err != nil {
+			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.EndDate = end_date
+	}
+
+	rows, err := h.authService.GetCycleGrowth(model)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetAbsentPresent(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	var model models.RequestCycleGrowth
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "unable to find orgid", http.StatusInternalServerError)
+		return
+	}
+	model.OrganizationID = &orgid
+
+	if query.Get("location_id") != "" {
+		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.LocationID = &loc_id
+	}
+	if query.Get("semester_id") != "" {
+		sem_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SemesterID = &sem_id
+	}
+	if query.Get("start_date") != "" {
+		start_time, err := time.Parse("2006-01-02", query.Get("start_date"))
+		if err != nil {
+			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.StartDate = start_time
+	}
+	if query.Get("end_date") != "" {
+		end_date, err := time.Parse("2006-01-02", query.Get("end_date"))
+		if err != nil {
+			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.EndDate = end_date
+	}
+
+	rows, err := h.authService.GetAbsentPresent(ctx, model)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetAssessmentCompletion(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	var model models.RequestCycleGrowth
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "unable to find orgid", http.StatusInternalServerError)
+		return
+	}
+	model.OrganizationID = &orgid
+
+	if query.Get("location_id") != "" {
+		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.LocationID = &loc_id
+	}
+
+	if query.Get("semester_id") != "" {
+		sem_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SemesterID = &sem_id
+	}
+	if query.Get("start_date") != "" {
+		start_time, err := time.Parse("2006-01-02", query.Get("start_date"))
+		if err != nil {
+			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.StartDate = start_time
+	}
+	if query.Get("end_date") != "" {
+		end_date, err := time.Parse("2006-01-02", query.Get("end_date"))
+		if err != nil {
+			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.EndDate = end_date
+	}
+	// Safe response
+	if model.SemesterID == nil || query.Get("semester_id") == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		// Example response
+		response := map[string]interface{}{"data": nil}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	rows, err := h.authService.GetAssessmentCompletion(ctx, model)
+	if err != nil {
+		fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetCycleGrowthDelim(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	// Undefined variables like optional location_id
+	// Check if exist before
+	if !query.Has("email") || !query.Has("role") || !query.Has("id") {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	var model models.RequestCycleGrowth
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "unable to find orgid", http.StatusInternalServerError)
+		return
+	}
+	model.OrganizationID = &orgid
+
+	if query.Get("location_id") != "" {
+		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.LocationID = &loc_id
+	}
+	if query.Get("semester_id") != "" {
+		sem_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SemesterID = &sem_id
+	}
+	if query.Get("start_date") != "" {
+		start_time, err := time.Parse("2006-01-02", query.Get("start_date"))
+		if err != nil {
+			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.StartDate = start_time
+	}
+	if query.Get("end_date") != "" {
+		end_date, err := time.Parse("2006-01-02", query.Get("end_date"))
+		if err != nil {
+			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.EndDate = end_date
+	}
+
+	rows, err := h.authService.GetCycleGrowthDelim(model)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
 func (h *AuthHandler) GetObject(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()

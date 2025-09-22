@@ -20,6 +20,12 @@ import (
 	Downloads:
 		go get "github.com/lib/pq" from root dir
 
+
+		db.SetMaxOpenConns(10)                 // hard cap
+		db.SetMaxIdleConns(5)                  // don’t keep too many idle
+		db.SetConnMaxIdleTime(5 * time.Minute) // kill idle connections
+		db.SetConnMaxLifetime(1 * time.Hour)   // recycle connections
+
 */
 
 func ConnectDB() (*sql.DB, error) {
@@ -54,6 +60,7 @@ func ConnectDB() (*sql.DB, error) {
 		name,
 		ssl,
 	)
+	// Need to set max connection pool here ?
 	fmt.Println(psql_info)
 	db, err := sql.Open("postgres", psql_info)
 	if err != nil {

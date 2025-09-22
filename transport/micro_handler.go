@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 	"tracker/app/helpers"
 	"tracker/app/models"
@@ -107,67 +108,7 @@ func (h *AuthHandler) MicroGetStudentReport(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(payload)
 }
 
-func (h *AuthHandler) MicroEventGenMaterial(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-	claims, ok := r.Context().Value("props").(jwt.MapClaims)
-	if !ok {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	valid, err := validateRequest(claims, "write:material")
-	if err != nil || !valid {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		fmt.Printf("error found reading body")
-		return
-	}
-	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
-	if err != nil {
-		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
-		return
-	}
-	outputKey := uuid.New()
-	var models models.RequestMaterials
-	key := outputKey.String()
-	models.S3OutputKey = &key
-
-	if err := json.Unmarshal(body, &models); err != nil {
-		http.Error(w, "Invalid request data", http.StatusBadRequest)
-		fmt.Printf("Error decoding JSON: %v", err)
-		return
-	}
-	// Check if claims is the same as input data
-	if int64(orgID) != *models.OrganizationID {
-		http.Error(w, "Invalid claims and input missmatch", http.StatusBadRequest)
-		fmt.Printf("Claims is different from input data: %v", err)
-	}
-	// Need to handle 3 cases of logins for different permissions
-	id, err := h.authService.AddQueueMaterialsEvent(ctx, models)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "Unable to start AddQueueQuestionEvent ", http.StatusInternalServerError)
-		fmt.Printf("service error: %v\n", err)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(id)
-}
-
-func (h *AuthHandler) MicroEventGenQuestions(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) MicroEventGenerate(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
@@ -185,45 +126,78 @@ func (h *AuthHandler) MicroEventGenQuestions(w http.ResponseWriter, r *http.Requ
 		fmt.Printf("error found reading body")
 		return
 	}
-	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	orgID, err := helpers.ExtractInt64Claim(claims, "orgid")
 	if err != nil {
 		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
 		return
 	}
 	outputKey := uuid.New()
-	var models models.RequestQuestions
+	var models models.RequestEventGeneration
 	key := outputKey.String()
-	models.S3OutputKey = &key
 
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 		return
 	}
-	// Check if claims is the same as input data
-	if int64(orgID) != *models.OrganizationID {
-		http.Error(w, "Invalid claims and input missmatch", http.StatusBadRequest)
-		fmt.Printf("Claims is different from input data: %v", err)
-	}
-	// Need to handle 3 cases of logins for different permissions
-	id, err := h.authService.AddQueueQuestionEvent(ctx, models)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
-			return
-		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "Unable to start AddQueueQuestionEvent ", http.StatusInternalServerError)
-		fmt.Printf("service error: %v\n", err)
+	gt := strings.ToLower(strings.TrimSpace(*models.GenerationType))
+
+	if models.GenerationType == nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(id)
+
+	switch gt {
+	case "generate_questions":
+		models.OrganizationID = &orgID
+		models.RequestQuestions.S3OutputKey = &key
+
+		id, err := h.authService.AddQueueQuestionEvent(ctx, &models)
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				http.Error(w, "request timeout", http.StatusGatewayTimeout)
+				return
+			}
+			if errors.Is(err, context.Canceled) {
+				http.Error(w, "request canceled", http.StatusRequestTimeout)
+				return
+			}
+			// 6. You could also inspect SQL errors here if you like.
+			http.Error(w, "Unable to start AddQueueQuestionEvent ", http.StatusInternalServerError)
+			fmt.Printf("service error: %v\n", err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(id)
+	case "generate_materials":
+		models.OrganizationID = &orgID
+		models.RequestMaterials.S3OutputKey = &key
+
+		id, err := h.authService.AddQueueMaterialsEvent(ctx, &models)
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				http.Error(w, "request timeout", http.StatusGatewayTimeout)
+				return
+			}
+			if errors.Is(err, context.Canceled) {
+				http.Error(w, "request canceled", http.StatusRequestTimeout)
+				return
+			}
+			// 6. You could also inspect SQL errors here if you like.
+			http.Error(w, "Unable to start AddQueueQuestionEvent ", http.StatusInternalServerError)
+			fmt.Printf("service error: %v\n", err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(id)
+	default:
+		http.Error(w, "unsupported generation_type", http.StatusBadRequest)
+		return
+	}
+
 }
 
 func (h *AuthHandler) GetGeneratedQuestion(w http.ResponseWriter, r *http.Request) {

@@ -43,9 +43,14 @@ func main() {
 		log.Fatalf("s3 client connection failed: %v", s3Client)
 	}
 
+	//valkey, valerr := config.LoadValKey()
+	//if valerr != nil {
+	//	fmt.Printf("valkey client connection failed: %v", s3Client)
+	//	log.Fatalf("valkey client connection failed: %v", s3Client)
+	//}
 	r := mux.NewRouter()
 
-	authService := services.NewAuthService(db, s3Client, mq)
+	authService := services.NewAuthService(db, s3Client, mq, nil)
 
 	authHandler := transport.NewAuthHandler(authService)
 
@@ -124,6 +129,8 @@ func main() {
 	apiMiddleware.HandleFunc("/tutor_search", authHandler.GetTutorSearch).Methods("GET")
 	apiMiddleware.HandleFunc("/student_assessment_search", authHandler.GetStudentAssesssmentSearch).Methods("GET")
 	apiMiddleware.HandleFunc("/get_tutor_low_performance", authHandler.GetTutorLowPerformance).Methods("GET")
+	apiMiddleware.HandleFunc("/get_absent_present", authHandler.GetAbsentPresent).Methods("GET")
+	apiMiddleware.HandleFunc("/get_assessment_completion", authHandler.GetAssessmentCompletion).Methods("GET")
 
 	apiMiddleware.HandleFunc("/get_tutor_sessions", authHandler.GetTutorSessionAnalytics).Methods("GET")
 	apiMiddleware.HandleFunc("/get_sessions", authHandler.GetTutorsSessions).Methods("GET")
@@ -137,6 +144,7 @@ func main() {
 	apiMiddleware.HandleFunc("/get_teachers", authHandler.GetTeachers).Methods("GET")
 
 	apiMiddleware.HandleFunc("/create_session", authHandler.CreateStudentSession).Methods("POST")
+	apiMiddleware.HandleFunc("/create_survey_response", authHandler.CreateSurveyResponse).Methods("POST")
 	apiMiddleware.HandleFunc("/create_assessment", authHandler.CreateAssessment).Methods("POST")
 	apiMiddleware.HandleFunc("/update_assessment", authHandler.UpdateAssessment).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_assessment", authHandler.DeleteAssessment).Methods("POST")
@@ -144,12 +152,21 @@ func main() {
 	apiMiddleware.HandleFunc("/create_tutor_location", authHandler.CreateTutorLocation).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_tutor_location", authHandler.DeleteTutorLocation).Methods("POST")
 
+	apiMiddleware.HandleFunc("/delete_survey", authHandler.DeleteSurvey).Methods("POST")
+
+	apiMiddleware.HandleFunc("/create_program_survey", authHandler.CreateProgramSurvey).Methods("POST")
+	apiMiddleware.HandleFunc("/get_program_surveys", authHandler.GetProgramSurveys).Methods("GET")
+	apiMiddleware.HandleFunc("/delete_program_survey", authHandler.DeleteProgramSurvey).Methods("POST")
+
 	apiMiddleware.HandleFunc("/create_subject", authHandler.CreateSubject).Methods("POST")
 	apiMiddleware.HandleFunc("/update_subject", authHandler.UpdateSubject).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_subject", authHandler.DeleteSubject).Methods("POST")
 
 	apiMiddleware.HandleFunc("/create_permission", authHandler.CreatePermission).Methods("POST")
 	apiMiddleware.HandleFunc("/create_schedule", authHandler.CreateSchedule).Methods("POST")
+
+	apiMiddleware.HandleFunc("/create_survey", authHandler.CreateSurvey).Methods("POST")
+	apiMiddleware.HandleFunc("/update_survey", authHandler.UpdateSurvey).Methods("POST")
 
 	apiMiddleware.HandleFunc("/create_subject_location", authHandler.CreateSubjectLocation).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_subject_location", authHandler.DeleteSubjectLocation).Methods("POST")
@@ -162,6 +179,8 @@ func main() {
 	apiMiddleware.HandleFunc("/get_object", authHandler.GetObject).Methods("GET")
 
 	apiMiddleware.HandleFunc("/get_subjects", authHandler.GetSubjects).Methods("GET")
+	apiMiddleware.HandleFunc("/get_surveys", authHandler.GetSurveys).Methods("GET")
+	apiMiddleware.HandleFunc("/get_surveys_program_id", authHandler.GetSurveysByProgram).Methods("GET")
 	apiMiddleware.HandleFunc("/get_session_info", authHandler.GetSessionInfo).Methods("GET")
 	apiMiddleware.HandleFunc("/get_student_info", authHandler.GetStudentInfo).Methods("GET")
 
@@ -191,12 +210,15 @@ func main() {
 	apiMiddleware.HandleFunc("/get_org_permissions", authHandler.GetOrganizationPermissions).Methods("GET")
 	apiMiddleware.HandleFunc("/semester_location_list", authHandler.GetSemesterLocations).Methods("GET")
 
+	apiMiddleware.HandleFunc("/get_cycle_growth", authHandler.GetCycleGrowth).Methods("GET")
+	apiMiddleware.HandleFunc("/get_cycle_growth_delimiters", authHandler.GetCycleGrowthDelim).Methods("GET")
+
 	apiMiddleware.HandleFunc("/get_session_bchart", authHandler.GetSessionBChart).Methods("GET")
 	apiMiddleware.HandleFunc("/get_assessment_bchart", authHandler.GetAssessmentBChart).Methods("GET")
 	apiMiddleware.HandleFunc("/get_programs_bchart", authHandler.GetProgramsBChart).Methods("GET")
 	apiMiddleware.HandleFunc("/get_tutors_bchart", authHandler.GetTutorsBChart).Methods("GET")
 	apiMiddleware.HandleFunc("/get_session_analytics", authHandler.GetSessionAnalytics).Methods("GET")
-	apiMiddleware.HandleFunc("/get_tutor_session_analytics", authHandler.GetSessionAnalytics).Methods("GET")
+	apiMiddleware.HandleFunc("/get_tutor_session_analytics", authHandler.GetTutorSessionAnalytics).Methods("GET")
 
 	apiMiddleware.HandleFunc("/get_assessment_trend", authHandler.GetAssessmentTrendLine).Methods("GET")
 	apiMiddleware.HandleFunc("/get_session_trend", authHandler.GetSessionTrendLine).Methods("GET")
@@ -215,9 +237,7 @@ func main() {
 	apiMiddleware.HandleFunc("/get_generated_questions", authHandler.GetGeneratedQuestion).Methods("GET")
 	apiMiddleware.HandleFunc("/get_generated_materials", authHandler.GetGeneratedMaterials).Methods("GET")
 	//apiMiddleware.HandleFunc("/delete_generated_assessment", authHandler.MicroEventDeleteQuestions).Methods("POST")
-	apiMiddleware.HandleFunc("/micro_generate_questions", authHandler.MicroEventGenQuestions).Methods("POST")
-
-	apiMiddleware.HandleFunc("/micro_generate_materials", authHandler.MicroEventGenMaterial).Methods("POST")
+	apiMiddleware.HandleFunc("/micro_generate", authHandler.MicroEventGenerate).Methods("POST")
 
 	apiMiddleware.HandleFunc("/micro_student_report", authHandler.MicroEventStartStudentReport).Methods("POST")
 	apiMiddleware.HandleFunc("/get_student_report", authHandler.MicroGetStudentReport).Methods("GET")

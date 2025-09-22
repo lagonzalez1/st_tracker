@@ -50,6 +50,10 @@ func LoadConfig() (*models.Config, error) {
 			SecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
 			Region:    os.Getenv("AWS_REGION"),
 		},
+		ValKey: models.ValKey{
+			Port: os.Getenv("VALKEY_PORT"),
+			Host: os.Getenv("VALKEY_HOST"),
+		},
 	}
 	return cfg, nil
 }
