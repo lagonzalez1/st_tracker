@@ -3527,6 +3527,7 @@ func (h *AuthHandler) GetLocations(w http.ResponseWriter, r *http.Request) {
 
 	data, isHit := h.CheckCache(ctx, key)
 	if isHit {
+		fmt.Printf("Cache hit via %s", key)
 		var res []models.ResponseRequestLocations
 		if err := json.Unmarshal([]byte(data), &res); err != nil {
 			http.Error(w, "Unable to unmarshal cache data", http.StatusInternalServerError)
@@ -3619,6 +3620,7 @@ func (h *AuthHandler) GetLocationContact(w http.ResponseWriter, r *http.Request)
 
 	data, isHit := h.CheckCache(ctx, key)
 	if isHit {
+		fmt.Printf("Cache hit via %s", key)
 		var res []models.ResponseLocationContact
 		if err := json.Unmarshal([]byte(data), &res); err != nil {
 			http.Error(w, "Unable to unmarshal cache data", http.StatusInternalServerError)
@@ -4061,6 +4063,7 @@ func (h *AuthHandler) GetAdmins(w http.ResponseWriter, r *http.Request) {
 
 	cdata, isHit := h.CheckCache(ctx, key)
 	if isHit {
+		fmt.Printf("Cache hit via %s", key)
 		var rows []models.ResponseRequestAdminList
 		if err := json.Unmarshal([]byte(cdata), &rows); err != nil {
 			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
@@ -4146,6 +4149,7 @@ func (h *AuthHandler) GetDistricts(w http.ResponseWriter, r *http.Request) {
 	lkey := h.LockKey(key)
 	res, isHit := h.CheckCache(ctx, key)
 	if isHit {
+		fmt.Printf("Cache hit via %s", key)
 		var rows []models.ResponseRequestDistrictList
 		err = json.Unmarshal([]byte(res), &rows)
 		if err != nil {
