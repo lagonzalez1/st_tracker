@@ -470,7 +470,7 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 		stu.created_at, stu.semester_id, stu.direct_partnership, 
 		COALESCE(stu.created_by, 'NA') AS created_by, stu.teacher_id,
 		COALESCE(lt.name, '') AS teacher_name,
-	stu.timeframe,
+		stu.timeframe,
 		stu.timeframe_start,
 		stu.timeframe_end,
 		stu.duration_required,
@@ -917,6 +917,15 @@ func (s *AuthService) GetAssessmentsQuestionsChoice(c context.Context, assessmen
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("row iteration error: %w", err)
 	}
+	for i := 0; i < len(results); i++ {
+		if *results[i].ImageURL != "NA" && *results[i].ImageURL != "" {
+			url, err := s.GeneratePresignedUrl(c, "assessment_images/"+*results[i].ImageURL)
+			if err != nil {
+				return nil, fmt.Errorf("unable to generate presigned url")
+			}
+			results[i].ImageURL = &url
+		}
+	}
 
 	return results, nil
 }
@@ -1058,6 +1067,38 @@ func (s *AuthService) GetProgramsByLocation(c context.Context, locId int64, org_
 	return programs, nil
 }
 
+func (s *AuthService) GetSemesterDates(c context.Context, sid *int64) ([]models.ResponseSemesterDates, error) {
+	var query string
+	query += `SELECT id, semester_id, schedule_type, start_date, end_date, notes, created_at
+	 FROM stu_tracker.Semester_schedule WHERE semester_id = $1;`
+	rows, err := s.db.QueryContext(c, query, sid)
+	if err != nil {
+		return nil, fmt.Errorf("error querying program: %w", err)
+	}
+	defer rows.Close()
+	var sd []models.ResponseSemesterDates
+	for rows.Next() {
+		var s models.ResponseSemesterDates
+		err := rows.Scan(
+			&s.ID,
+			&s.SemesterID,
+			&s.ScheduleType,
+			&s.StartDate,
+			&s.EndDate,
+			&s.Notes,
+			&s.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		sd = append(sd, s)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+	return sd, nil
+}
+
 func (s *AuthService) GetProgramsByIds(c context.Context, locId []int64, org_id int64) ([]models.ResponseRequestProgramList, error) {
 	var query string
 	query += `
@@ -1096,6 +1137,51 @@ func (s *AuthService) GetProgramsByIds(c context.Context, locId []int64, org_id 
 	return programs, nil
 }
 
+func (s *AuthService) GetGroupAttendies(c context.Context, id *int64) ([]models.ResponseRequestStudentList, error) {
+	var query string
+	query += `
+		SELECT s.id, s.first_name, s.last_name, s.middle_name, s.email, s.grade_level, s.active, s.semester_id, s.duration_required, s.timeframe, s.timeframe_start, s.timeframe_end
+		FROM stu_tracker.Student_group_attendees sg 
+		JOIN stu_tracker.Students s ON sg.student_id = s.id
+		WHERE sg.student_group_id = $1;`
+
+	rows, err := s.db.QueryContext(c, query, id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying program: %w", err)
+	}
+	defer rows.Close()
+
+	var sl []models.ResponseRequestStudentList
+	for rows.Next() {
+		var k models.ResponseRequestStudentList
+		err := rows.Scan(
+			&k.ID,
+			&k.FirstName,
+			&k.LastName,
+			&k.MiddleName,
+			&k.Email,
+			&k.GradeLevel,
+			&k.Active,
+			&k.SemesterId,
+			&k.DurationRequired,
+			&k.Timeframe,
+			&k.TimeframeStart,
+			&k.TimeframeEnd,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		sl = append(sl, k)
+	}
+
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+
+	return sl, nil
+}
+
 func (s *AuthService) GetTeachers(c context.Context, location_id *int64) ([]models.ResponseTeachers, error) {
 	var query string
 	query += `
@@ -1131,6 +1217,32 @@ func (s *AuthService) GetTeachers(c context.Context, location_id *int64) ([]mode
 	}
 
 	return teachers, nil
+}
+
+func (s *AuthService) GetAdminLocations(c context.Context, admin_id *int64, orgid *int64) ([]models.ResponseAdminLocations, error) {
+	query := `
+		SELECT admin_id, location_id FROM stu_tracker.admin_location_access WHERE admin_id = $1 AND organization_id = $2;
+	`
+	rows, err := s.db.QueryContext(c, query, admin_id, orgid)
+	if err != nil {
+		return nil, err
+	}
+	var res []models.ResponseAdminLocations
+	for rows.Next() {
+		var m models.ResponseAdminLocations
+		if err := rows.Scan(
+			&m.AdminID,
+			&m.LocationID,
+		); err != nil {
+			return nil, err
+		}
+		res = append(res, m)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+
+	return res, nil
 }
 
 func (s *AuthService) GetTutorLocations(c context.Context, tutor_id int64, org_id int64) ([]models.TutorLocationList, error) {
@@ -1473,6 +1585,39 @@ func (s *AuthService) getAdminAnnouncements(c context.Context, org_id int64) ([]
 
 }
 
+func (s *AuthService) GetAnnouncementsAck(c context.Context, orgid *int64, aid *int64) ([]models.AnnouncementsListAck, error) {
+	query := `SELECT ua.id, ua.tutor_id, ua.acknowledged, ua.acknowledged_at, t.first_name, t.last_name
+	FROM stu_tracker.User_Acknowledgments ua
+	LEFT JOIN stu_tracker.Tutors t
+	ON t.id = ua.tutor_id
+	WHERE ua.organization_id = $1 AND ua.announcement_id = $2;`
+	rows, err := s.db.QueryContext(c, query, orgid, aid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var a []models.AnnouncementsListAck
+	for rows.Next() {
+		var m models.AnnouncementsListAck
+		err := rows.Scan(
+			&m.ID,
+			&m.TutotID,
+			&m.Acknowledged,
+			&m.AcknowledgedAt,
+			&m.FirstName,
+			&m.LastName,
+		)
+		if err != nil {
+			return nil, err
+		}
+		a = append(a, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+	return a, nil
+}
+
 func (s *AuthService) getTutorAnnouncements(c context.Context, loc_id []int64, org_id int64, pro_id []int64) ([]models.AnnouncementsList, error) {
 	var query string
 	query += `
@@ -1529,4 +1674,36 @@ func (s *AuthService) getTutorAnnouncements(c context.Context, loc_id []int64, o
 		return nil, err
 	}
 	return announcements, nil
+}
+
+func (s *AuthService) GetLocationContactByID(c context.Context, orgid *int64, locid *int64) ([]models.ResponseLocationContact, error) {
+	query := `SELECT id, first_name, last_name, email, phone, notes, description, location_id FROM stu_tracker.Location_contacts WHERE organization_id = $1 AND location_id = $2;`
+	rows, err := s.db.QueryContext(c, query, orgid, locid)
+	if err != nil {
+		return nil, fmt.Errorf("error querying permissions: %w", err)
+	}
+	defer rows.Close()
+	var loc []models.ResponseLocationContact
+	for rows.Next() {
+		var l models.ResponseLocationContact
+		err := rows.Scan(
+			&l.ID,
+			&l.FirstName,
+			&l.LastName,
+			&l.Email,
+			&l.Phone,
+			&l.Notes,
+			&l.Description,
+			&l.LocationID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		loc = append(loc, l)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+	return loc, nil
 }

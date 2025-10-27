@@ -85,7 +85,7 @@ func (s *AuthService) UpdateTutor(c context.Context, req models.RegisterRequestT
 		values := []interface{}{}
 		query := `UPDATE stu_tracker.Tutors 
 		SET first_name = $1, last_name = $2, organization_id = $3, location_id = $4, password_hash = $5, active = $6`
-		values = append(values, req.FirstName, req.LastName, *req.OrganizationId, *req.LocationId, string(hash_password), req.Active)
+		values = append(values, req.FirstName, req.LastName, *req.OrganizationId, req.LocationId, string(hash_password), req.Active)
 		if req.EmailChange != "" {
 			query += `, email = $7 WHERE id = $8`
 			values = append(values, req.EmailChange, req.ID)
@@ -100,7 +100,7 @@ func (s *AuthService) UpdateTutor(c context.Context, req models.RegisterRequestT
 		values := []interface{}{}
 		query := `UPDATE stu_tracker.Tutors 
 		SET first_name = $1, last_name = $2, organization_id = $3, location_id = $4, active = $5`
-		values = append(values, req.FirstName, req.LastName, *req.OrganizationId, *req.LocationId, req.Active)
+		values = append(values, req.FirstName, req.LastName, *req.OrganizationId, req.LocationId, req.Active)
 		if req.EmailChange != "" {
 			query += `, email = $6 WHERE id = $7`
 			values = append(values, req.EmailChange, req.ID)

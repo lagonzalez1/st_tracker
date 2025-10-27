@@ -35,7 +35,7 @@ func main() {
 		log.Fatalf("Rabbit MQ connection failed: %v", mq_err)
 	}
 	defer mq.Connection.Close()
-	defer mq.Channels["generate"].Close()
+	// Close channel generate
 
 	s3Client, s3_err := config.ConnectS3Client()
 	if s3_err != nil {
@@ -43,15 +43,17 @@ func main() {
 		log.Fatalf("s3 client connection failed: %v", s3Client)
 	}
 
-	//valkey, valerr := config.LoadValKey()
-	//if valerr != nil {
-	//	fmt.Printf("valkey client connection failed: %v", s3Client)
-	//	log.Fatalf("valkey client connection failed: %v", s3Client)
-	//}
+	// Interface
+	valkeyClient, val_err := config.LoadValKey()
+	if val_err != nil {
+		fmt.Printf("valkey client connection failed: %v", val_err)
+		log.Fatalf("valkey client connection failed: %v", val_err)
+	}
+	defer valkeyClient.Close()
+
 	r := mux.NewRouter()
 
-	authService := services.NewAuthService(db, s3Client, mq, nil)
-
+	authService := services.NewAuthService(db, s3Client, mq, valkeyClient)
 	authHandler := transport.NewAuthHandler(authService)
 
 	apiMiddleware := mux.NewRouter().PathPrefix("/api").Subrouter()
@@ -59,15 +61,13 @@ func main() {
 
 	// Testing allow different cors http://localhost:3000
 	corsOptions := cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://presentifyclone.click", "http://localhost:3000"},
+		AllowedOrigins:   []string{"https://presentifyclone.click", "http://localhost:3000", "https://checkout.stripe.com"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization", "Stripe-Account", "Stripe-Signature"},
 		ExposedHeaders:   []string{"X-Access-Token"},
 		AllowCredentials: true,
 		Debug:            false, // Log CORS issues
 	})
-
-	//api.ConnectSheetsAPI()
 
 	r.HandleFunc("/health_check", authHandler.HealthCheck).Methods("GET")
 	r.HandleFunc("/hello", hello).Methods("GET")
@@ -76,11 +76,10 @@ func main() {
 	r.HandleFunc("/get_assessment_questions_external", authHandler.GetAssessmentQuestionsExternal).Methods("GET")
 	r.HandleFunc("/get_assessment_preassessment_external", authHandler.GetAssessmentQuestionsExternal).Methods("GET")
 	r.HandleFunc("/get_student_details", authHandler.GetStudentDetails).Methods("GET")
-
 	r.HandleFunc("/create_organization", authHandler.CreateOrganization).Methods("POST")
-
 	r.HandleFunc("/create_student_assessment_response", authHandler.CreateStudentAssessmentResponse).Methods("POST")
 	r.HandleFunc("/create_pre_assessment", authHandler.CreatePreAssessment).Methods("POST")
+	r.HandleFunc("/stripe_webhook", authHandler.StripeWebhook).Methods("POST")
 
 	apiMiddleware.HandleFunc("/create_student", authHandler.CreateStudent).Methods("POST")
 	apiMiddleware.HandleFunc("/create_location", authHandler.CreateLocation).Methods("POST")
@@ -91,9 +90,20 @@ func main() {
 	apiMiddleware.HandleFunc("/create_tutor", authHandler.CreateTutor).Methods("POST")
 	apiMiddleware.HandleFunc("/create_semester", authHandler.CreateSemester).Methods("POST")
 
+	apiMiddleware.HandleFunc("/create_semester_dates", authHandler.CreateSemesterDates).Methods("POST")
+	apiMiddleware.HandleFunc("/delete_semester_dates", authHandler.DeleteSemesterDates).Methods("POST")
+	apiMiddleware.HandleFunc("/get_semester_dates", authHandler.GetSemesterDates).Methods("GET")
+
+	apiMiddleware.HandleFunc("/create_student_group", authHandler.CreateStudentGroup).Methods("POST")
+	apiMiddleware.HandleFunc("/delete_student_group", authHandler.DeleteStudentGroup).Methods("POST")
+	apiMiddleware.HandleFunc("/update_student_group", authHandler.UpdateStudentGroup).Methods("POST")
+
 	apiMiddleware.HandleFunc("/create_semester_location", authHandler.CreateSemesterLocation).Methods("POST")
 	apiMiddleware.HandleFunc("/update_semester_location", authHandler.UpdateSemesterLocation).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_semester_location", authHandler.DeleteSemesterLocation).Methods("POST")
+
+	apiMiddleware.HandleFunc("/create_admin_location", authHandler.CreateAdminLocation).Methods("POST")
+	apiMiddleware.HandleFunc("/delete_admin_location", authHandler.DeleteAdminLocation).Methods("POST")
 
 	apiMiddleware.HandleFunc("/update_admin_staff", authHandler.UpdateAdminStaff).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_admin_staff", authHandler.DeleteAdminStaff).Methods("POST")
@@ -132,16 +142,25 @@ func main() {
 	apiMiddleware.HandleFunc("/get_absent_present", authHandler.GetAbsentPresent).Methods("GET")
 	apiMiddleware.HandleFunc("/get_assessment_completion", authHandler.GetAssessmentCompletion).Methods("GET")
 
+	apiMiddleware.HandleFunc("/get_student_groups", authHandler.GetStudentGroups).Methods("GET")
+
 	apiMiddleware.HandleFunc("/get_tutor_sessions", authHandler.GetTutorSessionAnalytics).Methods("GET")
 	apiMiddleware.HandleFunc("/get_sessions", authHandler.GetTutorsSessions).Methods("GET")
+	apiMiddleware.HandleFunc("/get_recent_sessions", authHandler.GetRecentSessionsTutors).Methods("GET")
+	apiMiddleware.HandleFunc("/get_recent_location_sessions", authHandler.GetRecentLocationSessions).Methods("GET")
+	apiMiddleware.HandleFunc("/get_location_session_average", authHandler.GetLocationSessionAverage).Methods("GET")
 
 	apiMiddleware.HandleFunc("/create_s3_object", authHandler.CreateS3Object).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_s3_object", authHandler.DeleteS3Object).Methods("POST")
-
 	apiMiddleware.HandleFunc("/create_teacher", authHandler.CreateTeacher).Methods("POST")
+
+	apiMiddleware.HandleFunc("/announcement_ack", authHandler.CreateAckAnnouncements).Methods("POST")
 	apiMiddleware.HandleFunc("/update_teacher", authHandler.UpdateTeacher).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_teacher", authHandler.DeleteTeacher).Methods("POST")
 	apiMiddleware.HandleFunc("/get_teachers", authHandler.GetTeachers).Methods("GET")
+	apiMiddleware.HandleFunc("/get_group_attendies", authHandler.GetGroupAttendies).Methods("GET")
+
+	apiMiddleware.HandleFunc("/create_student_group_attendies", authHandler.CreateStudentGroupAttendies).Methods("POST")
 
 	apiMiddleware.HandleFunc("/create_session", authHandler.CreateStudentSession).Methods("POST")
 	apiMiddleware.HandleFunc("/create_survey_response", authHandler.CreateSurveyResponse).Methods("POST")
@@ -161,6 +180,12 @@ func main() {
 	apiMiddleware.HandleFunc("/create_subject", authHandler.CreateSubject).Methods("POST")
 	apiMiddleware.HandleFunc("/update_subject", authHandler.UpdateSubject).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_subject", authHandler.DeleteSubject).Methods("POST")
+
+	apiMiddleware.HandleFunc("/create_location_contact", authHandler.CreateLocationContact).Methods("POST")
+	apiMiddleware.HandleFunc("/update_location_contact", authHandler.UpdateLocationContact).Methods("POST")
+	apiMiddleware.HandleFunc("/delete_location_contact", authHandler.DeleteLocationContact).Methods("POST")
+
+	apiMiddleware.HandleFunc("/get_location_contact", authHandler.GetLocationContact).Methods("GET")
 
 	apiMiddleware.HandleFunc("/create_permission", authHandler.CreatePermission).Methods("POST")
 	apiMiddleware.HandleFunc("/create_schedule", authHandler.CreateSchedule).Methods("POST")
@@ -185,6 +210,7 @@ func main() {
 	apiMiddleware.HandleFunc("/get_student_info", authHandler.GetStudentInfo).Methods("GET")
 
 	apiMiddleware.HandleFunc("/get_announcements", authHandler.GetAnnouncements).Methods("GET")
+	apiMiddleware.HandleFunc("/get_announcements_ack", authHandler.GetAnnouncementsAck).Methods("GET")
 	apiMiddleware.HandleFunc("/get_tutor_file", authHandler.GetTutorFile).Methods("GET")
 	apiMiddleware.HandleFunc("/get_student_file", authHandler.GetStudentFile).Methods("GET")
 	apiMiddleware.HandleFunc("/get_locations", authHandler.GetLocations).Methods("GET")
@@ -224,6 +250,8 @@ func main() {
 	apiMiddleware.HandleFunc("/get_session_trend", authHandler.GetSessionTrendLine).Methods("GET")
 	apiMiddleware.HandleFunc("/get_semester_assessments_data", authHandler.GetSemestersVAssessmentChart).Methods("GET")
 	apiMiddleware.HandleFunc("/get_assessments_growth_data", authHandler.GetAssessmentGrowth).Methods("GET")
+	apiMiddleware.HandleFunc("/get_session_vscore", authHandler.GetSessionVScore).Methods("GET")
+	apiMiddleware.HandleFunc("/get_student_vassessment", authHandler.GetStudentVAssessments).Methods("GET")
 
 	apiMiddleware.HandleFunc("/tutor_big_data", authHandler.UploadTutorBigData).Methods("POST")
 	apiMiddleware.HandleFunc("/student_big_data", authHandler.UploadStudentBigData).Methods("POST")
@@ -244,6 +272,16 @@ func main() {
 
 	apiMiddleware.HandleFunc("/get_tutor_file_url", authHandler.MicroGetTutorFile).Methods("GET")
 	apiMiddleware.HandleFunc("/get_student_file_url", authHandler.MicroGetStudentFile).Methods("GET")
+
+	apiMiddleware.HandleFunc("/get_sentiment", authHandler.GetSentiment).Methods("GET")
+	apiMiddleware.HandleFunc("/get_sentiment_tutor", authHandler.GetSentimentByTutor).Methods("GET")
+	apiMiddleware.HandleFunc("/get_assessments_tutor", authHandler.GetAssessmentByTutor).Methods("GET")
+	apiMiddleware.HandleFunc("/get_assessment_content", authHandler.GetAssessmentContent).Methods("GET")
+
+	apiMiddleware.HandleFunc("/create_checkout_session", authHandler.CreateCheckoutSession).Methods("POST")
+	apiMiddleware.HandleFunc("/create_portal_session", authHandler.CreatePortalSession).Methods("POST")
+	apiMiddleware.HandleFunc("/get_subscriptions", authHandler.GetSubscriptions).Methods("GET")
+	apiMiddleware.HandleFunc("/get_admin_locations", authHandler.GetAdminLocations).Methods("GET")
 
 	r.PathPrefix("/api").Handler(apiMiddleware)
 

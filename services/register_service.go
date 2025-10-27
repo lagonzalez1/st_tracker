@@ -29,17 +29,23 @@ type AuthService struct {
 	db *sql.DB
 	s3 *s3.Client
 	mq *database.MQChannels
-	vk *valkey.Client
+	vk valkey.Client
 }
 
 // Return the struct object by reference.
-func NewAuthService(db *sql.DB, client *s3.Client, mq *database.MQChannels, vk *valkey.Client) *AuthService {
+func NewAuthService(db *sql.DB, client *s3.Client, mq *database.MQChannels, vk valkey.Client) *AuthService {
 	return &AuthService{
 		db: db,
 		s3: client,
 		mq: mq,
 		vk: vk,
 	}
+}
+
+// This is a hacky way of getting the Valkey reference
+// Can this be improved ??
+func (s *AuthService) Valkey() valkey.Client {
+	return s.vk
 }
 
 func isValidEmail(email string) bool {

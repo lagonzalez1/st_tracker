@@ -803,6 +803,130 @@ func (s *AuthService) GetSemestersVAssessmentChartData(req *models.RequestSemest
 
 }
 
+func (s *AuthService) GetRecentSessionsById(ctx context.Context, orgid *int64, tutor_id *int64) ([]models.ResponseRecentTutorSessions, error) {
+	query := `
+	SELECT s.id, s.session_date, s.tutor_id, s.substitute, s.student_count, s.start_time, s.duration, l.name, p.program_name
+	FROM stu_tracker.Sessions s
+	JOIN stu_tracker.Tutors t ON t.id = s.tutor_id
+	JOIN stu_tracker.Programs p ON p.id = s.program_id
+	JOIN stu_tracker.Locations l ON l.id = s.location_id 
+	WHERE t.id = $1 AND t.organization_id = $2
+	ORDER BY s.session_date DESC LIMIT 20;`
+	rows, err := s.db.QueryContext(ctx, query, tutor_id, orgid)
+	if err != nil {
+		return nil, fmt.Errorf("error querying AssessmentInfo: %w", err)
+	}
+	defer rows.Close()
+	var sessions []models.ResponseRecentTutorSessions
+	for rows.Next() {
+		var session models.ResponseRecentTutorSessions
+		err := rows.Scan(
+			&session.SessionID,
+			&session.SessionDate,
+			&session.TutorId,
+			&session.Substitute,
+			&session.StudentCount,
+			&session.StartTime,
+			&session.Duration,
+			&session.Location,
+			&session.Program,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		sessions = append(sessions, session)
+	}
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+	return sessions, nil
+
+}
+
+func (s *AuthService) GetRecentLocationSessions(ctx context.Context, orgid *int64, location_id *int64, semester_id *int64) ([]models.ResponseRecentTutorSessions, error) {
+	query := `
+	SELECT t.first_name, t.last_name, s.id, s.session_date, s.tutor_id, 
+	s.substitute, s.student_count, s.start_time, s.duration, l.name, p.program_name
+	FROM stu_tracker.Sessions s
+	JOIN stu_tracker.Tutors t ON t.id = s.tutor_id
+	JOIN stu_tracker.Programs p ON p.id = s.program_id
+	JOIN stu_tracker.Locations l ON l.id = s.location_id 
+	WHERE s.location_id = $1 AND t.organization_id = $2 AND s.semester_id = $3
+	ORDER BY s.session_date DESC LIMIT 30;`
+	rows, err := s.db.QueryContext(ctx, query, location_id, orgid, semester_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying AssessmentInfo: %w", err)
+	}
+	defer rows.Close()
+	var sessions []models.ResponseRecentTutorSessions
+	for rows.Next() {
+		var session models.ResponseRecentTutorSessions
+		err := rows.Scan(
+			&session.FirstName,
+			&session.LastName,
+			&session.SessionID,
+			&session.SessionDate,
+			&session.TutorId,
+			&session.Substitute,
+			&session.StudentCount,
+			&session.StartTime,
+			&session.Duration,
+			&session.Location,
+			&session.Program,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		sessions = append(sessions, session)
+	}
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+	return sessions, nil
+
+}
+
+func (s *AuthService) GetLocationSessionAverage(ctx context.Context, orgid *int64, location_id *int64, semester_id *int64) ([]models.ResponseLocalSessionAverage, error) {
+	query := `
+	SELECT t.first_name, t.last_name, s.tutor_id, p.program_name, p.id, SUM(s.duration) AS duration_sum, COUNT(s.id) AS session_count
+	FROM stu_tracker.Sessions s
+	JOIN stu_tracker.Tutors t ON t.id = s.tutor_id
+	JOIN stu_tracker.Programs p ON p.id = s.program_id
+	JOIN stu_tracker.Locations l ON l.id = s.location_id 
+	WHERE s.location_id = $1 AND t.organization_id = $2 AND s.semester_id = $3
+	GROUP BY t.first_name, t.last_name, s.tutor_id, p.program_name, p.id`
+	rows, err := s.db.QueryContext(ctx, query, location_id, orgid, semester_id)
+	if err != nil {
+		return nil, fmt.Errorf("error querying AssessmentInfo: %w", err)
+	}
+	defer rows.Close()
+	var sessions []models.ResponseLocalSessionAverage
+	for rows.Next() {
+		var s models.ResponseLocalSessionAverage
+		err := rows.Scan(
+			&s.FirstName,
+			&s.LastName,
+			&s.TutorID,
+			&s.Program,
+			&s.ProgramID,
+			&s.DurationSum,
+			&s.SessionCount,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		sessions = append(sessions, s)
+	}
+	// Check for any errors encountered during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+	return sessions, nil
+
+}
+
 func (s *AuthService) GetAssessmentGrowth(req models.RequestAssessmentGrowth) (*models.ResponseAssessmentGrowth, error) {
 	if *req.Assessment1ID == *req.Assessment2ID {
 		return nil, fmt.Errorf("assessment 1 cannot be assessment 2")

@@ -1,13 +1,14 @@
 package models
 
 type Config struct {
-	DB     PostGresConfig
-	Port   string
-	JWT    string
-	SignUp SignUpConfig
-	MQ     MQ
-	S3     S3Client
-	ValKey ValKey
+	DB            PostGresConfig
+	Port          string
+	JWT           string
+	SignUp        SignUpConfig
+	MQ            MQ
+	S3            S3Client
+	ValKey        ValKey
+	StripeWebhook string
 }
 
 type PostGresConfig struct {

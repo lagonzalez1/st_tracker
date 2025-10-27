@@ -141,7 +141,7 @@ func buildQueryTutorsBChart(baseQuery string, req models.RequestSessionBChart) (
 			GROUP BY
 				first_name, tr.id
 			ORDER BY
-				first_name
+				first_name, tr.id
 	`
 	return baseQuery, args
 }
@@ -352,6 +352,39 @@ func (s *AuthService) GetSessionCounts(OrganizationID int) (*int, *int, error) {
 	Generate sessions given a possible range, location, semester, program
 */
 
+func (s *AuthService) GetStudentGroups(ctx context.Context, lid *int64, tid *int64, sid *int64) ([]models.RegisterStudentGroup, error) {
+	base := `SELECT sg.id, sg.title, sg.description, sg.location_id, sg.semester_id, sg.tutor_id
+	FROM stu_tracker.Student_groups sg
+	JOIN stu_tracker.Semester s 
+	ON s.id = sg.semester_id
+	WHERE s.active = TRUE AND sg.location_id = $1 AND sg.tutor_id = $2 AND sg.semester_id = $3;`
+	rows, err := s.db.QueryContext(ctx, base, lid, tid, sid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var g []models.RegisterStudentGroup
+	for rows.Next() {
+		var sm models.RegisterStudentGroup
+		if err := rows.Scan(
+			&sm.ID,
+			&sm.Title,
+			&sm.Description,
+			&sm.LocationID,
+			&sm.SemesterID,
+			&sm.TutorID,
+		); err != nil {
+			return nil, err
+		}
+		g = append(g, sm)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return g, nil
+}
+
 func (s *AuthService) GetSessionBChart(req models.RequestSessionBChart) ([]models.ResponseSessionBChart, error) {
 	base := `
         SELECT
@@ -505,6 +538,7 @@ func (s *AuthService) GetTutorsBChart(req models.RequestSessionBChart) ([]models
 	}
 	base := `
     	SELECT
+			tr.id,
 			SUM(ss.student_count) as total_student_count,
 			AVG(ss.student_count) as average_student_count,
 			COUNT(ss.id) as total_sessions,
@@ -532,6 +566,7 @@ func (s *AuthService) GetTutorsBChart(req models.RequestSessionBChart) ([]models
 	for rows.Next() {
 		var s models.ResponseTutorsBChart
 		if err := rows.Scan(
+			&s.ID,
 			&s.StudentCount,
 			&s.AverageStudents,
 			&s.TotalSessions,
@@ -1066,4 +1101,475 @@ func (s *AuthService) GetAssessmentCompletion(c context.Context, req models.Requ
 		return nil, err
 	}
 	return &model, nil
+}
+
+func (s *AuthService) GetSentimentAnalysis(c context.Context, req models.RequestSentiment) ([]models.ResponseSentiment, error) {
+	query := `
+		SELECT
+			p.program_name AS program_name,
+			s.session_date,
+			t.id AS tutor_id,
+			t.first_name,
+			sr.session_id,
+			sr.question_text,
+			sr.response_text,
+			sr.sentiment_score
+		FROM stu_tracker.Sessions s
+		JOIN stu_tracker.Tutors t ON s.tutor_id = t.id
+		JOIN stu_tracker.Programs p ON s.program_id = p.id
+		RIGHT JOIN stu_tracker.Survey_response sr
+			ON sr.session_id = s.id
+	`
+	q, args := buildQuerySentimentAnalysis(query, &req)
+	rows, err := s.db.QueryContext(c, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []models.ResponseSentiment
+	for rows.Next() {
+		var model models.ResponseSentiment
+		if err := rows.Scan(
+			&model.ProgramName,
+			&model.SessionDate,
+			&model.TutorID,
+			&model.FirstName,
+			&model.SessionID,
+			&model.QuestionText,
+			&model.ResponseText,
+			&model.SentimentScore,
+		); err != nil {
+			return nil, err
+		}
+		res = append(res, model)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("unable to scan from db response")
+	}
+
+	return res, nil
+}
+
+func buildQuerySentimentAnalysis(baseQuery string, req *models.RequestSentiment) (string, []interface{}) {
+	var clauses []string
+	var args []interface{}
+	argCount := 1
+
+	if req.LocationID != nil {
+		clauses = append(clauses, fmt.Sprintf("s.location_id = $%d", argCount))
+		args = append(args, req.LocationID)
+		argCount += 1
+	}
+	if req.OrganizationID != nil {
+		clauses = append(clauses, fmt.Sprintf("s.organization_id = $%d", argCount))
+		args = append(args, req.OrganizationID)
+		argCount += 1
+	}
+	if req.ProgramID != nil {
+		clauses = append(clauses, fmt.Sprintf("s.program_id = $%d", argCount))
+		args = append(args, req.ProgramID)
+		argCount += 1
+	}
+	if req.SemesterID != nil {
+		clauses = append(clauses, fmt.Sprintf("s.semester_id = $%d", argCount))
+		args = append(args, req.SemesterID)
+		argCount += 1
+	}
+	if !req.StartDate.IsZero() && !req.EndDate.IsZero() {
+		clauses = append(clauses, fmt.Sprintf("s.session_date BETWEEN $%d AND $%d", argCount, argCount+1))
+		args = append(args, req.StartDate, req.EndDate)
+		argCount += 2
+	} else if !req.StartDate.IsZero() {
+		clauses = append(clauses, fmt.Sprintf("s.session_date >= $%d", argCount))
+		args = append(args, req.StartDate)
+		argCount++
+	}
+	if len(clauses) > 0 {
+		baseQuery += " WHERE " + strings.Join(clauses, " AND ")
+	}
+	baseQuery += `
+		GROUP BY
+			program_name, t.first_name, s.session_date, t.id, sr.id, sr.session_id
+		ORDER BY
+			sr.id, sr.session_id, s.session_date ASC;`
+	return baseQuery, args
+
+}
+
+func (s *AuthService) GetSentimentAnalysisByTutor(c context.Context, tid *int64, orgid *int64) ([]models.ResponseSentiment, error) {
+	query := `
+		SELECT
+			p.program_name AS program_name,
+			s.session_date,
+			t.id AS tutor_id,
+			t.first_name,
+			sr.session_id,
+			sr.question_text,
+			sr.response_text,
+			sr.sentiment_score
+		FROM stu_tracker.Sessions s
+		JOIN stu_tracker.Tutors t ON s.tutor_id = t.id
+		JOIN stu_tracker.Programs p ON s.program_id = p.id
+		RIGHT JOIN stu_tracker.Survey_response sr
+			ON sr.session_id = s.id
+		WHERE s.organization_id = $1 AND s.tutor_id = $2
+		ORDER BY s.session_date ASC;
+	`
+	rows, err := s.db.QueryContext(c, query, tid, orgid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []models.ResponseSentiment
+	for rows.Next() {
+		var model models.ResponseSentiment
+		if err := rows.Scan(
+			&model.ProgramName,
+			&model.SessionDate,
+			&model.TutorID,
+			&model.FirstName,
+			&model.SessionID,
+			&model.QuestionText,
+			&model.ResponseText,
+			&model.SentimentScore,
+		); err != nil {
+			return nil, err
+		}
+		res = append(res, model)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("unable to scan from db response")
+	}
+
+	return res, nil
+}
+
+func (s *AuthService) GetAssessmentsByTutor(c context.Context, tid *int64, orgid *int64) ([]models.ResponseAssessments, error) {
+	query := `
+	SELECT st.session_id, ss.session_date, st.student_id, st.score, ast.title, p.program_name, ast.max_score, p.id, s.first_name
+	from stu_tracker.Assessments_students st
+	JOIN stu_tracker.Sessions ss ON ss.id = st.session_id 
+	JOIN stu_tracker.Assessments ast ON ast.id = st.assessment_id 
+	JOIN stu_tracker.Tutors t ON ss.tutor_id = t.id
+	JOIN stu_tracker.Programs p ON ss.program_id = p.id
+	JOIN stu_tracker.Students s ON st.student_id = s.id
+	WHERE t.id = $1 AND ss.organization_id = $2
+	GROUP BY st.student_id, ss.session_date, st.session_id, st.score, ast.title, p.program_name, ast.max_score,  p.id, s.first_name
+	ORDER BY ss.session_date desc;
+`
+	rows, err := s.db.QueryContext(c, query, tid, orgid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []models.ResponseAssessments
+	for rows.Next() {
+		var model models.ResponseAssessments
+		if err := rows.Scan(
+			&model.SessionID,
+			&model.SessionDate,
+			&model.StudentID,
+			&model.Score,
+			&model.Assessment,
+			&model.ProgramName,
+			&model.MaxScore,
+			&model.ProgramID,
+			&model.StudentFirstName,
+		); err != nil {
+			return nil, err
+		}
+		res = append(res, model)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("unable to scan from db response")
+	}
+
+	return res, nil
+}
+
+func (s *AuthService) GetAssessmentPivotTable(c context.Context, sid *int64, orgid *int64) (*models.ResponseAssessmentPivotTable, error) {
+	query := `SELECT t.first_name, t.last_name, p.program_name AS program,
+	 p.id, s.duration, t.id, s.session_date, s.start_time
+	 FROM stu_tracker.Sessions s
+	 LEFT JOIN stu_tracker.Programs p ON p.id = s.program_id
+	 JOIN stu_tracker.Tutors t ON t.id = s.tutor_id
+	 WHERE s.id = $1 AND s.organization_id = $2;`
+	var m models.ResponseAssessmentPivotTable
+	err := s.db.QueryRowContext(c, query, sid, orgid).Scan(&m.FirstName,
+		&m.LastName,
+		&m.Program,
+		&m.ProgramID,
+		&m.Duration,
+		&m.TutorID,
+		&m.SessionDate,
+		&m.StartTime)
+	if err != nil {
+		return nil, err
+	}
+
+	return &m, nil
+}
+
+func (s *AuthService) GetSubscriptions(c context.Context, orgid *int64) ([]models.AvilableSubscriptions, error) {
+	query := `SELECT id, code, name, stripe_price_id, is_active, cost_yearly, cost_monthly FROM stu_tracker.subscription_plan;`
+	rows, err := s.db.QueryContext(c, query)
+	if err != nil {
+		return nil, err
+	}
+	var res []models.AvilableSubscriptions
+	for rows.Next() {
+		var s models.AvilableSubscriptions
+		if err := rows.Scan(
+			&s.ID,
+			&s.Code,
+			&s.Name,
+			&s.PriceID,
+			&s.IsActive,
+			&s.CostYearly,
+			&s.CostMonthly,
+		); err != nil {
+			return nil, err
+		}
+		res = append(res, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("unable to scan from db response")
+	}
+	return res, nil
+}
+
+func (s *AuthService) GetSubscriptionsEntitlements(c context.Context, orgid *int64) ([]models.SubscriptionsEntitlements, error) {
+	query := `SELECT id, plan_id, key, limit_value, enabled, enterprise FROM stu_tracker.plan_entitlement;`
+	rows, err := s.db.QueryContext(c, query)
+	if err != nil {
+		return nil, err
+	}
+	var res []models.SubscriptionsEntitlements
+	for rows.Next() {
+		var s models.SubscriptionsEntitlements
+		if err := rows.Scan(
+			&s.ID,
+			&s.PlanID,
+			&s.Key,
+			&s.LimitValue,
+			&s.Enabled,
+			&s.Enterprise,
+		); err != nil {
+			return nil, err
+		}
+		res = append(res, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("unable to scan from db response")
+	}
+	return res, nil
+}
+
+func (s *AuthService) GetSubscriptionsByOrganization(c context.Context, orgid *int64) ([]models.OrganizationSubscription, error) {
+	query := `SELECT id, plan_id, status, current_period_start, current_period_end, cancel_at, stripe_customer_id, stripe_subscription_id
+	FROM stu_tracker.organization_subscription
+	WHERE organization_id = $1;`
+	rows, err := s.db.QueryContext(c, query, orgid)
+	if err != nil {
+		return nil, err
+	}
+	var res []models.OrganizationSubscription
+	for rows.Next() {
+		var s models.OrganizationSubscription
+		if err := rows.Scan(
+			&s.ID,
+			&s.PlanID,
+			&s.Status,
+			&s.CurrentPeriodStart,
+			&s.CurrentPeriodEnd,
+			&s.CancelAt,
+			&s.StripeCustomerID,
+			&s.StripeSubscriptionID,
+		); err != nil {
+			return nil, err
+		}
+		res = append(res, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("unable to scan from db response")
+	}
+	return res, nil
+}
+
+func (s *AuthService) GetSessionVScore(c context.Context, req models.RequestSessionBChart) ([]models.ResponseAssessmentVScore, error) {
+	query := `
+		SELECT
+		sstu.student_id,
+		st.first_name,
+		st.last_name,
+		COUNT(DISTINCT sstu.session_id)::int AS x_sessions,
+		ROUND(AVG( (asj.score::numeric / NULLIF(a.max_score, 0)) * 100 ), 1) AS y_avg_score_pct
+		FROM stu_tracker.Session_students sstu
+		JOIN stu_tracker.Sessions ss ON ss.id = sstu.session_id
+		LEFT JOIN stu_tracker.Assessments_students asj ON asj.session_id = ss.id
+		LEFT JOIN stu_tracker.Assessments a ON a.id = asj.assessment_id
+		JOIN stu_tracker.Students st ON st.id = sstu.student_id
+	`
+	q, args := buildSessionVScore(query, &req)
+	rows, err := s.db.QueryContext(c, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []models.ResponseAssessmentVScore
+	for rows.Next() {
+		var m models.ResponseAssessmentVScore
+		if err := rows.Scan(
+			&m.StudentID,
+			&m.FirstName,
+			&m.LastName,
+			&m.SessionCount,
+			&m.ScoreAverage,
+		); err != nil {
+			return nil, err
+		}
+		res = append(res, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("unable to scan from db response")
+	}
+	return res, nil
+}
+
+func buildSessionVScore(baseQuery string, req *models.RequestSessionBChart) (string, []interface{}) {
+	var clauses []string
+	var args []interface{}
+	argCount := 1
+
+	if req.LocationID != nil {
+		clauses = append(clauses, fmt.Sprintf("ss.location_id = $%d", argCount))
+		args = append(args, req.LocationID)
+		argCount += 1
+	}
+	if req.OrganizationID != nil {
+		clauses = append(clauses, fmt.Sprintf("ss.organization_id = $%d", argCount))
+		args = append(args, req.OrganizationID)
+		argCount += 1
+	}
+	if req.ProgramID != nil {
+		clauses = append(clauses, fmt.Sprintf("ss.program_id = $%d", argCount))
+		args = append(args, req.ProgramID)
+		argCount += 1
+	}
+	if req.SemesterID != nil {
+		clauses = append(clauses, fmt.Sprintf("ss.semester_id = $%d", argCount))
+		args = append(args, req.SemesterID)
+		argCount += 1
+	}
+	if !req.StartDate.IsZero() && !req.EndDate.IsZero() {
+		clauses = append(clauses, fmt.Sprintf("ss.session_date BETWEEN $%d AND $%d", argCount, argCount+1))
+		args = append(args, req.StartDate, req.EndDate)
+		argCount += 2
+	} else if !req.StartDate.IsZero() {
+		clauses = append(clauses, fmt.Sprintf("ss.session_date >= $%d", argCount))
+		args = append(args, req.StartDate)
+		argCount++
+	}
+	if len(clauses) > 0 {
+		baseQuery += " WHERE " + strings.Join(clauses, " AND ")
+	}
+	baseQuery += `
+		GROUP BY sstu.student_id, st.first_name, st.last_name
+		HAVING COUNT(DISTINCT sstu.session_id) > 0;`
+	return baseQuery, args
+
+}
+
+func (s *AuthService) GetStudentVAssessments(c context.Context, req models.RequestSessionBChart) ([]models.ResponseStudentVAssessments, error) {
+	query := `
+		SELECT
+			st.id AS student_id,
+			st.first_name,
+			st.last_name,
+			am.id AS assessment_id,
+			am.title AS assessment_title,
+			COALESCE(ast.score, 0) AS assessment_score,
+			am.max_score AS assessment_max_score,
+			CASE 
+				WHEN ast.score IS NULL THEN 'Absent'
+				ELSE 'Present'
+			END AS status,
+			ss.id
+		FROM stu_tracker.Sessions ss
+		INNER JOIN stu_tracker.Assessments_students ast ON ast.session_id = ss.id
+		LEFT JOIN stu_tracker.Students st ON st.id = ast.student_id
+		JOIN stu_tracker.Assessments am ON ast.assessment_id = am.id
+	`
+	q, args := buildGetStudentVAssessments(query, &req)
+	rows, err := s.db.QueryContext(c, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var res []models.ResponseStudentVAssessments
+	for rows.Next() {
+		var m models.ResponseStudentVAssessments
+		if err := rows.Scan(
+			&m.StudentID,
+			&m.FirstName,
+			&m.LastName,
+			&m.AssessmentID,
+			&m.AssessmentTitle,
+			&m.Score,
+			&m.MaxScore,
+			&m.Status,
+			&m.SessionID,
+		); err != nil {
+			return nil, err
+		}
+		res = append(res, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("unable to scan from db response")
+	}
+	return res, nil
+}
+
+func buildGetStudentVAssessments(baseQuery string, req *models.RequestSessionBChart) (string, []interface{}) {
+	var clauses []string
+	var args []interface{}
+	argCount := 1
+
+	if req.LocationID != nil {
+		clauses = append(clauses, fmt.Sprintf("ss.location_id = $%d", argCount))
+		args = append(args, req.LocationID)
+		argCount += 1
+	}
+	if req.OrganizationID != nil {
+		clauses = append(clauses, fmt.Sprintf("ss.organization_id = $%d", argCount))
+		args = append(args, req.OrganizationID)
+		argCount += 1
+	}
+	if req.ProgramID != nil {
+		clauses = append(clauses, fmt.Sprintf("ss.program_id = $%d", argCount))
+		args = append(args, req.ProgramID)
+		argCount += 1
+	}
+	if req.SemesterID != nil {
+		clauses = append(clauses, fmt.Sprintf("ss.semester_id = $%d", argCount))
+		args = append(args, req.SemesterID)
+		argCount += 1
+	}
+	if !req.StartDate.IsZero() && !req.EndDate.IsZero() {
+		clauses = append(clauses, fmt.Sprintf("ss.session_date BETWEEN $%d AND $%d", argCount, argCount+1))
+		args = append(args, req.StartDate, req.EndDate)
+		argCount += 2
+	} else if !req.StartDate.IsZero() {
+		clauses = append(clauses, fmt.Sprintf("ss.session_date >= $%d", argCount))
+		args = append(args, req.StartDate)
+		argCount++
+	}
+	if len(clauses) > 0 {
+		baseQuery += " WHERE " + strings.Join(clauses, " AND ")
+	}
+	baseQuery += `
+		GROUP BY st.first_name, st.last_name, am.id, am.max_score, ast.score, st.id, ss.id
+		ORDER BY st.first_name, st.last_name, am.id`
+	return baseQuery, args
+
 }

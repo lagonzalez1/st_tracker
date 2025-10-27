@@ -46,6 +46,24 @@ func (s *AuthService) AddAdminStaff(c context.Context, req models.RegisterReques
 	}, nil
 }
 
+func (s *AuthService) AddAdminLocation(c context.Context, req models.RegisterAdminLocation, orgid *int64) (*models.ResponseRequestAdmin, error) {
+	// Input validation
+	if req.LocationID == nil {
+		return nil, fmt.Errorf("missing required fields: location_id")
+	}
+	query := `INSERT INTO stu_tracker.admin_location_access(admin_id, location_id, organization_id) 
+			  VALUES ($1, $2, $3)`
+	_, err := s.db.ExecContext(c, query, req.AdminID, req.LocationID, orgid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert student: %w", err)
+	}
+
+	return &models.ResponseRequestAdmin{
+		Status:   "OK",
+		Admin_id: *req.AdminID,
+	}, nil
+}
+
 func (s *AuthService) UpdateAdminStaff(c context.Context, req models.RegisterRequestAdmin) (*models.ResponseUpdateAdmin, error) {
 	if req.ID == nil || req.Email == "" || req.OrganizationId == nil {
 		return nil, fmt.Errorf("missing required fields: id, email, org_id")
@@ -83,6 +101,21 @@ func (s *AuthService) DeleteAdminStaff(c context.Context, req models.RemoveAdmin
 	}
 	query := `DELETE FROM stu_tracker.Admin_staff WHERE id = $1;`
 	_, err := s.db.ExecContext(c, query, req.ID)
+	if err != nil {
+		return nil, fmt.Errorf("unable to delete staff: %w", err)
+
+	}
+	return &models.RemoveResponse{
+		Status: "Removed",
+	}, nil
+}
+
+func (s *AuthService) DeleteAdminLocation(c context.Context, req models.RemoveAdminLocation) (*models.RemoveResponse, error) {
+	if req.AdminID == nil {
+		return nil, fmt.Errorf("missing required fields: first_name, last_name, or email")
+	}
+	query := `DELETE FROM stu_tracker.admin_location_access WHERE admin_id = $1 AND location_id = $2;`
+	_, err := s.db.ExecContext(c, query, req.AdminID, req.LocationID)
 	if err != nil {
 		return nil, fmt.Errorf("unable to delete staff: %w", err)
 

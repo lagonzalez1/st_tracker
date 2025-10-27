@@ -124,7 +124,7 @@ func (s *AuthService) DeleteObjectS3(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *AuthService) CreateObjectS3(c context.Context, file multipart.File, keyFound *string) (*string, error) {
+func (s *AuthService) CreateObjectS3(c context.Context, file multipart.File, keyFound *string, path *string) (*string, error) {
 	key := uuid.New()
 	keyString := key.String()
 	var stringPtr *string
@@ -136,7 +136,7 @@ func (s *AuthService) CreateObjectS3(c context.Context, file multipart.File, key
 	}
 	_, err := s.s3.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String("tracker-client-storage"),
-		Key:    stringPtr,
+		Key:    aws.String(*path + *stringPtr),
 		Body:   file,
 	})
 	if err != nil {

@@ -29,3 +29,15 @@ func ExtractInt64Claim(claims jwt.MapClaims, key string) (int64, error) {
 	}
 	return int64(f), nil
 }
+
+func ExtractStringClaims(claims jwt.MapClaims, key string) (string, error) {
+	val, ok := claims[key]
+	if !ok {
+		return "", fmt.Errorf("claim not found: %v", key)
+	}
+	f, ok := val.(string)
+	if !ok {
+		return "", fmt.Errorf("claim not a string: %v", key)
+	}
+	return f, nil
+}

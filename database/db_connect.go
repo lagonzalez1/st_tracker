@@ -134,6 +134,20 @@ func CreateSchemaIfNotExist(db *sql.DB) error {
 		return fmt.Errorf("error executing schema SQL: %v", err)
 	}
 
+	// Execute permissions SQL page
+	subscriptionsPath := filepath.Join("database", "db_init_subscriptions.sql")
+	if _, err := os.Stat(subscriptionsPath); os.IsNotExist(err) {
+		return fmt.Errorf("permissions init sql file not found %s", err)
+	}
+	subscriptionsSQL, err := os.ReadFile(subscriptionsPath)
+	if err != nil {
+		return fmt.Errorf("error reading init permissions file: %v", err)
+	}
+	_, err = db.Exec(string(subscriptionsSQL))
+	if err != nil {
+		return fmt.Errorf("error executing schema SQL: %v", err)
+	}
+
 	fmt.Println("Database schema created successfully.")
 	return nil
 }

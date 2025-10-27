@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -17,6 +18,19 @@ import (
 type CookieSettings struct {
 }
 
+type CacheClaims struct {
+	ID    int64  `json:"id"`
+	Sub   string `json:"sub"`
+	Type  string `json:"type"`
+	OrgId int64  `json:"orgid"`
+	Exp   int64  `json:"exp"`
+	Iat   int64  `json:"iat"`
+}
+
+type PermissionsClaims struct {
+	Permission string `json:"permission"`
+}
+
 type UserFinder interface {
 	FindByEmail(email string) (*models.User, error)
 	GetPermissions(userID, orgID int64) ([]string, error)
@@ -27,7 +41,8 @@ func (s *AuthService) LoginAction(c context.Context, req models.LoginRequest) (*
 	var err error
 	var locations_list []models.TutorLocationList
 	var program_list []models.ResponseRequestProgramList
-
+	exp := time.Now().Add(1 * time.Hour)
+	iat := time.Now().Unix()
 	switch req.Type {
 	case "ROOT":
 		user, err = s.findRootUser(c, req.Email)
@@ -44,15 +59,44 @@ func (s *AuthService) LoginAction(c context.Context, req models.LoginRequest) (*
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
 		return nil, errors.New("wrong password")
 	}
-	// 20 min
-	token, err := s.generateAccessToken(user)
+	// 1 hour
+	TTL := exp.Unix()
+	fmt.Print("TTL is ->", TTL)
+	token, cacheClaims, err := s.generateAccessToken(user, TTL, iat)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create access token: %w", err)
 	}
+	// Cache claims is now a struct
+	claims, err := json.Marshal(cacheClaims)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal claims for cache %v", err)
+	}
+
+	// Cache permissions ?
+
 	// 5 + hours
 	refreshToken, err := s.generateRefreshToken(user)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create refresh token: %w", err)
+	}
+	userKey := fmt.Sprintf("auth:token:%s", token)
+	res := s.vk.Do(c, s.vk.B().Set().Key(userKey).Value(string(claims)).Exat(exp).Build()).Error()
+	if res != nil {
+		return nil, fmt.Errorf("unable to cache login %v", err)
+	}
+
+	if len(user.Permissions) > 0 {
+		permissions := generatePermissionsMap(user.Permissions)
+		permissionsKey := fmt.Sprintf("auth:perm:%d:%s", user.ID, user.Type)
+		permClaims, err := json.Marshal(permissions)
+		if err != nil {
+			return nil, fmt.Errorf("unable to marshal claims for cache %v", err)
+		}
+		err = s.vk.Do(c, s.vk.B().Set().Key(permissionsKey).Value(string(permClaims)).Exat(exp).Build()).Error()
+		if err != nil {
+			return nil, fmt.Errorf("unable to cache permissions: %w", err)
+		}
+
 	}
 
 	return &models.LoginResponse{
@@ -75,6 +119,14 @@ func (s *AuthService) LoginAction(c context.Context, req models.LoginRequest) (*
 		TutorLocations: locations_list,
 		TutorPrograms:  program_list,
 	}, nil
+}
+
+func generatePermissionsMap(permissions []string) map[string]bool {
+	permissionsClaims := make(map[string]bool)
+	for i := 0; i < len(permissions); i++ {
+		permissionsClaims[permissions[i]] = true
+	}
+	return permissionsClaims
 }
 
 // Helper functions HARD CODEDE
@@ -216,28 +268,30 @@ func (s *AuthService) queryPermissions(c context.Context, query string, args ...
 	return permissions, nil
 }
 
-func (s *AuthService) generateAccessToken(user *models.User) (string, error) {
+func (s *AuthService) generateAccessToken(user *models.User, exp int64, iat int64) (string, *CacheClaims, error) {
 	envConfig, err := config.LoadConfig()
 	if err != nil {
-		return "", fmt.Errorf("failed to load config: %w", err)
+		return "", nil, fmt.Errorf("failed to load config: %w", err)
 	}
 	claims := jwt.MapClaims{
 		"sub":   user.Email,
-		"exp":   time.Now().Add(1 * time.Hour).Unix(),
-		"iat":   time.Now().Unix(),
+		"exp":   exp,
+		"iat":   iat,
 		"type":  user.Type,
 		"id":    user.ID,
 		"orgid": user.OrganizationId,
 	}
+	cacheClaims := CacheClaims{ID: user.ID, Sub: user.Email, Iat: iat, Type: user.Type, OrgId: user.OrganizationId}
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(envConfig.JWT))
 	if err != nil {
-		return "", fmt.Errorf("failed to sign token: %w", err)
+		return "", nil, fmt.Errorf("failed to sign token: %w", err)
 	}
 	log.Printf("Generated access token for %s (type: %s)", user.Email, user.Type)
 	log.Printf("Token length for %s: %d", user.Type, len(tokenString))
 
-	return tokenString, nil
+	return tokenString, &cacheClaims, nil
 }
 
 func (s *AuthService) generateRefreshToken(user *models.User) (string, error) {

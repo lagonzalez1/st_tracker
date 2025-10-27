@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"tracker/app/models"
+
+	"github.com/lib/pq"
 )
 
 func (s *AuthService) AddSemester(c context.Context, req models.RegisterRequestSemester) (*models.ResponseRequestSemester, error) {
@@ -12,16 +14,47 @@ func (s *AuthService) AddSemester(c context.Context, req models.RegisterRequestS
 		return nil, fmt.Errorf("missing required fields: ID, Program name")
 	}
 	var newID int64
-	query := `INSERT INTO stu_tracker.Semester (title, year, organization_id, date_start, date_end, active, archive) 
-			  VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id;`
+	query := `INSERT INTO stu_tracker.Semester (title, year, organization_id, date_start, date_end, active, archive, work_week) 
+			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;`
 
-	err := s.db.QueryRowContext(c, query, req.Title, req.Year, *req.OrganizationId, req.DateStart, req.DateEnd, req.Active, req.Archive).Scan(&newID)
+	err := s.db.QueryRowContext(c, query, req.Title, req.Year, *req.OrganizationId, req.DateStart, req.DateEnd, req.Active, req.Archive, pq.Array(req.WorkWeek)).Scan(&newID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add semester: %w", err)
 	}
 	return &models.ResponseRequestSemester{
 		Status: "OK",
 		ID:     &newID,
+	}, nil
+}
+
+func (s *AuthService) AddSemesterDates(c context.Context, req models.RegisterSemesterDates) (*models.SimpleReponse, error) {
+	var newID int64
+	query := `INSERT INTO stu_tracker.Semester_schedule(semester_id, schedule_type, start_date, end_Date, notes) 
+			  VALUES ($1, $2, $3, $4, $5) RETURNING id;`
+
+	err := s.db.QueryRowContext(c, query, req.SemesterID, req.ScheduleType, req.StartDate, req.EndDate, req.Notes).Scan(&newID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add semester: %w", err)
+	}
+	return &models.SimpleReponse{
+		Status: "OK",
+		ID:     &newID,
+	}, nil
+}
+
+func (s *AuthService) DeleteSemesterDates(c context.Context, req models.RemoveRequest) (*models.RemoveResponse, error) {
+	// Input validation
+	if req.ID == nil {
+		return nil, fmt.Errorf("missing required fields: ID, Program name")
+	}
+	query := `DELETE FROM stu_tracker.Semester_schedule WHERE id = $1;`
+
+	_, err := s.db.ExecContext(c, query, req.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update program: %w", err)
+	}
+	return &models.RemoveResponse{
+		Status: "Removed",
 	}, nil
 }
 
@@ -82,8 +115,9 @@ func (s *AuthService) UpdateSemester(c context.Context, req models.RegisterReque
 	if req.Title == "" || req.OrganizationId == nil {
 		return nil, fmt.Errorf("missing required fields: ID, Program name")
 	}
-	query := `UPDATE stu_tracker.Semester SET title = $1, year = $2, date_start = $3, date_end = $4, active = $5, archive = $6 WHERE id = $7;`
-	_, err := s.db.ExecContext(c, query, req.Title, req.Year, req.DateStart, req.DateEnd, req.Active, req.Archive, req.ID)
+	query := `UPDATE stu_tracker.Semester SET title = $1, year = $2, date_start = $3, 
+	date_end = $4, active = $5, archive = $6, work_week = $7 WHERE id = $8;`
+	_, err := s.db.ExecContext(c, query, req.Title, req.Year, req.DateStart, req.DateEnd, req.Active, req.Archive, req.WorkWeek, req.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update program: %w", err)
 	}

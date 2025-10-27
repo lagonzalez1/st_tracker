@@ -64,7 +64,6 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert session: %w", err)
 	}
-
 	// Insert students into sessions attendance.
 	studentQuery, values, err := StudentSessionAttendance(sessionID, &req.SessionList)
 	result, err := tx.ExecContext(ctx, studentQuery, values...)
@@ -134,7 +133,7 @@ func (s AuthService) ProccessAssessmentsSessions(ctx context.Context, tx *sql.Tx
 	var assessmentsCompleted int
 	completed := &assessmentsCompleted
 	for _, student := range *SessionList {
-		if student.AssessmentId == nil && sessionToken == nil {
+		if student.AssessmentId == nil {
 			continue
 		}
 		var score float32
@@ -199,7 +198,6 @@ func (s AuthService) ProccessAssessmentsSessions(ctx context.Context, tx *sql.Tx
 		} else if student.AssessmentScore != nil {
 			score += float32(*student.AssessmentScore)
 		}
-
 		questionnaireId, err := QuestionnaireExist(ctx, student.ID, student.AssessmentId, sessionToken, tx)
 		if err != nil {
 			fmt.Printf("Error in QuestionnairExist %v", err)
@@ -333,7 +331,10 @@ func InsertAssessmentQuestionsEntries(ctx context.Context, questionEntries []mod
 }
 
 func QuestionnaireExist(ctx context.Context, studentId *int64, assessmentId *int64, sessionToken *string, tx *sql.Tx) (*int64, error) {
-	var questionnaire_id int64
+	if sessionToken == nil {
+		return nil, nil
+	}
+	var questionnaire_id *int64
 	var exist bool
 	query := `SELECT EXISTS (
 		SELECT 1 FROM stu_tracker.Pre_assessment_questionnaire 
@@ -345,7 +346,7 @@ func QuestionnaireExist(ctx context.Context, studentId *int64, assessmentId *int
 		return nil, err
 	}
 	if !exist {
-		fmt.Printf("Error select exist %v", err)
+		fmt.Printf("Does not exist %v", err)
 		return nil, nil
 	}
 	_query := `SELECT id FROM stu_tracker.Pre_assessment_questionnaire 
@@ -354,7 +355,7 @@ func QuestionnaireExist(ctx context.Context, studentId *int64, assessmentId *int
 	if err != nil {
 		return nil, err
 	}
-	return &questionnaire_id, nil
+	return questionnaire_id, nil
 }
 
 func InsertAssessmentStudents(ctx context.Context, student models.RegisterStudentSession, score float32, sessionID int64, tx *sql.Tx, questionnaireId *int64) (*int64, error) {

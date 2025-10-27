@@ -1,0 +1,46 @@
+To add:
+
+scatter plot graph
+ -sessions vs average score
+ -Number of session relation to average score
+
+compare location to location
+
+Student list performance by assessment or cycle.
+Side barchart with all student stacked showing all the possible assessments 
+
+
+Assessment_session:
+	record session completion time, start -> end
+
+
+
+SUBSCRIPTIONS
+
+Trial plan:
+	max_districts : 1
+	max_location : 1
+	tutors_per_location: 2
+	student_per_location: 20
+	max_llm_tokens: 1M
+	
+Pilot plan:
+	max_districts : 1
+	max_location : 5
+	tutors_per_location: 5
+	student_per_location: 100
+	max_llm_tokens: 2M
+
+District plan
+	max_districts : 10
+	max_location_per_location : 50 
+	tutors_per_location: 10
+	student_per_location: 200
+	max_llm_tokens: 3M
+
+Enterprise plan
+	max_districts: 10 + 
+	max_location_per_location: 50 +
+	tutors_per_location: 20
+	student_per_location: 200 +
+	max_llm_tokens: 5M

@@ -62,7 +62,7 @@ func ConnectRabbitMQ() (*MQChannels, error) {
 	}
 	fmt.Println("RabbitMQ connected.")
 	channels := make(map[string]*amqp091.Channel)
-	ch, err := setupTaskQueue(conn, "generate", "micro_questions")
+	ch, err := setupTaskQueue(conn, "generate", "worker")
 	if err != nil {
 		conn.Close()
 		return nil, err

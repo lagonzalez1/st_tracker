@@ -9,11 +9,9 @@ import (
 
 /**
  Admin types:
-
  For Placment info regarding substitutes and logistics
  View: locations, materail, district, programs, students, subjects, tutors
  Delete: Tutor-locations
-
 **/
 
 func (s *AuthService) AddAnnouncement(c context.Context, req models.RegisterAnnouncements) (*models.ResponseAnnouncement, error) {
@@ -33,23 +31,9 @@ func (s *AuthService) AddAnnouncement(c context.Context, req models.RegisterAnno
 	values := []interface{}{}
 	query := `INSERT INTO stu_tracker.Announcements (
 			title, body, location_id, severity, organization_id, program_id, admin_id, staff_id) VALUES `
-	placeHolderIdx := 1
 
-	if len(req.LocationID) > 0 {
-		for i := 0; i < len(req.LocationID); i++ {
-			if i > 0 {
-				query += `,`
-			}
-			query += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
-				placeHolderIdx, placeHolderIdx+1, placeHolderIdx+2, placeHolderIdx+3,
-				placeHolderIdx+4, placeHolderIdx+5, placeHolderIdx+6, placeHolderIdx+7)
-			values = append(values, req.Title, req.Body, req.LocationID[i], req.Severity, req.OrganizationID, req.ProgramID, req.AdminID, req.StaffID)
-			placeHolderIdx += 8
-		}
-	} else {
-		query += `($1, $2, $3, $4, $5, $6, $7, $8)`
-		values = append(values, req.Title, req.Body, nil, req.Severity, req.OrganizationID, req.ProgramID, req.AdminID, req.StaffID)
-	}
+	query += `($1, $2, $3, $4, $5, $6, $7, $8);`
+	values = append(values, req.Title, req.Body, req.LocationID, req.Severity, req.OrganizationID, req.ProgramID, req.AdminID, req.StaffID)
 
 	result, err := s.db.ExecContext(c, query, values...)
 	if err != nil {
@@ -65,6 +49,37 @@ func (s *AuthService) AddAnnouncement(c context.Context, req models.RegisterAnno
 		Status: "OK",
 		ID:     rowsAffected,
 	}, nil
+}
+
+func (s *AuthService) AnnouncementAck(c context.Context, oid *int64, tid *int64, aid *int64) (*models.ResponseAnnouncementAck, error) {
+	exist := `SELECT EXISTS(SELECT 1 FROM stu_tracker.User_Acknowledgments WHERE organization_id = $1 AND tutor_id = $2);`
+	var exists bool
+	err := s.db.QueryRowContext(c, exist, oid, tid).Scan(&exists)
+	if err != nil {
+		fmt.Println("1")
+		fmt.Println(err)
+		return nil, err
+	}
+	if exists {
+		return &models.ResponseAnnouncementAck{
+			ID:     nil,
+			Status: "acknowledged",
+		}, nil
+	}
+	var id *int64
+	query := `INSERT INTO stu_tracker.User_Acknowledgments(tutor_id, announcement_id, acknowledged, organization_id)
+	VALUES ($1, $2, $3, $4) RETURNING id;`
+	err = s.db.QueryRowContext(c, query, tid, aid, true, oid).Scan(&id)
+	if err != nil {
+		fmt.Println("2")
+		fmt.Println(err)
+		return nil, err
+	}
+	return &models.ResponseAnnouncementAck{
+		ID:     id,
+		Status: "OK",
+	}, nil
+
 }
 
 // Need to block admin from being able to update other admin announcements.

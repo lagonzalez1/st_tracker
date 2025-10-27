@@ -222,6 +222,56 @@ func (h *AuthHandler) GetSessionBChart(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (h *AuthHandler) GetStudentGroups(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:students")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	// Undefined variables like optional location_id
+	// Check if exist before
+	if !query.Has("location_id") || !query.Has("tutor_id") || !query.Has("semester_id") {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	lid, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
+	if err != nil {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	tid, err := strconv.ParseInt(query.Get("tutor_id"), 10, 64)
+	if err != nil {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+
+	sid, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
+	if err != nil {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	rows, err := h.authService.GetStudentGroups(ctx, &lid, &tid, &sid)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
 func (h *AuthHandler) GetCycleGrowth(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
@@ -734,19 +784,17 @@ func (h *AuthHandler) GetTutorsBChart(w http.ResponseWriter, r *http.Request) {
 	}
 	// Undefined variables like optional location_id
 	// Check if exist before
-	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
+	if !query.Has("organization_id") {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
 	}
 	var model models.RequestSessionBChart
-	if query.Get("organization_id") != "" {
-		org_id, err := strconv.ParseInt(query.Get("organization_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-			return
-		}
-		model.OrganizationID = &org_id
-	}
+	model.OrganizationID = &orgid
 
 	if query.Get("location_id") != "" {
 		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
@@ -784,6 +832,160 @@ func (h *AuthHandler) GetTutorsBChart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := h.authService.GetTutorsBChart(model)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetSessionVScore(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	// Undefined variables like optional location_id
+	// Check if exist before
+	if !query.Has("organization_id") {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	var model models.RequestSessionBChart
+	model.OrganizationID = &orgid
+
+	if query.Get("location_id") != "" {
+		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.LocationID = &loc_id
+	}
+	if query.Get("semester_id") != "" {
+		sem_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SemesterID = &sem_id
+	}
+	if query.Get("start_date") != "" {
+		start_time, err := time.Parse("2006-01-02", query.Get("start_date"))
+		if err != nil {
+			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
+			return
+		}
+		model.StartDate = start_time
+	}
+	if query.Get("end_date") != "" {
+		end_date, err := time.Parse("2006-01-02", query.Get("end_date"))
+		if err != nil {
+			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
+			return
+		}
+		model.EndDate = end_date
+	}
+
+	rows, err := h.authService.GetSessionVScore(ctx, model)
+	if err != nil {
+		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
+		fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Example response
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetStudentVAssessments(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	// Undefined variables like optional location_id
+	// Check if exist before
+	if !query.Has("organization_id") {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		return
+	}
+	var model models.RequestSessionBChart
+	model.OrganizationID = &orgid
+
+	if query.Get("location_id") != "" {
+		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.LocationID = &loc_id
+	}
+	if query.Get("semester_id") != "" {
+		sem_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SemesterID = &sem_id
+	}
+	if query.Get("start_date") != "" {
+		start_time, err := time.Parse("2006-01-02", query.Get("start_date"))
+		if err != nil {
+			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
+			return
+		}
+		model.StartDate = start_time
+	}
+	if query.Get("end_date") != "" {
+		end_date, err := time.Parse("2006-01-02", query.Get("end_date"))
+		if err != nil {
+			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
+			return
+		}
+		model.EndDate = end_date
+	}
+
+	rows, err := h.authService.GetStudentVAssessments(ctx, model)
 	if err != nil {
 		http.Error(w, "Unable to retrive rows given id", http.StatusInternalServerError)
 		fmt.Printf("Unable to get rows in GetTutorsBChart %v", err)
@@ -884,6 +1086,7 @@ func (h *AuthHandler) GetAssessmentTrendLine(w http.ResponseWriter, r *http.Requ
 	response := map[string]interface{}{"data": rows}
 	json.NewEncoder(w).Encode(response)
 }
+
 func (h *AuthHandler) GetSessionTrendLine(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
@@ -893,6 +1096,7 @@ func (h *AuthHandler) GetSessionTrendLine(w http.ResponseWriter, r *http.Request
 	}
 	valid, err := validateRequest(claims, "view:session")
 	if err != nil || !valid {
+		fmt.Println(err)
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
@@ -1366,4 +1570,352 @@ func (h *AuthHandler) GetTutorLowPerformance(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
+}
+
+func (h *AuthHandler) GetSentiment(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:sessions")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	var model models.RequestSentiment
+	if query.Get("location_id") != "" {
+		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.LocationID = &loc_id
+	}
+	if query.Get("semester_id") != "" {
+		sem_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		model.SemesterID = &sem_id
+	}
+	if query.Get("start_date") != "" {
+		start_time, err := time.Parse("2006-01-02", query.Get("start_date"))
+		if err != nil {
+			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.StartDate = start_time
+	}
+	if query.Get("end_date") != "" {
+		end_date, err := time.Parse("2006-01-02", query.Get("end_date"))
+		if err != nil {
+			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
+			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
+			return
+		}
+		model.EndDate = end_date
+	}
+
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	model.OrganizationID = &orgid
+
+	rows, err := h.authService.GetSentimentAnalysis(ctx, model)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetSentimentByTutor(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:sessions")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	var tid *int64
+	if query.Get("tutor_id") != "" {
+		t_id, err := strconv.ParseInt(query.Get("tutor_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		tid = &t_id
+	}
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+
+	rows, err := h.authService.GetSentimentAnalysisByTutor(ctx, tid, &orgid)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetAssessmentByTutor(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:sessions")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	var tid *int64
+	if query.Get("tutor_id") != "" {
+		t_id, err := strconv.ParseInt(query.Get("tutor_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		tid = &t_id
+	}
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+
+	rows, err := h.authService.GetAssessmentsByTutor(ctx, tid, &orgid)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetAssessmentContent(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "view:sessions")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	var sid *int64
+	if query.Get("session_id") != "" {
+		s_id, err := strconv.ParseInt(query.Get("session_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		sid = &s_id
+	}
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+
+	rows, err := h.authService.GetAssessmentPivotTable(ctx, sid, &orgid)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetSubscriptions(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:*")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	rows, err := h.authService.GetSubscriptions(ctx, &orgid)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
+		return
+	}
+
+	ent, err := h.authService.GetSubscriptionsEntitlements(ctx, &orgid)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
+		return
+	}
+
+	user, err := h.authService.GetSubscriptionsByOrganization(ctx, &orgid)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	response := map[string]interface{}{"sub": rows, "ent": ent, "user": user}
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *AuthHandler) GetAdminLocations(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "write:*")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	if query.Get("admin_id") == "" {
+		http.Error(w, "Invalid request, missing params", http.StatusInternalServerError)
+		return
+	}
+	admin_id := query.Get("admin_id")
+	aid, err := strconv.ParseInt(admin_id, 10, 64)
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+
+	rows, err := h.authService.GetAdminLocations(ctx, &aid, &orgid)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
 }

@@ -364,6 +364,7 @@ type ResponseRequestSemesterList struct {
 	DateStart time.Time `json:"date_start"`
 	DateEnd   time.Time `json:"date_end"`
 	Active    bool      `json:"active"`
+	WorkWeek  *[]string `json:"work_week"`
 }
 
 type ResponseRequestSemesterLocationList struct {
@@ -379,15 +380,43 @@ type ResponseRequestSemesterLocationList struct {
 	DateEnd        string `json:"date_end"`
 }
 
+type RegisterSemesterDates struct {
+	SemesterID   *int64    `json:"semester_id"`
+	Notes        *string   `json:"notes"`
+	ScheduleType *string   `json:"schedule_type"`
+	StartDate    time.Time `json:"start_date"`
+	EndDate      time.Time `json:"end_date"`
+}
+
+type RegisterStudentGroup struct {
+	ID          *int64  `json:"id"`
+	Title       *string `json:"title"`
+	Description *string `json:"description"`
+	SemesterID  *int64  `json:"semester_id"`
+	LocationID  *int64  `json:"location_id"`
+	TutorID     *int64  `json:"tutor_id"`
+}
+
+type ResponseSemesterDates struct {
+	ID           *int64    `json:"id"`
+	SemesterID   *int64    `json:"semester_id"`
+	Notes        *string   `json:"notes"`
+	ScheduleType *string   `json:"schedule_type"`
+	StartDate    time.Time `json:"start_date"`
+	EndDate      time.Time `json:"end_date"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
 type RegisterRequestSemester struct {
-	ID             *int64 `json:"id"`
-	Title          string `json:"title"`
-	Year           *int64 `json:"year"`
-	OrganizationId *int64 `json:"organization_id"`
-	DateStart      string `json:"date_start"`
-	DateEnd        string `json:"date_end"`
-	Active         bool   `json:"active"`
-	Archive        bool   `json:"archive"`
+	ID             *int64    `json:"id"`
+	Title          string    `json:"title"`
+	Year           *int64    `json:"year"`
+	OrganizationId *int64    `json:"organization_id"`
+	DateStart      string    `json:"date_start"`
+	DateEnd        string    `json:"date_end"`
+	Active         bool      `json:"active"`
+	Archive        bool      `json:"archive"`
+	WorkWeek       *[]string `json:"work_week"`
 }
 
 type RegisterRequestSemesterLocation struct {
@@ -425,6 +454,12 @@ type RemoveRequest struct {
 	OrganizationId int64  `json:"organization_id"`
 }
 
+type RemoveAdminLocation struct {
+	AdminID        *int64 `json:"admin_id"`
+	LocationID     *int64 `json:"location_id"`
+	OrganizationId int64  `json:"organization_id"`
+}
+
 type RegisterSurveyProgram struct {
 	ID        *int64 `json:"id"`
 	ProgramID *int64 `json:"program_id"`
@@ -448,6 +483,58 @@ type ResponseQuestionsSurvey struct {
 	QuestionType       *string `json:"question_type"`
 	QuestionChoiceID   *int64  `json:"question_choice_id"`
 	QuestionChoiceText *string `json:"question_choice_text"`
+}
+
+type ResponseRecentTutorSessions struct {
+	SessionID    *int64    `json:"session_id"`
+	StudentCount *int64    `json:"student_count"`
+	LocationId   *int64    `json:"location_id"`
+	SubstituteId *int64    `json:"substitute_id"`
+	ProgramId    *int64    `json:"program_id"`
+	SemesterId   *int64    `json:"semester_id"`
+	SubjectId    *int64    `json:"subject_id"`
+	SessionDate  time.Time `json:"session_date"`
+	Program      *string   `json:"program"`
+	Location     *string   `json:"location"`
+	FirstName    *string   `json:"first_name"`
+	LastName     *string   `json:"last_name"`
+	StartTime    string    `json:"start_time"`
+	Substitute   bool      `json:"substitute"`
+	TutorId      *int64    `json:"tutor_id"`
+	Duration     *int64    `json:"duration"`
+}
+
+// SELECT t.first_name, t.last_name, s.tutor_id, p.program_name, SUM(s.duration), COUNT(s.id)
+type ResponseLocalSessionAverage struct {
+	Program      *string  `json:"program"`
+	FirstName    *string  `json:"first_name"`
+	LastName     *string  `json:"last_name"`
+	TutorID      *int64   `json:"tutor_id"`
+	ProgramID    *int64   `json:"program_id"`
+	DurationSum  *float32 `json:"duration_sum"`
+	SessionCount *float32 `json:"session_count"`
+}
+
+type ResponseAssessmentPivotTable struct {
+	Program     *string    `json:"program"`
+	FirstName   *string    `json:"first_name"`
+	LastName    *string    `json:"last_name"`
+	TutorID     *int64     `json:"tutor_id"`
+	ProgramID   *int64     `json:"program_id"`
+	StartTime   *string    `json:"start_time"`
+	Duration    *int64     `json:"duration"`
+	SessionDate *time.Time `json:"session_date"`
+}
+
+type ResponseAdminLocations struct {
+	AdminID    *int64  `json:"admin_id"`
+	LocationID *int64  `json:"location_id"`
+	Location   *string `json:"location"`
+}
+
+type RegisterAdminLocation struct {
+	AdminID    *int64 `json:"admin_id"`
+	LocationID *int64 `json:"location_id"`
 }
 
 type RegisterOrganization struct {
@@ -512,6 +599,36 @@ type RegisterSubject struct {
 	Title          string `json:"title"`
 	Description    string `json:"description"`
 	OrganizationId *int64 `json:"organization_id"`
+}
+
+type RegisterStudentGroupAttendies struct {
+	GroupID  *int64      `json:"group_id"`
+	Students []*Students `json:"students"`
+}
+
+type RegisterLocationContact struct {
+	ID             *int64  `json:"id"`
+	ProgramID      *int64  `json:"program_id"`
+	LocationID     *int64  `json:"location_id"`
+	Description    *string `json:"description"`
+	FirstName      *string `json:"first_name"`
+	LastName       *string `json:"last_name"`
+	Email          *string `json:"email"`
+	Phone          *string `json:"phone"`
+	Notes          *string `json:"notes"`
+	OrganizationId *int64  `json:"organization_id"`
+}
+
+type ResponseLocationContact struct {
+	ID             *int64  `json:"id"`
+	Description    *string `json:"description"`
+	LocationID     *int64  `json:"location_id"`
+	FirstName      *string `json:"first_name"`
+	LastName       *string `json:"last_name"`
+	Email          *string `json:"email"`
+	Phone          *string `json:"phone"`
+	Notes          *string `json:"notes"`
+	OrganizationId *int64  `json:"organization_id"`
 }
 
 type SimpleReponse struct {
@@ -672,6 +789,9 @@ type RegisterPreAssessment struct {
 	TutorSessions int64   `json:"tutor_sessions"`
 	SportHours    int64   `json:"sport_hours"`
 	PeerInfluence int64   `json:"peer_influence"`
+}
+type RegisterAnnouncementsAck struct {
+	AnnouncmentID *int64 `json:"announcement_id"`
 }
 
 type RegisterAssessment struct {
@@ -902,16 +1022,16 @@ type AnnouncementRequest struct {
 }
 
 type RegisterAnnouncements struct {
-	ID             int64    `json:"id"`
-	Title          string   `json:"title"`
-	Body           string   `json:"body"`
-	CreatedAt      string   `json:"created_at"`
-	LocationID     []*int64 `json:"location_id"`     // Nullable
-	Severity       string   `json:"severity"`        // Default: "info"
-	OrganizationID *int64   `json:"organization_id"` // Required
-	ProgramID      *int64   `json:"program_id"`      // Nullable
-	AdminID        *int64   `json:"admin_id"`        // Required
-	StaffID        *int64   `json:"staff_id"`
+	ID             int64  `json:"id"`
+	Title          string `json:"title"`
+	Body           string `json:"body"`
+	CreatedAt      string `json:"created_at"`
+	LocationID     *int64 `json:"location_id"`     // Nullable
+	Severity       string `json:"severity"`        // Default: "info"
+	OrganizationID *int64 `json:"organization_id"` // Required
+	ProgramID      *int64 `json:"program_id"`      // Nullable
+	AdminID        *int64 `json:"admin_id"`        // Required
+	StaffID        *int64 `json:"staff_id"`
 }
 
 type RegisterUpdateAnnouncements struct {
@@ -932,6 +1052,11 @@ type ResponseAnnouncement struct {
 	Status string `json:"status"`
 }
 
+type ResponseAnnouncementAck struct {
+	ID     *int64 `json:"id"`
+	Status string `json:"status"`
+}
+
 type AnnouncementsList struct {
 	ID             int64  `json:"id"`
 	Title          string `json:"title"`
@@ -946,6 +1071,18 @@ type AnnouncementsList struct {
 	StaffName      string `json:"staff_name"`
 	LocationName   string `json:"location_name"`
 	ProgramName    string `json:"program_name"`
+	Ack            bool   `json:"ack"`
+}
+
+type AnnouncementsListAck struct {
+	ID             *int64    `json:"id"`
+	TutotID        *int64    `json:"tutor_id"`
+	AnnouncementID *int64    `json:"announcement_id"`
+	OrganizationID *int64    `json:"organization_id"`
+	FirstName      *string   `json:"first_name"`
+	LastName       *string   `json:"last_name"`
+	AcknowledgedAt time.Time `json:"acknowledged_at"`
+	Acknowledged   bool      `json:"acknowledged"`
 }
 
 type RegisterSubjectLocation struct {
@@ -974,6 +1111,7 @@ type RequestTutorSessions struct {
 }
 
 type Students struct {
+	ID               *int64  `json:"id"`
 	SessionID        *int64  `json:"session_id"`
 	StudentID        *int64  `json:"student_id"`
 	FirstName        string  `json:"first_name"`

@@ -608,3 +608,92 @@ CREATE TABLE stu_tracker.Survey_response (
 );
 
 ALTER TABLE stu_tracker.Survey_response add question_text TEXT;
+ALTER TABLE stu_tracker.Survey_response add sentiment_score REAL DEFAULT NULL;
+ALTER TABLE stu_tracker.Survey_response add sentiment_label SMALLINT DEFAULT NULL;
+
+
+-- Maybe
+ALTER TABLE stu_tracker.Programs ADD start_time varchar(8) DEFAULT NULL;
+ALTER TABLE stu_tracker.Programs ADD end_time varchar(8) DEFAULT NULL;
+ALTER TABLE stu_tracker.Location_contacts ADD notes VARCHAR(255);
+ALTER TABLE stu_tracker.Location_contacts ADD organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE SET NULL;
+ALTER TABLE stu_tracker.Location_contacts ADD id SERIAL PRIMARY KEY;
+ALTER table stu_tracker.Surveys ADD internal BOOLEAN DEFAULT TRUE;
+
+-- What you sell
+CREATE TABLE stu_tracker.subscription_plan (
+  id SERIAL PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,            -- 'free', 'pro', 'business'
+  name TEXT NOT NULL,                   -- "Pro"
+  stripe_price_id TEXT UNIQUE,          -- map to Stripe price (optional if you sell per-seat or multiple prices)
+  is_active BOOLEAN DEFAULT TRUE
+);
+
+-- The limits/features for each plan
+CREATE TABLE stu_tracker.plan_entitlement (
+  id SERIAL PRIMARY KEY,
+  plan_id INT NOT NULL REFERENCES stu_tracker.subscription_plan(id) ON DELETE CASCADE,
+  key TEXT NOT NULL,                    -- 'max_locations', 'max_users', 'feature_export_csv', 'requests_per_day'
+  limit_value BIGINT,                   -- null if it's a flag feature, otherwise a numeric limit
+  enabled BOOLEAN DEFAULT TRUE,
+  enterprise BOOLEAN DEFAULT FALSE,
+  UNIQUE(plan_id, key)
+);
+
+-- The organization’s CURRENT plan (denormalized for fast reads)
+CREATE TABLE stu_tracker.plan_entitlement (
+  id SERIAL PRIMARY KEY,
+  plan_id INT NOT NULL REFERENCES stu_tracker.subscription_plan(id) ON DELETE CASCADE,
+  key TEXT NOT NULL,                    -- 'max_locations', 'max_users', 'feature_export_csv', 'requests_per_day'
+  limit_value BIGINT,                   -- null if it's a flag feature, otherwise a numeric limit
+  enabled BOOLEAN DEFAULT TRUE,
+  enterprise BOOLEAN DEFAULT FALSE,
+  UNIQUE(plan_id, key)
+);
+
+ALTER TABLE stu_tracker.subscription_plan ADD cost_monthly FLOAT;
+ALTER TABLE stu_tracker.subscription_plan ADD cost_yearly FLOAT;
+ALTER TABLE stu_tracker.Admin_root ADD stripe_session_id TEXT;
+ALTER TABLE stu_tracker.Admin_root ADD stripe_customer_id TEXT;
+
+
+CREATE TABLE stu_tracker.admin_location_access (
+    admin_id INT NOT NULL REFERENCES stu_tracker.admin_staff(id) ON DELETE CASCADE,
+    location_id INT NOT NULL REFERENCES stu_tracker.locations(id) ON DELETE CASCADE,
+    organization_id INT NOT NULL REFERENCES stu_tracker.organization(id) ON DELETE CASCADE,
+    PRIMARY KEY (admin_id, location_id)
+);
+
+ALTER TABLE stu_tracker.Semester ADD workweek TEXT[];
+
+CREATE TABLE stu_tracker.Semester_schedule (
+    id SERIAL PRIMARY KEY,
+    semester_id INT NOT NULL REFERENCES stu_tracker.Semester(id),
+    schedule_type VARCHAR(20) NOT NULL CHECK (schedule_type IN ('inclusion', 'exclusion')),
+    start_date DATE NOT NULL,
+    end_date DATE,
+    recurring BOOLEAN DEFAULT FALSE,
+    recurrence_pattern JSONB,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE stu_tracker.Student_groups (
+    id SERIAL PRIMARY KEY,
+    tutor_id INT NOT NULL REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
+    location_id INT NOT NULL REFERENCES stu_tracker.Locations(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE stu_tracker.Student_group_attendees(
+    student_id INT REFERENCES stu_tracker.Students(id) ON DELETE CASCADE,
+    student_group_id INT REFERENCES stu_tracker.Student_groups(id) ON DELETE CASCADE,
+    create_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE stu_tracker.Student_groups ADD semester_id INT REFERENCES stu_tracker.Semester(id) ON DELETE CASCADE;
+ALTER TABLE stu_tracker.Student_group_attendees
+ADD CONSTRAINT pk_student_group UNIQUE (student_id, student_group_id);

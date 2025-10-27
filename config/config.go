@@ -22,8 +22,9 @@ func LoadConfig() (*models.Config, error) {
 		log.Println("Error loading .env file")
 	}
 	cfg := &models.Config{
-		JWT:  os.Getenv("JWT"),
-		Port: os.Getenv("B_PORT"),
+		JWT:           os.Getenv("JWT"),
+		Port:          os.Getenv("B_PORT"),
+		StripeWebhook: os.Getenv("STRIPE_WEBHOOK"),
 		DB: models.PostGresConfig{
 			Username: os.Getenv("POSTGRES_USER"),
 			Password: os.Getenv("POSTGRES_PASSWORD"),

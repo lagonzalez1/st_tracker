@@ -48,6 +48,35 @@ func (s *AuthService) AddFileDownloadEvent(ctx context.Context, req models.Reque
 	return inputKey, nil
 }
 
+func (s *AuthService) AddSentimentWorker(ctx context.Context, session_id *int64, org_id *int64) (bool, error) {
+	req := map[string]interface{}{"session_id": *session_id, "organization_id": *org_id}
+	jsonBody, err := json.Marshal(req)
+	if err != nil {
+		log.Printf("Failed to marchal json for MQ: %v", err)
+		return false, err
+	}
+	mq := s.mq.Channels["generate"]
+	if mq == nil {
+		err := fmt.Errorf("RabbitMQ channel 'report' not found")
+		log.Printf("Failed : %v", err)
+		return false, err
+	}
+	err = mq.Publish(
+		"ai_events_exchange",
+		"generate",
+		false, false,
+		amqp091.Publishing{
+			ContentType: "application/json",
+			Body:        []byte(jsonBody),
+		},
+	)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 func (s *AuthService) AddStudentReportQuery(ctx context.Context, req models.RequestStudentReport) (*string, error) {
 	jsonBody, err := json.Marshal(req)
 	if err != nil {
