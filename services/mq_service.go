@@ -77,6 +77,35 @@ func (s *AuthService) AddSentimentWorker(ctx context.Context, session_id *int64,
 	return true, nil
 }
 
+func (s *AuthService) AddAssessmentGrader(ctx context.Context, session_id *int64, org_id *int64) (bool, error) {
+	req := map[string]interface{}{"session_id": *session_id, "organization_id": *org_id}
+	jsonBody, err := json.Marshal(req)
+	if err != nil {
+		log.Printf("Failed to marchal json for MQ: %v", err)
+		return false, err
+	}
+	mq := s.mq.Channels["generate"]
+	if mq == nil {
+		err := fmt.Errorf("RabbitMQ channel 'report' not found")
+		log.Printf("Failed : %v", err)
+		return false, err
+	}
+	err = mq.Publish(
+		"ai_events_exchange",
+		"generate",
+		false, false,
+		amqp091.Publishing{
+			ContentType: "application/json",
+			Body:        []byte(jsonBody),
+		},
+	)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 func (s *AuthService) AddStudentReportQuery(ctx context.Context, req models.RequestStudentReport) (*string, error) {
 	jsonBody, err := json.Marshal(req)
 	if err != nil {
@@ -119,13 +148,13 @@ func (s *AuthService) AddQueueMaterialsEvent(ctx context.Context, req *models.Re
 	if err != nil {
 		return nil, err
 	}
-	mq := s.mq.Channels["generate"]
+	mq := s.mq.Channels["produce"]
 	if mq == nil {
 		return nil, fmt.Errorf("channel is not open")
 	}
 	err = mq.Publish(
 		"ai_events_exchange",
-		"generate",
+		"produce",
 		false, false,
 		amqp091.Publishing{
 			ContentType: "application/json",
@@ -152,7 +181,7 @@ func (s *AuthService) AddQueueQuestionEvent(ctx context.Context, req *models.Req
 		return nil, err
 	}
 
-	mq := s.mq.Channels["generate"]
+	mq := s.mq.Channels["produce"]
 	if mq == nil {
 		err := fmt.Errorf("RabbitMQ channel 'generate' not found")
 		log.Printf("Failure: %v", err)
@@ -162,7 +191,7 @@ func (s *AuthService) AddQueueQuestionEvent(ctx context.Context, req *models.Req
 
 	err = mq.Publish(
 		"ai_events_exchange",
-		"generate",
+		"produce",
 		false, false,
 		amqp091.Publishing{
 			ContentType: "application/json",

@@ -62,27 +62,28 @@ func ConnectRabbitMQ() (*MQChannels, error) {
 	}
 	fmt.Println("RabbitMQ connected.")
 	channels := make(map[string]*amqp091.Channel)
+	// Sentiment analysis
 	ch, err := setupTaskQueue(conn, "generate", "worker")
 	if err != nil {
 		conn.Close()
 		return nil, err
 	}
 	channels["generate"] = ch
-
+	// student reports
 	chEmailSend, err := setupTaskQueue(conn, "report", "micro_report")
 	if err != nil {
 		conn.Close()
 		return nil, err
 	}
 	channels["report"] = chEmailSend
-
+	// Org reports
 	pgReportSender, err := setupTaskQueue(conn, "pgdata", "micro_pgreport")
 	if err != nil {
 		conn.Close()
 		return nil, err
 	}
 	channels["pgdata"] = pgReportSender
-
+	// AI Quiz and materials generation
 	chMaterials, err := setupTaskQueue(conn, "produce", "micro_materials")
 	if err != nil {
 		conn.Close()

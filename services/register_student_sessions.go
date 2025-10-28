@@ -46,7 +46,7 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
             start_time, notes, program_id, student_count, 
             organization_id, semester_id, duration, in_school, substitute_id
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
-        RETURNING id`,
+        RETURNING id;`,
 		req.Session.TutorId,
 		req.Session.SessionDate,
 		req.Session.LocationId,
@@ -129,7 +129,9 @@ func (s *AuthService) CheckDuplicateSession(req models.RegisterStudentSessionLis
 	return false, nil
 }
 
-func (s AuthService) ProccessAssessmentsSessions(ctx context.Context, tx *sql.Tx, SessionList *[]models.RegisterStudentSession, sessionID int64, AssessmentList map[string]*models.AssessmentPayload, sessionToken *string) (*int, error) {
+func (s AuthService) ProccessAssessmentsSessions(ctx context.Context, tx *sql.Tx,
+	SessionList *[]models.RegisterStudentSession, sessionID int64,
+	AssessmentList map[string]*models.AssessmentPayload, sessionToken *string) (*int, error) {
 	var assessmentsCompleted int
 	completed := &assessmentsCompleted
 	for _, student := range *SessionList {

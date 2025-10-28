@@ -640,16 +640,6 @@ CREATE TABLE stu_tracker.plan_entitlement (
   UNIQUE(plan_id, key)
 );
 
--- The organization’s CURRENT plan (denormalized for fast reads)
-CREATE TABLE stu_tracker.plan_entitlement (
-  id SERIAL PRIMARY KEY,
-  plan_id INT NOT NULL REFERENCES stu_tracker.subscription_plan(id) ON DELETE CASCADE,
-  key TEXT NOT NULL,                    -- 'max_locations', 'max_users', 'feature_export_csv', 'requests_per_day'
-  limit_value BIGINT,                   -- null if it's a flag feature, otherwise a numeric limit
-  enabled BOOLEAN DEFAULT TRUE,
-  enterprise BOOLEAN DEFAULT FALSE,
-  UNIQUE(plan_id, key)
-);
 
 ALTER TABLE stu_tracker.subscription_plan ADD cost_monthly FLOAT;
 ALTER TABLE stu_tracker.subscription_plan ADD cost_yearly FLOAT;
@@ -697,3 +687,22 @@ CREATE TABLE stu_tracker.Student_group_attendees(
 ALTER TABLE stu_tracker.Student_groups ADD semester_id INT REFERENCES stu_tracker.Semester(id) ON DELETE CASCADE;
 ALTER TABLE stu_tracker.Student_group_attendees
 ADD CONSTRAINT pk_student_group UNIQUE (student_id, student_group_id);
+
+-- NEEDE TO ADD THIS
+CREATE TABLE stu_tracker.organization_subscription (
+    id SERIAL PRIMARY KEY,
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE SET NULL,
+    plan_id INT REFERENCES stu_tracker.subscription_plan(id) ON DELETE CASCADE,
+    status TEXT,
+    current_period_start TIMESTAMP DEFAULT NULL,
+    current_period_end TIMESTAMP DEFAULT NULL,
+    stripe_customer_id TEXT,
+    stripe_subscription_id TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    stripe_session_id TEXT,
+    event_id TEXT,
+    lastest_invoice_url TEXT,
+    subscription_status TEXT,
+    canceled_at TIMESTAMP DEFAULT NULL
+);
