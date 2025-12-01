@@ -240,7 +240,7 @@ func (h *AuthHandler) DeleteDistrict(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	orgID, err := helpers.ExtractInt64Claim(claims, "orgid")
 	if err != nil {
 		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
 		return
@@ -262,7 +262,8 @@ func (h *AuthHandler) DeleteDistrict(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error decoding JSON: %v\n", err)
 		return
 	}
-	models.OrganizationId = int64(orgID)
+	models.OrganizationId = orgID
+	key := fmt.Sprintf("get:districts:%d", orgID)
 	user, err := h.authService.DeleteDistrict(ctx, models)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -277,6 +278,7 @@ func (h *AuthHandler) DeleteDistrict(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Unable to delete district: %v\n", err)
 		return
 	}
+	h.ClearCache(ctx, key)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(user)
@@ -456,7 +458,7 @@ func (h *AuthHandler) CreateProgram(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	orgID, err := helpers.ExtractInt64Claim(claims, "orgid")
 	if err != nil {
 		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
 		return
@@ -466,16 +468,12 @@ func (h *AuthHandler) CreateProgram(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body")
 		return
 	}
-
 	var models models.RegisterRequestProgram
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
-	if int64(orgID) != *models.OrganizationId {
-		http.Error(w, "Missmatch organizations", http.StatusBadRequest)
-		return
-	}
+	models.OrganizationId = &orgID
 	// Need to handle 3 cases of logins for different permissions
 	user, err := h.authService.AddProgram(ctx, models)
 	if err != nil {
@@ -726,7 +724,7 @@ func (h *AuthHandler) CreateProgramLocation(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	orgID, err := helpers.ExtractInt64Claim(claims, "orgid")
 	if err != nil {
 		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
 		return
@@ -736,10 +734,8 @@ func (h *AuthHandler) CreateProgramLocation(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
-	if int64(orgID) != *models.OrganizationID {
-		http.Error(w, "Invalid request data", http.StatusBadRequest)
-		return
-	}
+	models.OrganizationID = &orgID
+
 	user, err := h.authService.CreateProgramLocation(ctx, models)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -965,13 +961,19 @@ func (h *AuthHandler) DeleteMaterial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
 	var models models.RemoveRequest
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v\n", err)
 		return
 	}
-
+	key := fmt.Sprintf("get:materials%d", orgid)
 	user, err := h.authService.DeleteMaterial(ctx, models)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -986,7 +988,7 @@ func (h *AuthHandler) DeleteMaterial(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Unable to delete material: %v\n", err)
 		return
 	}
-
+	h.ClearCache(ctx, key)
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
@@ -1116,14 +1118,18 @@ func (h *AuthHandler) DeleteLocation(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	key := fmt.Sprintf("get:locations:%d", orgid)
 	var models models.RemoveRequest
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v\n", err)
 		return
 	}
-
 	user, err := h.authService.DeleteLocation(ctx, models)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -1138,7 +1144,7 @@ func (h *AuthHandler) DeleteLocation(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Unable to delete location: %v\n", err)
 		return
 	}
-
+	h.ClearCache(ctx, key)
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
@@ -1527,13 +1533,22 @@ func (h *AuthHandler) DeleteSemester(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error found reading body")
 		return
 	}
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to semester", http.StatusBadRequest)
+		return
+	}
 	var models models.RemoveRequest
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
-
+	key := fmt.Sprintf("get:semesters:%d", orgid)
 	// Need to handle 3 cases of logins for different permissions
 	user, err := h.authService.DeleteSemester(ctx, models)
 	if err != nil {
@@ -1550,6 +1565,7 @@ func (h *AuthHandler) DeleteSemester(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("service error: %v\n", err)
 		return
 	}
+	h.ClearCache(ctx, key)
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
@@ -1964,20 +1980,28 @@ func (h *AuthHandler) UpdateAdminStaff(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) DeleteAdminStaff(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		fmt.Printf("error found reading body\n")
 		return
 	}
-
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		return
+	}
 	var models models.RemoveAdmin
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v\n", err)
 		return
 	}
-
+	key := fmt.Sprintf("get:admins:%d", orgid)
 	user, err := h.authService.DeleteAdminStaff(ctx, models)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -1992,7 +2016,7 @@ func (h *AuthHandler) DeleteAdminStaff(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Unable to delete admin staff: %v\n", err)
 		return
 	}
-
+	h.ClearCache(ctx, key)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(user)
@@ -2822,7 +2846,12 @@ func (h *AuthHandler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	key := fmt.Sprintf("get:subjects:%d", orgid)
 	var models models.RemoveRequest
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
@@ -2844,7 +2873,7 @@ func (h *AuthHandler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Unable to delete subject: %v\n", err)
 		return
 	}
-
+	h.ClearCache(ctx, key)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(user)
@@ -3436,7 +3465,6 @@ func (h *AuthHandler) UpdateAssessment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := fmt.Sprintf("get:assessments:%d", orgid)
-
 	user, err := h.authService.UpdateAssessment(ctx, models)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -3478,14 +3506,18 @@ func (h *AuthHandler) DeleteAssessment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "unable to prase orgid", http.StatusForbidden)
+		return
+	}
 	var models models.RemoveRequest
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v\n", err)
 		return
 	}
-
+	key := fmt.Sprintf("get:assessments:%d", orgid)
 	user, err := h.authService.DeleteAssessment(ctx, models)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -3500,7 +3532,7 @@ func (h *AuthHandler) DeleteAssessment(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Unable to delete assessment: %v\n", err)
 		return
 	}
-
+	h.ClearCache(ctx, key)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(user)
