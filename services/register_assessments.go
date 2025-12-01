@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 	"tracker/app/models"
 
 	"github.com/lib/pq"
@@ -56,12 +57,13 @@ func (s *AuthService) AddAssessment(c context.Context, req models.RegisterAssess
 				(assessment_id, image_url, question_text, question_type, points, order_number, standard_text)
 				VALUES ($1, $2, $3, $4, $5, $6, $7)
 				RETURNING id;`
+			fixedText := strings.ReplaceAll(question.QuestionText, "\\\\", "\\")
 			err := s.db.QueryRowContext(
 				c,
 				questionQuery,
 				newID,
 				questionImageID,
-				question.QuestionText,
+				fixedText,
 				question.QuestionType,
 				question.Points,
 				question.OrderNumber,
@@ -198,12 +200,14 @@ func (s *AuthService) UpdateAssessment(c context.Context, req models.RegisterAss
 				VALUES ($1, $2, $3, $4, $5, $6, $7)
 				RETURNING id;`
 				var questionImageID = &req.Images[idx].ID
+				fixedText := strings.ReplaceAll(question.QuestionText, "\\\\", "\\")
+
 				err := s.db.QueryRowContext(
 					c,
 					questionQuery,
 					req.ID,
 					questionImageID,
-					question.QuestionText,
+					fixedText,
 					question.QuestionType,
 					question.Points,
 					question.OrderNumber,

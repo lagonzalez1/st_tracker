@@ -2624,7 +2624,8 @@ func (h *AuthHandler) CreateLocationContact(w http.ResponseWriter, r *http.Reque
 		fmt.Printf("Error decoding JSON: %v\n", err)
 		return
 	}
-	key := fmt.Sprintf("get:locations-contact:%d:%d", orgid, models.LocationID)
+
+	key := fmt.Sprintf("get:locations-contact:%d:%d", orgid, *models.LocationID)
 	models.OrganizationId = &orgid
 	user, err := h.authService.CreateLocationContact(ctx, models)
 	if err != nil {
@@ -3611,7 +3612,7 @@ func (h *AuthHandler) GetLocationContact(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
 		return
 	}
-	if !query.Has("location_id") {
+	if query.Get("location_id") == "" {
 		http.Error(w, "no location specified", http.StatusInternalServerError)
 		return
 	}
@@ -5152,23 +5153,33 @@ func (h *AuthHandler) GetGroupAttendies(w http.ResponseWriter, r *http.Request) 
 
 func (h *AuthHandler) GetTutorLocations(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	query := r.URL.Query()
 	defer cancel()
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
 	if !ok {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	tid, err := helpers.ExtractInt64Claim(claims, "id")
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+		return
+	}
+	if query.Get("tutor_id") != "" {
+		tutor_id, err := strconv.ParseInt(query.Get("tutor_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+			return
+		}
+		tid = tutor_id
+	}
+
 	valid, err := validateRequest(claims, "view:tutor-locations")
 	if err != nil || !valid {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	oid, err := helpers.ExtractInt64Claim(claims, "orgid")
-	if err != nil {
-		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-		return
-	}
-	tid, err := helpers.ExtractInt64Claim(claims, "id")
 	if err != nil {
 		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
 		return
