@@ -48,22 +48,19 @@ func (s *AuthService) AddFileDownloadEvent(ctx context.Context, req models.Reque
 	return inputKey, nil
 }
 
-func (s *AuthService) AddSentimentWorker(ctx context.Context, session_id *int64, org_id *int64) (bool, error) {
-	req := map[string]interface{}{"session_id": *session_id, "organization_id": *org_id}
+func (s *AuthService) AddGraderEvent(ctx context.Context, req models.RequestAssessmentGrader) (bool, error) {
 	jsonBody, err := json.Marshal(req)
 	if err != nil {
 		log.Printf("Failed to marchal json for MQ: %v", err)
 		return false, err
 	}
-	mq := s.mq.Channels["generate"]
+	mq := s.mq.Channels["grader"]
 	if mq == nil {
-		err := fmt.Errorf("RabbitMQ channel 'report' not found")
-		log.Printf("Failed : %v", err)
-		return false, err
+		return false, fmt.Errorf("unable to get channel grader")
 	}
 	err = mq.Publish(
 		"ai_events_exchange",
-		"generate",
+		"grader",
 		false, false,
 		amqp091.Publishing{
 			ContentType: "application/json",
@@ -73,11 +70,10 @@ func (s *AuthService) AddSentimentWorker(ctx context.Context, session_id *int64,
 	if err != nil {
 		return false, err
 	}
-
 	return true, nil
 }
 
-func (s *AuthService) AddAssessmentGrader(ctx context.Context, session_id *int64, org_id *int64) (bool, error) {
+func (s *AuthService) AddSentimentWorker(ctx context.Context, session_id *int64, org_id *int64) (bool, error) {
 	req := map[string]interface{}{"session_id": *session_id, "organization_id": *org_id}
 	jsonBody, err := json.Marshal(req)
 	if err != nil {

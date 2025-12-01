@@ -47,12 +47,12 @@ func buildScheduleQuery(req *models.RegisterSchedule) (string, []interface{}) {
 		args = append(args, req.StartDate)
 		args = append(args, req.StartDate)
 		args = append(args, req.Notes)
+		args = append(args, req.LocationID)
 		query += `INSERT INTO stu_tracker.tutor_schedules 
-		(tutor_id, program_id, schedule_type, start_date, end_date, notes) 
-		VALUES ($1,$2,$3,$4,$5,$6) RETURNING id;`
+		(tutor_id, program_id, schedule_type, start_date, end_date, notes, location_id) 
+		VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id;`
 	}
 	if req.ScheduleType == "inclusion" {
-
 		args = append(args, req.TutorID)
 		args = append(args, req.ProgramID)
 		args = append(args, req.ScheduleType)
@@ -60,9 +60,12 @@ func buildScheduleQuery(req *models.RegisterSchedule) (string, []interface{}) {
 		args = append(args, req.EndDate)
 		args = append(args, req.Notes)
 		args = append(args, pq.Array(req.WorkWeek))
+		args = append(args, req.StartTime)
+		args = append(args, req.EndTime)
+		args = append(args, req.LocationID)
 		query += `INSERT INTO stu_tracker.tutor_schedules 
-		(tutor_id, program_id, schedule_type, start_date, end_date, notes, workweek) 
-		VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id;`
+		(tutor_id, program_id, schedule_type, start_date, end_date, notes, workweek, start_time, end_time, location_id) 
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id;`
 	}
 	return query, args
 }

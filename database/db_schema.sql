@@ -685,8 +685,7 @@ CREATE TABLE stu_tracker.Student_group_attendees(
 );
 
 ALTER TABLE stu_tracker.Student_groups ADD semester_id INT REFERENCES stu_tracker.Semester(id) ON DELETE CASCADE;
-ALTER TABLE stu_tracker.Student_group_attendees
-ADD CONSTRAINT pk_student_group UNIQUE (student_id, student_group_id);
+ALTER TABLE stu_tracker.Student_group_attendees ADD CONSTRAINT pk_student_group UNIQUE (student_id, student_group_id);
 
 -- NEEDE TO ADD THIS
 CREATE TABLE stu_tracker.organization_subscription (
@@ -706,3 +705,57 @@ CREATE TABLE stu_tracker.organization_subscription (
     subscription_status TEXT,
     canceled_at TIMESTAMP DEFAULT NULL
 );
+
+ALTER TABLE stu_tracker.Assessment_answers ADD feedback TEXT;
+
+
+CREATE TABLE stu_tracker.Assessment_grader_task(
+    id BIGSERIAL PRIMARY KEY,
+    session_token TEXT UNIQUE,
+    model_id TEXT,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    attempts INT NOT NULL DEFAULT 0,
+    max_attempts INT NOT NULL DEFAULT 5,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE stu_tracker.Grader_task_item (
+    id BIGSERIAL PRIMARY KEY,
+    item_key INT NOT NULL, -- session_answers_id
+    task_id BIGINT REFERENCES stu_tracker.assessment_grader_task(ID) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    attempts INT NOT NULL DEFAULT 0,
+    last_error TEXT,
+    idempotency_key TEXT, -- MODEL_ID + ITEM_KEYS
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(task_id, item_key)
+);
+
+ALTER TABLE stu_tracker.Assessment_answers ADD points FLOAT;
+ALTER TABLE stu_tracker.Sessions ADD session_token UUID DEFAULT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_answers_student_question ON stu_tracker.Assessment_answers(assessment_student_id, question_id, choice_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_grader_task_session_model ON stu_tracker.Assessment_grader_task(session_token, model_id);
+
+
+CREATE TABLE stu_tracker.LLM_usage (
+    id BIGSERIAL PRIMARY KEY,
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
+    input_tokens INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    model TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    status TEXT NOT NULL,
+    error_type TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE stu_tracker.Tutor_schedules ADD COLUMN start_time TIME, ADD COLUMN end_time TIME;
+ALTER TABLE stu_tracker.Tutor_schedules ADD COLUMN location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE CASCADE;
+
+
+ALTER TABLE stu_tracker.Assessment_sessions ADD COLUMN join_code VARCHAR(8) NOT NULL;
+
+CREATE UNIQUE INDEX ON stu_tracker.Assessment_sessions (join_code);

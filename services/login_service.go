@@ -96,7 +96,6 @@ func (s *AuthService) LoginAction(c context.Context, req models.LoginRequest) (*
 		if err != nil {
 			return nil, fmt.Errorf("unable to cache permissions: %w", err)
 		}
-
 	}
 
 	return &models.LoginResponse{

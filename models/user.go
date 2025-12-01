@@ -567,6 +567,14 @@ type AssessmentPayload struct {
 	Grader       map[string]bool        `json:"grader,omitempty"`
 }
 
+type RequestAssessmentGrader struct {
+	OrganizationID *int64  `json:"organization_id"`
+	SessionID      *int64  `json:"session_id"`
+	SessionToken   *string `json:"session_token"`
+	TutorID        *int64  `json:"tutor_id"`
+	SemesterID     *int64  `json:"semester_id"`
+}
+
 type RegisterTutorSession struct {
 	ID           *int64 `json:"id"`
 	StudentCount *int64 `json:"student_count"`
@@ -674,25 +682,25 @@ type StudentSessions struct {
 }
 
 type RegisterStudentSession struct {
-	ID              *int64  `json:"id"`
-	Absent          bool    `json:"absent"`
-	FirstName       string  `json:"first_name"`
-	LastName        string  `json:"last_name"`
-	SessionDate     string  `json:"session_date"`
-	Duration        *int64  `json:"duration"`
-	StartTime       string  `json:"start_time"`
-	Notes           string  `json:"notes"`
-	OrganizationId  *int64  `json:"organization_id"`
-	ProgramId       *int64  `json:"program_id"`
-	LocationId      *int64  `json:"location_id"`
-	TutorId         *int64  `json:"tutor_id"`
-	SubjectId       *int64  `json:"subject_id"`
-	AssessmentId    *int64  `json:"assessment_id"`
-	AssessmentScore *int64  `json:"score"`
-	EasyScoreID     bool    `json:"easy_score"`
-	Timeframe       *bool   `json:"timeframe"`
-	TimeframeStart  *string `json:"timeframe_start"`
-	TimeframeEnd    *string `json:"timeframe_end"`
+	ID              *int64   `json:"id"`
+	Absent          bool     `json:"absent"`
+	FirstName       string   `json:"first_name"`
+	LastName        string   `json:"last_name"`
+	SessionDate     string   `json:"session_date"`
+	Duration        *float32 `json:"duration"`
+	StartTime       string   `json:"start_time"`
+	Notes           string   `json:"notes"`
+	OrganizationId  *int64   `json:"organization_id"`
+	ProgramId       *int64   `json:"program_id"`
+	LocationId      *int64   `json:"location_id"`
+	TutorId         *int64   `json:"tutor_id"`
+	SubjectId       *int64   `json:"subject_id"`
+	AssessmentId    *int64   `json:"assessment_id"`
+	AssessmentScore *int64   `json:"score"`
+	EasyScoreID     bool     `json:"easy_score"`
+	Timeframe       *bool    `json:"timeframe"`
+	TimeframeStart  *string  `json:"timeframe_start"`
+	TimeframeEnd    *string  `json:"timeframe_end"`
 }
 
 type StudentList struct {
@@ -707,6 +715,7 @@ type ResponseStudentSession struct {
 	Status          string `json:"status"`
 	StudentCount    int64  `json:"student_count"`
 	AssessmentCount int64  `json:"assessment_count"`
+	SessionID       *int64 `json:"session_id"`
 }
 
 type ResponseAssessmentList struct {
@@ -734,6 +743,14 @@ type ResponseAssessmentList struct {
 	Post            bool    `json:"post"`
 	EasyScore       bool    `json:"easy_score"`
 	Questionnaire   bool    `json:"questionnaire"`
+}
+
+type ResponseStudentSessionSearch struct {
+	SessionToken *string `json:"session_token"`
+	AssessmentID *int64  `json:"assessment_id"`
+	StudentID    *int64  `json:"student_id"`
+	MaxScore     *int32  `json:"max_score"`
+	Title        *string `json:"title"`
 }
 
 type ResponseAssessmentQuestionsChoice struct {
@@ -966,7 +983,7 @@ type SessionTrail struct {
 	FirstName       string    `json:"first_name"`
 	LastName        string    `json:"last_name"`
 	ProgramName     string    `json:"program_name"`
-	SessionDuration int64     `json:"session_duration"`
+	SessionDuration float32   `json:"session_duration"`
 	StartTime       string    `json:"start_time"`
 	Notes           string    `json:"notes"`
 	CreatedAt       time.Time `json:"created_at"`
@@ -1143,15 +1160,17 @@ type TutorSessionsList struct {
 }
 
 type StudentAssessmentSearch struct {
-	QuestionID   *int64  `json:"question_id"`
-	Question     *string `json:"question"`
-	QuestionType *string `json:"question_type"`
-	Points       int64   `json:"points"`
-	MaxPoints    int64   `json:"max_points"`
-	IsCorrect    bool    `json:"is_correct"`
-	ChoiceID     *int64  `json:"choice_id"`
-	AnswerText   *string `json:"answer_text"`
-	ChoiceText   *string `json:"choice_text"`
+	QuestionID   *int64   `json:"question_id"`
+	Question     *string  `json:"question"`
+	QuestionType *string  `json:"question_type"`
+	Points       int64    `json:"points"`
+	MaxPoints    int64    `json:"max_points"`
+	IsCorrect    bool     `json:"is_correct"`
+	ChoiceID     *int64   `json:"choice_id"`
+	AnswerText   *string  `json:"answer_text"`
+	ChoiceText   *string  `json:"choice_text"`
+	Feedback     *string  `json:"feedback"`
+	AnswerPoints *float32 `json:"answer_points"`
 }
 
 type RegisterTeacher struct {

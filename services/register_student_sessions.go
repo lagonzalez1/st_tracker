@@ -36,16 +36,16 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 
 	var sessionID int64
 	var rowsAffected int64
-	var assessmentsCompleted *int
+	//	var assessmentsCompleted *int
 
 	// Main session insertion
 	err = tx.QueryRowContext(
 		ctx,
-		`INSERT INTO stu_tracker.Sessions (
+		`INSERT INTO stu_tracker.Sessions(
             tutor_id, session_date, location_id, substitute, 
             start_time, notes, program_id, student_count, 
-            organization_id, semester_id, duration, in_school, substitute_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+            organization_id, semester_id, duration, in_school, substitute_id, session_token
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
         RETURNING id;`,
 		req.Session.TutorId,
 		req.Session.SessionDate,
@@ -60,6 +60,7 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 		req.Session.Duration,
 		req.Session.InSchool,
 		req.Session.SubstituteId,
+		req.SessionToken,
 	).Scan(&sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert session: %w", err)
@@ -77,33 +78,36 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 
 	var assessmentCount int64
 	// Handle session insert per student
-	if len(req.SessionList) > 0 {
-		assessmentsCompleted, err = s.ProccessAssessmentsSessions(ctx, tx, &req.SessionList, sessionID, req.Assessments, req.SessionToken)
-		if assessmentsCompleted != nil {
-			assessmentCount = int64(*assessmentsCompleted)
-		} else {
-			assessmentCount += 0
+	/*
+		if len(req.SessionList) > 0 {
+			assessmentsCompleted, err = s.ProccessAssessmentsSessions(ctx, tx, &req.SessionList, sessionID, req.Assessments, req.SessionToken)
+			if assessmentsCompleted != nil {
+				assessmentCount = int64(*assessmentsCompleted)
+			} else {
+				assessmentCount += 0
+			}
 		}
-	}
-	fmt.Println("AssessmentCount", assessmentCount)
-	// Cleanup operations
-	if req.SessionToken != nil {
-		err = CleanSessionData(ctx, tx, *req.SessionToken)
-		if err != nil {
-			return nil, err
+		fmt.Println("AssessmentCount", assessmentCount)
+		// Cleanup operations
+		if req.SessionToken != nil {
+			err = CleanSessionData(ctx, tx, *req.SessionToken)
+			if err != nil {
+				return nil, err
+			}
 		}
-	}
 
-	// Commit the transaction if everything succeeded
+		// Commit the transaction if everything succeeded
+
+	*/
 	if err = tx.Commit(); err != nil {
 		fmt.Println(err)
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
-
 	return &models.ResponseStudentSession{
 		Status:          "OK",
 		StudentCount:    rowsAffected,
 		AssessmentCount: assessmentCount,
+		SessionID:       &sessionID,
 	}, nil
 }
 
@@ -205,7 +209,6 @@ func (s AuthService) ProccessAssessmentsSessions(ctx context.Context, tx *sql.Tx
 			fmt.Printf("Error in QuestionnairExist %v", err)
 			return nil, err
 		}
-
 		insertedId, err := InsertAssessmentStudents(ctx, student, score, sessionID, tx, questionnaireId)
 		if err != nil {
 			return nil, err
@@ -231,7 +234,6 @@ func isMapTrulyEmpty(m map[string]interface{}) bool {
 	if len(m) == 0 {
 		return true
 	}
-
 	// Check if all values are empty maps/interfaces
 	for _, v := range m {
 		switch val := v.(type) {

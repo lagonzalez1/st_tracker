@@ -191,6 +191,36 @@ func (h *AuthHandler) DeleteStudentSession(w http.ResponseWriter, r *http.Reques
 	json.NewEncoder(w).Encode(user)
 }
 
+func (h *AuthHandler) GetAssessmentSessionExternal(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	query := r.URL.Query()
+	if query.Get("first_name") == "" || query.Get("last_name") == "" || query.Get("join_code") == "" {
+		http.Error(w, "missing parameter", http.StatusBadRequest)
+		return
+	}
+	first_name, last_name, join_code := query.Get("first_name"), query.Get("last_name"), query.Get("join_code")
+	rows, err := h.authService.GetAssessmentSession(ctx, &first_name, &last_name, &join_code)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		http.Error(w, "No assessment sessions found.", http.StatusInternalServerError)
+		fmt.Printf("Error retrieving assessment questions: %v\n", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	response := map[string]interface{}{"data": rows}
+	json.NewEncoder(w).Encode(response)
+
+}
+
 func (h *AuthHandler) GetAssessmentQuestionsExternal(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
@@ -198,12 +228,10 @@ func (h *AuthHandler) GetAssessmentQuestionsExternal(w http.ResponseWriter, r *h
 	assessmentID := query.Get("assessment_id")
 	sessionToken := query.Get("session_token")
 	studentID := query.Get("student_id")
-
 	if assessmentID == "" || sessionToken == "" || studentID == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
 	}
-
 	assessmentIDParsed, err := strconv.ParseInt(assessmentID, 10, 64)
 	if err != nil {
 		http.Error(w, "Invalid assessment_id", http.StatusBadRequest)

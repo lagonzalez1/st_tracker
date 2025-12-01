@@ -174,7 +174,6 @@ func (s *AuthService) GradeAssessmentWithCorrectAnswers(
 func (s *AuthService) fetchCorrectAnswers(assessment_id int64) (map[string][]models.AssessmentGrader, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
 	query := `SELECT 
         c.id AS choice_id,
         c.question_id,
@@ -185,7 +184,6 @@ func (s *AuthService) fetchCorrectAnswers(assessment_id int64) (map[string][]mod
         INNER JOIN stu_tracker.Questions q ON c.question_id = q.id
         WHERE q.assessment_id = $1 AND c.is_correct = TRUE
         ORDER BY c.question_id, c.order_number;`
-
 	rows, err := s.db.QueryContext(ctx, query, assessment_id)
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
@@ -388,13 +386,14 @@ func (s *AuthService) GetAssessmentBySessionId(c context.Context, session_id str
 	query := `
 	SELECT
 		s.id,
-		s.first_name,
-		s.last_name,
+		ss.first_name,
+		ss.last_name,
 		ss.assessment_id,
 		ss.is_active,
 		ss.completed,
 		ss.grade_assessment,
-		ast.title
+		ast.title,
+		ss.join_code
 	FROM
 		stu_tracker.Assessment_sessions ss
 	INNER JOIN 
@@ -417,12 +416,13 @@ func (s *AuthService) GetAssessmentBySessionId(c context.Context, session_id str
 		err := rows.Scan(
 			&student.ID,
 			&student.FirstName,
-			&student.FirstName,
+			&student.LastName,
 			&student.AssessmentID,
 			&student.IsActive,
 			&student.Completed,
 			&student.GradeAssessment,
 			&student.AssessmentTitle,
+			&student.JoinCode,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)

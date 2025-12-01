@@ -2,11 +2,27 @@ package services
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
+	"math/big"
 	"tracker/app/models"
 
 	"github.com/google/uuid"
 )
+
+const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // 32 chars
+
+func RandomCode(n int) (string, error) {
+	code := make([]byte, n)
+	for i := 0; i < n; i++ {
+		idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
+		if err != nil {
+			return "", err
+		}
+		code[i] = letters[idx.Int64()]
+	}
+	return string(code), nil
+}
 
 func (s *AuthService) CreateAssessmentSession(c context.Context, req models.RegisterStudentAssessmentSession) (*models.ResponseStudentAssessmentSession, error) {
 	// Input validation
@@ -14,6 +30,7 @@ func (s *AuthService) CreateAssessmentSession(c context.Context, req models.Regi
 		return nil, fmt.Errorf("no student sessions provided")
 	}
 	sessionToken := uuid.New() // generate a UUID
+
 	for _, student := range req.StudentAssessmentSession {
 		var exists bool
 		checkQuery := `
@@ -40,17 +57,29 @@ func (s *AuthService) CreateAssessmentSession(c context.Context, req models.Regi
 		if err != nil {
 			return nil, fmt.Errorf("unable to check if question type")
 		}
-		query := `
-        INSERT INTO stu_tracker.Assessment_sessions (
-            tutor_id, student_id, first_name, last_name,
-            assessment_id, semester_id, session_token, grade_assessment
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    `
-		_, err = s.db.ExecContext(c, query, student.TutorId, student.ID, student.FirstName, student.LastName, student.AssessmentId, student.SemesterId, sessionToken, toGrade)
-		if err != nil {
-			return nil, fmt.Errorf("failed to add semester: %w", err)
+		for {
+			joinCode, err := RandomCode(7)
+			if err != nil {
+				return nil, fmt.Errorf("unable to create a join code")
+			}
+			query := `
+				INSERT INTO stu_tracker.Assessment_sessions (
+					tutor_id, student_id, first_name, last_name,
+					assessment_id, semester_id, session_token, grade_assessment, join_code
+				)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+				ON CONFLICT (join_code) DO NOTHING;
+			`
+			result, err := s.db.ExecContext(c, query, student.TutorId, student.ID, student.FirstName, student.LastName,
+				student.AssessmentId, student.SemesterId, sessionToken, toGrade, joinCode)
+			if err != nil {
+				return nil, fmt.Errorf("failed to add semester: %w", err)
+			}
+			if rows, _ := result.RowsAffected(); rows == 1 {
+				break
+			}
 		}
+
 	}
 	return &models.ResponseStudentAssessmentSession{
 		Status:         "OK",

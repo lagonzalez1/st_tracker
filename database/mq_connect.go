@@ -91,6 +91,13 @@ func ConnectRabbitMQ() (*MQChannels, error) {
 	}
 	channels["produce"] = chMaterials
 
+	cGrader, err := setupTaskQueue(conn, "grader", "micro_grader")
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	channels["grader"] = cGrader
+
 	return &MQChannels{
 		Connection: conn,
 		Channels:   channels,

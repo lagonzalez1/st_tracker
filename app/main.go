@@ -75,6 +75,7 @@ func main() {
 	r.HandleFunc("/login", authHandler.Login).Methods("POST")
 	r.HandleFunc("/get_assessment_questions_external", authHandler.GetAssessmentQuestionsExternal).Methods("GET")
 	r.HandleFunc("/get_assessment_preassessment_external", authHandler.GetAssessmentQuestionsExternal).Methods("GET")
+	r.HandleFunc("/get_assessment_session", authHandler.GetAssessmentSessionExternal).Methods("GET")
 	r.HandleFunc("/get_student_details", authHandler.GetStudentDetails).Methods("GET")
 	r.HandleFunc("/create_organization", authHandler.CreateOrganization).Methods("POST")
 	r.HandleFunc("/create_student_assessment_response", authHandler.CreateStudentAssessmentResponse).Methods("POST")
@@ -220,6 +221,7 @@ func main() {
 	// Return session id as well for duplicate
 	apiMiddleware.HandleFunc("/get_signed_url_materials", authHandler.GetSignedUrlMaterials).Methods("GET")
 	apiMiddleware.HandleFunc("/get_session_accountability", authHandler.GetSessionAccountability).Methods("GET")
+	apiMiddleware.HandleFunc("/get_sessions_scheduled", authHandler.GetSessionScheduled).Methods("GET")
 	apiMiddleware.HandleFunc("/get_tutors", authHandler.GetTutors).Methods("GET")
 	apiMiddleware.HandleFunc("/get_assessment_questions", authHandler.GetAssessmentQuestions).Methods("GET")
 	apiMiddleware.HandleFunc("/get_schedule", authHandler.GetSchedules).Methods("GET")

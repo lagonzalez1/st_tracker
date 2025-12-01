@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 	"tracker/app/models"
 
 	"golang.org/x/crypto/bcrypt"
@@ -32,14 +33,15 @@ func (s *AuthService) AddAdminStaff(c context.Context, req models.RegisterReques
 	if err != nil {
 		return nil, fmt.Errorf("unable to hash password: %v", err)
 	}
+
 	var newID int64
 	query := `INSERT INTO stu_tracker.Admin_staff(fullname, email, password_hash, region, state, organization_id, district_id, active) 
 			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;`
-	err = s.db.QueryRowContext(c, query, req.Fullname, req.Email, string(hash_password), req.Region, req.State, *req.OrganizationId, req.DistrictId, req.Active).Scan(&newID)
+	email := strings.ToLower(req.Email)
+	err = s.db.QueryRowContext(c, query, req.Fullname, email, string(hash_password), req.Region, req.State, *req.OrganizationId, req.DistrictId, req.Active).Scan(&newID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}
-
 	return &models.ResponseRequestAdmin{
 		Status:   "OK",
 		Admin_id: newID,
@@ -76,15 +78,16 @@ func (s *AuthService) UpdateAdminStaff(c context.Context, req models.RegisterReq
 		}
 		query := `UPDATE stu_tracker.Admin_staff SET fullname = $1, email = $2, password_hash = $3, region = $4, state = $5, organization_id = $6, district_id = $7, active = $8
 			  WHERE id = $9;`
-
-		_, err = s.db.Exec(query, req.Fullname, req.Email, string(hash_password), req.Region, req.State, *req.OrganizationId, req.DistrictId, req.Active, req.ID)
+		email := strings.ToLower(req.Email)
+		_, err = s.db.Exec(query, req.Fullname, email, string(hash_password), req.Region, req.State, *req.OrganizationId, req.DistrictId, req.Active, req.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert admin: %w", err)
 		}
 	} else {
 		query := `UPDATE stu_tracker.Admin_staff SET fullname = $1, email = $2, region = $3, state = $4, organization_id = $5, district_id = $6, active = $7
 		WHERE id = $8;`
-		_, err := s.db.ExecContext(c, query, req.Fullname, req.Email, req.Region, req.State, *req.OrganizationId, req.DistrictId, req.Active, req.ID)
+		email := strings.ToLower(req.Email)
+		_, err := s.db.ExecContext(c, query, req.Fullname, email, req.Region, req.State, *req.OrganizationId, req.DistrictId, req.Active, req.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert admin: %w", err)
 		}

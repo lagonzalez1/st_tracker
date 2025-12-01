@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 	"tracker/app/models"
 
 	"golang.org/x/crypto/bcrypt"
@@ -22,7 +23,8 @@ func (s *AuthService) AddTutor(c context.Context, req models.RegisterRequestTuto
 	query := `INSERT INTO stu_tracker.Tutors(first_name, last_name, email, password_hash, organization_id, location_id, active) 
 			  VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id;`
 
-	err = s.db.QueryRowContext(c, query, req.FirstName, req.LastName, req.Email, hash_password, *req.OrganizationId, req.LocationId, req.Active).Scan(&newID)
+	email := strings.ToLower(req.Email)
+	err = s.db.QueryRowContext(c, query, req.FirstName, req.LastName, email, hash_password, *req.OrganizationId, req.LocationId, req.Active).Scan(&newID)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +90,8 @@ func (s *AuthService) UpdateTutor(c context.Context, req models.RegisterRequestT
 		values = append(values, req.FirstName, req.LastName, *req.OrganizationId, req.LocationId, string(hash_password), req.Active)
 		if req.EmailChange != "" {
 			query += `, email = $7 WHERE id = $8`
-			values = append(values, req.EmailChange, req.ID)
+			email := strings.ToLower(req.EmailChange)
+			values = append(values, email, req.ID)
 		}
 		query += " WHERE id = $7"
 		values = append(values, req.ID)
@@ -102,8 +105,9 @@ func (s *AuthService) UpdateTutor(c context.Context, req models.RegisterRequestT
 		SET first_name = $1, last_name = $2, organization_id = $3, location_id = $4, active = $5`
 		values = append(values, req.FirstName, req.LastName, *req.OrganizationId, req.LocationId, req.Active)
 		if req.EmailChange != "" {
+			email := strings.ToLower(req.Email)
 			query += `, email = $6 WHERE id = $7`
-			values = append(values, req.EmailChange, req.ID)
+			values = append(values, email, req.ID)
 		}
 		query += " WHERE id = $6"
 		values = append(values, req.ID)

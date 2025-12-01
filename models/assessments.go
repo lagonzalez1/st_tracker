@@ -27,16 +27,17 @@ type RegisterStudentAssessmentSession struct {
 }
 
 type StudentAssesmentSession struct {
-	ID           *int64 `json:"id"`
-	FirstName    string `json:"first_name"`
-	LastName     string `json:"last_name"`
-	ProgramId    *int64 `json:"program_id"`
-	LocationId   *int64 `json:"location_id"`
-	TutorId      *int64 `json:"tutor_id"`
-	SubjectId    *int64 `json:"subject_id"`
-	AssessmentId *int64 `json:"assessment_id"`
-	SemesterId   *int64 `json:"semester_id"`
-	EasyScoreID  bool   `json:"easy_score"`
+	ID           *int64  `json:"id"`
+	FirstName    string  `json:"first_name"`
+	LastName     string  `json:"last_name"`
+	ProgramId    *int64  `json:"program_id"`
+	LocationId   *int64  `json:"location_id"`
+	TutorId      *int64  `json:"tutor_id"`
+	SubjectId    *int64  `json:"subject_id"`
+	AssessmentId *int64  `json:"assessment_id"`
+	SemesterId   *int64  `json:"semester_id"`
+	EasyScoreID  bool    `json:"easy_score"`
+	JoinCode     *string `json:"join_code"`
 }
 
 type DeleteAssessmentSession struct {
@@ -57,14 +58,15 @@ type DeleteAssessmentSessionResponse struct {
 }
 
 type StudentAssessmentSession struct {
-	ID              *int64 `json:"id"`
-	FirstName       string `json:"first_name"`
-	LastName        string `json:"last_name"`
-	AssessmentID    *int64 `json:"assessment_id"`
-	IsActive        bool   `json:"is_active"`
-	Completed       bool   `json:"completed"`
-	GradeAssessment bool   `json:"grade_assessment"`
-	AssessmentTitle string `json:"assessment_title"`
+	ID              *int64  `json:"id"`
+	FirstName       string  `json:"first_name"`
+	LastName        string  `json:"last_name"`
+	AssessmentID    *int64  `json:"assessment_id"`
+	IsActive        bool    `json:"is_active"`
+	Completed       bool    `json:"completed"`
+	JoinCode        *string `json:"join_code"`
+	GradeAssessment bool    `json:"grade_assessment"`
+	AssessmentTitle string  `json:"assessment_title"`
 }
 
 type ResponseStudentAssessmentSession struct {

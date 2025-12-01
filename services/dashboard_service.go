@@ -930,6 +930,33 @@ func (s *AuthService) GetAssessmentsQuestionsChoice(c context.Context, assessmen
 	return results, nil
 }
 
+func (s *AuthService) GetAssessmentSession(ctx context.Context, first_name *string, last_name *string, join_code *string) (*models.ResponseStudentSessionSearch, error) {
+	query := `
+    SELECT ss.session_token, ss.assessment_id, ss.student_id, ast.title, ast.max_score
+    FROM stu_tracker.Assessment_sessions ss
+	JOIN stu_tracker.Assessments ast
+	ON ast.id = ss.assessment_id
+    WHERE ss.join_code = $1 
+      AND ss.first_name ILIKE $2 
+      AND ss.last_name ILIKE $3
+    LIMIT 1;
+	`
+	var out models.ResponseStudentSessionSearch
+	err := s.db.QueryRowContext(
+		ctx,
+		query,
+		join_code,
+		"%"+*first_name+"%",
+		"%"+*last_name+"%",
+	).Scan(&out.SessionToken, &out.AssessmentID, &out.StudentID, &out.Title, &out.MaxScore)
+
+	if err != nil {
+		return nil, fmt.Errorf("session not found: %w", err)
+	}
+
+	return &out, nil
+}
+
 func (s *AuthService) GetAssessmentsQuestionsChoiceExternal(c context.Context, assessment_id int64) ([]models.ResponseAssessmentQuestionsChoiceExternal, error) {
 	query := `
 		SELECT 
@@ -1058,12 +1085,10 @@ func (s *AuthService) GetProgramsByLocation(c context.Context, locId int64, org_
 		}
 		programs = append(programs, program)
 	}
-
 	// Check for any errors encountered during iteration
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating over rows: %w", err)
 	}
-
 	return programs, nil
 }
 
@@ -1296,10 +1321,15 @@ func (s *AuthService) GetTutorSchedules(c context.Context, tutor_id int64) ([]mo
 	query += `
 		SELECT 
 		ts.id, ts.tutor_id, p.program_name AS program_name, schedule_type, 
-		ts.start_date, ts.end_date, ts.recurring, ts.notes, ts.created_at, ts.workweek
-		FROM stu_tracker.Tutor_schedules ts
-		JOIN stu_tracker.Programs p
+		ts.start_date, ts.end_date, ts.recurring, ts.notes, ts.created_at, ts.workweek, ts.start_time, ts.end_time, l.name
+		FROM 
+			stu_tracker.Tutor_schedules ts
+		LEFT JOIN 
+			stu_tracker.Programs p
 		ON p.id = ts.program_id
+		LEFT JOIN 
+			stu_tracker.Locations l
+		ON l.id = ts.location_id
 		WHERE ts.tutor_id = $1;
 		`
 
@@ -1323,6 +1353,9 @@ func (s *AuthService) GetTutorSchedules(c context.Context, tutor_id int64) ([]mo
 			&schedule.Notes,
 			&schedule.CreatedAt,
 			pq.Array(&schedule.WorkWeek),
+			&schedule.StartTime,
+			&schedule.EndTime,
+			&schedule.LocationName,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -1427,6 +1460,109 @@ func (s *AuthService) GetTutorSessionsAccountability(c context.Context, req mode
 		SessionDates: tutorList,
 		NonWorkdays:  result,
 	}, nil
+}
+
+func (s *AuthService) GetTutorSchedule(ctx context.Context, uid *int64, pid []int64) (*models.ResponseTutorSchedule, error) {
+	if uid == nil || pid == nil {
+		return nil, fmt.Errorf("params are null")
+	}
+	query := `
+		SELECT DISTINCT
+			gen_date::date AS date_value,
+			ts.program_id,
+			ts.location_id,
+			ts.start_time, 
+			ts.end_time,
+			pg.program_name,
+			ls.name
+		FROM
+			stu_tracker.Tutor_schedules ts
+		JOIN LATERAL 
+			generate_series(ts.start_date::date, COALESCE(ts.end_date, ts.start_date)::date, '1 day'::interval) AS t(gen_date)
+		ON true
+		LEFT JOIN stu_tracker.Locations ls
+		ON ls.id = ts.location_id
+		LEFT JOIN stu_tracker.Programs pg
+		ON pg.id = ts.program_id
+		WHERE ts.tutor_id = $1 AND ts.program_id = ANY($2) AND ts.schedule_type = 'inclusion' 
+		AND (ts.workweek IS NULL OR ts.workweek = '{}'::text[] OR to_char(gen_date, 'DY') = ANY(ts.workweek));
+	`
+	rows, err := s.db.QueryContext(ctx, query, uid, pq.Array(pid))
+	if err != nil {
+		return nil, fmt.Errorf("error querying permissions: %w", err)
+	}
+	defer rows.Close()
+	result := make(map[string][]models.TutorSchedule)
+	for rows.Next() {
+		var w models.TutorSchedule
+		err := rows.Scan(
+			&w.SessionDate,
+			&w.ProgramID,
+			&w.LocationID,
+			&w.StartTime,
+			&w.EndTime,
+			&w.ProgramName,
+			&w.LocationName,
+		)
+		key := w.SessionDate.Format("2006-01-02")
+		result[key] = append(result[key], w)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	r, err := s.SessionCompletedCheck(ctx, result, uid)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.ResponseTutorSchedule{
+		Schedule: r,
+	}, nil
+}
+
+func (s *AuthService) SessionCompletedCheck(c context.Context, result map[string][]models.TutorSchedule, uid *int64) (map[string][]models.TutorSchedule, error) {
+	keys := make([]string, 0, len(result))
+	for k := range result {
+		keys = append(keys, k)
+	}
+	query := `
+		SELECT
+		ss.program_id,
+		ss.location_id,
+		ss.session_date
+		FROM stu_tracker.Sessions ss
+		WHERE ss.tutor_id = $1 AND ss.session_date::date = ANY($2::date[]);
+	`
+	rows, err := s.db.QueryContext(c, query, uid, pq.Array(keys))
+	if err != nil {
+		return nil, fmt.Errorf("unable to query for sessions given tutor_id and session dates: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var w models.RequestSessionVerify
+		err := rows.Scan(
+			&w.ProgramID,
+			&w.LocationID,
+			&w.SessionDate,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("unable to scan row %s", err)
+		}
+		key := w.SessionDate.Format("2006-01-02")
+		values, ok := result[key]
+		if !ok {
+			continue
+		}
+		for k := range values {
+			if *values[k].LocationID == *w.LocationID && *values[k].ProgramID == *w.ProgramID {
+				values[k].SessionCompleted = true
+			}
+		}
+		result[key] = values
+
+	}
+	return result, nil
 }
 
 func (s *AuthService) GetOrganizationPermissions(c context.Context, org_id int64) ([]models.PermissionsList, error) {

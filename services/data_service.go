@@ -18,7 +18,9 @@ func (s *AuthService) StudentAssessmentSearch(c context.Context, student_assessm
 			ans.choice_id,
 			ans.answer_text,
 			ans.is_correct,
-			c.choice_text
+			c.choice_text,
+			ans.feedback,
+			ans.points
 			FROM 
 				stu_tracker.Assessment_answers ans
 			LEFT JOIN
@@ -49,6 +51,8 @@ func (s *AuthService) StudentAssessmentSearch(c context.Context, student_assessm
 			&assessment.AnswerText,
 			&assessment.IsCorrect,
 			&assessment.ChoiceText,
+			&assessment.Feedback,
+			&assessment.AnswerPoints,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
@@ -101,7 +105,7 @@ func (s *AuthService) SessionSearch(c context.Context, ss models.SearchQuery) ([
 
 func (s *AuthService) TutorSearch(c context.Context, query models.SearchQueryTutor) ([]models.ResponseRequestTutorsList, error) {
 	if query.SearchTerm == "" || query.OrganizationID == nil {
-		return nil, fmt.Errorf("Organization or search term cannot be empty")
+		return nil, fmt.Errorf("organization or search term cannot be empty")
 	}
 	q := `SELECT t.id, t.first_name, t.last_name, t.email, t.created_at, t.location_id
 			  FROM 
@@ -896,7 +900,9 @@ func (s *AuthService) GetLocationSessionAverage(ctx context.Context, orgid *int6
 	JOIN stu_tracker.Programs p ON p.id = s.program_id
 	JOIN stu_tracker.Locations l ON l.id = s.location_id 
 	WHERE s.location_id = $1 AND t.organization_id = $2 AND s.semester_id = $3
-	GROUP BY t.first_name, t.last_name, s.tutor_id, p.program_name, p.id`
+	GROUP BY t.first_name, t.last_name, s.tutor_id, p.program_name, p.id
+	
+	`
 	rows, err := s.db.QueryContext(ctx, query, location_id, orgid, semester_id)
 	if err != nil {
 		return nil, fmt.Errorf("error querying AssessmentInfo: %w", err)
