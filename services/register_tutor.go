@@ -146,13 +146,13 @@ func (s *AuthService) DeleteTutor(c context.Context, req models.RemoveRequest) (
 func (s *AuthService) DeleteTutorLocation(c context.Context, req models.RemoveTutorLocation) (*models.RemoveResponse, error) {
 	// Input validation
 	if req.LocationId == nil || req.TutorId == nil || req.OrganizationID == nil {
-		return nil, fmt.Errorf("missing required fields: first_name, last_name, email, password")
+		return nil, fmt.Errorf("missing required fields: tutor_id, location_id, organization_id")
 	}
 	query := `DELETE FROM stu_tracker.Tutor_locations 
 			  WHERE tutor_id = $1 
 			  AND location_id = $2 
 			  AND organization_id = $3;`
-	_, err := s.db.ExecContext(c, query, *req.TutorId, *req.LocationId, *req.OrganizationID)
+	_, err := s.db.ExecContext(c, query, req.TutorId, req.LocationId, req.OrganizationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}

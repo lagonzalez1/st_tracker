@@ -53,7 +53,7 @@ func (s *AuthService) UpdateLocationContact(c context.Context, req models.Regist
 	}, nil
 }
 
-func (s *AuthService) DeleteLocationContact(c context.Context, req models.RemoveRequest) (*models.RemoveResponse, error) {
+func (s *AuthService) DeleteLocationContact(c context.Context, req models.RemoveRequestLocation) (*models.RemoveResponse, error) {
 	// Input validation
 	if req.ID == nil {
 		return nil, fmt.Errorf("missing required fields: first_name, last_name, or email")

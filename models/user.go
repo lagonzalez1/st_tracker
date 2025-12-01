@@ -454,6 +454,12 @@ type RemoveRequest struct {
 	OrganizationId int64  `json:"organization_id"`
 }
 
+type RemoveRequestLocation struct {
+	ID             *int64 `json:"id"`
+	LocationID     *int64 `json:"location_id"`
+	OrganizationId int64  `json:"organization_id"`
+}
+
 type RemoveAdminLocation struct {
 	AdminID        *int64 `json:"admin_id"`
 	LocationID     *int64 `json:"location_id"`

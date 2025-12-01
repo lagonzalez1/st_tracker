@@ -2202,12 +2202,18 @@ func (h *AuthHandler) DeleteTutorLocation(w http.ResponseWriter, r *http.Request
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		return
+	}
 	var models models.RemoveTutorLocation
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
+	models.OrganizationID = &orgid
+
 	user, err := h.authService.DeleteTutorLocation(ctx, models)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -2649,7 +2655,7 @@ func (h *AuthHandler) CreateLocationContact(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	key := fmt.Sprintf("get:locations-contact:%d:%d", orgid, *models.LocationID)
+	key := fmt.Sprintf("get:location-contact:%d:%d", orgid, *models.LocationID)
 	models.OrganizationId = &orgid
 	user, err := h.authService.CreateLocationContact(ctx, models)
 	if err != nil {
@@ -2748,15 +2754,14 @@ func (h *AuthHandler) DeleteLocationContact(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		return
 	}
-	key := fmt.Sprintf("get:location-contact:%d", orgid)
-	var models models.RemoveRequest
+	var models models.RemoveRequestLocation
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v\n", err)
 		return
 	}
+	key := fmt.Sprintf("get:location-contact:%d:%d", orgid, *models.LocationID)
 	models.OrganizationId = orgid
-
 	user, err := h.authService.DeleteLocationContact(ctx, models)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -3655,7 +3660,7 @@ func (h *AuthHandler) GetLocationContact(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	key := fmt.Sprintf("get:locations-contact:%d:%d", orgid, locid)
+	key := fmt.Sprintf("get:location-contact:%d:%d", orgid, locid)
 	lkey := h.LockKey(key)
 
 	data, isHit := h.CheckCache(ctx, key)
