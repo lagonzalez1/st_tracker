@@ -1097,9 +1097,9 @@ func buildStudentSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 			COUNT(DISTINCT a.id) AS assessment_count
 		FROM 
 			stu_tracker.Students s
-		JOIN 
+		LEFT JOIN 
 			stu_tracker.Session_students ss ON s.id = ss.student_id
-		JOIN 
+		LEFT JOIN 
 			stu_tracker.Assessments_students a ON s.id = a.student_id
 		JOIN 
 			stu_tracker.Sessions st ON st.id = ss.session_id `

@@ -668,7 +668,6 @@ CREATE TABLE stu_tracker.Semester_schedule (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-
 CREATE TABLE stu_tracker.Student_groups (
     id SERIAL PRIMARY KEY,
     tutor_id INT NOT NULL REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,

@@ -59,7 +59,7 @@ func (s *AuthService) RegisterMultipleStudents(c context.Context, rows [][]strin
 			continue
 		}
 		var user models.UploadStudentRegister
-		err = stmt.QueryRow(firstName, middleName, lastName, grade, email, isActive, locationID, semesterID).Scan(&user.ID)
+		err = stmt.QueryRowContext(c, firstName, middleName, lastName, grade, email, isActive, locationID, semesterID).Scan(&user.ID)
 		if err != nil {
 			fmt.Printf("Row %d: Failed to insert tutor: %v\n", i+1, err)
 			continue

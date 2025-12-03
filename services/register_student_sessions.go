@@ -76,6 +76,16 @@ func (s *AuthService) CreateStudentSessions(req models.RegisterStudentSessionLis
 		return nil, fmt.Errorf("failed to get rows affected: %w", err)
 	}
 
+	assessmentQuery, values, err := StudentEasyScoreAssessmentSubmit(sessionID, &req.SessionList)
+	assessmentQueryResult, err := tx.ExecContext(ctx, assessmentQuery, values...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert session students: %w", err)
+	}
+	_, err = assessmentQueryResult.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
 	var assessmentCount int64
 	// Handle session insert per student
 	/*
@@ -257,13 +267,12 @@ func StudentSessionAttendance(SessionID int64, SessionList *[]models.RegisterStu
             session_id, student_id, duration, subject_id, 
             timeframe, timeframe_start, timeframe_end, absent
         ) VALUES `
-
 	studentPlaceHolderIdx := 1
 	for i, student := range *SessionList {
 		if i > 0 {
 			studentQuery += ", "
 		}
-		studentQuery += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d,  $%d)",
+		studentQuery += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
 			studentPlaceHolderIdx, studentPlaceHolderIdx+1, studentPlaceHolderIdx+2,
 			studentPlaceHolderIdx+3, studentPlaceHolderIdx+4, studentPlaceHolderIdx+5,
 			studentPlaceHolderIdx+6, studentPlaceHolderIdx+7)
@@ -274,6 +283,33 @@ func StudentSessionAttendance(SessionID int64, SessionList *[]models.RegisterStu
 		studentPlaceHolderIdx += 8
 	}
 	studentQuery += ` ON CONFLICT (session_id, student_id) DO NOTHING`
+	return studentQuery, values, nil
+
+}
+
+func StudentEasyScoreAssessmentSubmit(SessionID int64, SessionList *[]models.RegisterStudentSession) (string, []interface{}, error) {
+	values := []interface{}{}
+	studentQuery := `INSERT INTO stu_tracker.Assessments_students(
+            session_id, student_id, score, assessment_id, 
+            subject_id
+        ) VALUES `
+	studentPlaceHolderIdx := 1
+	for i, student := range *SessionList {
+		if student.EasyScoreID == false && student.AssessmentId != nil {
+			if i > 0 {
+				studentQuery += ", "
+			}
+			studentQuery += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d)",
+				studentPlaceHolderIdx, studentPlaceHolderIdx+1, studentPlaceHolderIdx+2,
+				studentPlaceHolderIdx+3, studentPlaceHolderIdx+4)
+			values = append(values,
+				SessionID, student.ID, student.AssessmentScore, student.AssessmentId,
+				student.SubjectId)
+			studentPlaceHolderIdx += 5
+		}
+		studentQuery += ` ON CONFLICT (student_id, assessment_id, session_id) DO NOTHING`
+	}
+
 	return studentQuery, values, nil
 
 }

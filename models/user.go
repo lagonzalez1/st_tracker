@@ -702,7 +702,7 @@ type RegisterStudentSession struct {
 	TutorId         *int64   `json:"tutor_id"`
 	SubjectId       *int64   `json:"subject_id"`
 	AssessmentId    *int64   `json:"assessment_id"`
-	AssessmentScore *int64   `json:"score"`
+	AssessmentScore *float32 `json:"score"`
 	EasyScoreID     bool     `json:"easy_score"`
 	Timeframe       *bool    `json:"timeframe"`
 	TimeframeStart  *string  `json:"timeframe_start"`
