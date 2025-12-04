@@ -173,6 +173,7 @@ func main() {
 	apiMiddleware.HandleFunc("/delete_tutor_location", authHandler.DeleteTutorLocation).Methods("POST")
 
 	apiMiddleware.HandleFunc("/delete_survey", authHandler.DeleteSurvey).Methods("POST")
+	apiMiddleware.HandleFunc("/delete_session", authHandler.DeleteSession).Methods("POST")
 
 	apiMiddleware.HandleFunc("/create_program_survey", authHandler.CreateProgramSurvey).Methods("POST")
 	apiMiddleware.HandleFunc("/get_program_surveys", authHandler.GetProgramSurveys).Methods("GET")

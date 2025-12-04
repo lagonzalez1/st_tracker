@@ -2278,6 +2278,49 @@ func (h *AuthHandler) DeleteSurvey(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
+func (h *AuthHandler) DeleteSession(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Printf("error found reading body")
+		return
+	}
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	valid, err := validateRequest(claims, "delete:session")
+	if err != nil || !valid {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	var models models.RemoveRequest
+	if err := json.Unmarshal(body, &models); err != nil {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		fmt.Printf("Error decoding JSON: %v", err)
+	}
+	user, err := h.authService.DeleteSession(ctx, models)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+			return
+		}
+		if errors.Is(err, context.Canceled) {
+			http.Error(w, "request canceled", http.StatusRequestTimeout)
+			return
+		}
+		// 6. You could also inspect SQL errors here if you like.
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		fmt.Printf("service error: %v\n", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
 func (h *AuthHandler) DeleteProgramSurvey(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
