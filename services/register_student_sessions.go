@@ -297,7 +297,7 @@ func StudentEasyScoreAssessmentSubmit(SessionID int64, SessionList *[]models.Reg
         ) VALUES `
 	var studentMap = make(map[int64]models.RegisterStudentSession)
 	for _, student := range *SessionList {
-		if student.ID != nil && !student.EasyScoreID && student.AssessmentScore != nil {
+		if student.ID != nil && !student.EasyScoreID && student.AssessmentScore != nil && student.AssessmentId != nil {
 			studentMap[*student.ID] = student
 		}
 	}
