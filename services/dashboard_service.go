@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 	"tracker/app/models"
@@ -930,28 +931,57 @@ func (s *AuthService) GetAssessmentsQuestionsChoice(c context.Context, assessmen
 	return results, nil
 }
 
-func (s *AuthService) GetAssessmentSession(ctx context.Context, first_name *string, last_name *string, join_code *string) (*models.ResponseStudentSessionSearch, error) {
+func (s *AuthService) GetAssessmentSession(
+	ctx context.Context,
+	firstName, lastName, joinCode *string,
+) (*models.ResponseStudentSessionSearch, error) {
+
+	// Safely handle nil pointers
+	fn := ""
+	ln := ""
+	jc := ""
+
+	if firstName != nil {
+		fn = *firstName
+	}
+	if lastName != nil {
+		ln = *lastName
+	}
+	if joinCode != nil {
+		jc = *joinCode
+	}
+
 	query := `
-    SELECT ss.session_token, ss.assessment_id, ss.student_id, ast.title, ast.max_score
-    FROM stu_tracker.Assessment_sessions ss
-	JOIN stu_tracker.Assessments ast
-	ON ast.id = ss.assessment_id
-    WHERE ss.join_code = $1 
-      AND ss.first_name ILIKE $2 
-      AND ss.last_name ILIKE $3
-    LIMIT 1;
-	`
+        SELECT ss.session_token, ss.assessment_id, ss.student_id, 
+               ast.title, ast.max_score
+        FROM stu_tracker.Assessment_sessions ss
+        JOIN stu_tracker.Assessments ast ON ast.id = ss.assessment_id
+        WHERE ss.join_code = $1
+          AND ss.first_name ILIKE $2
+          AND ss.last_name ILIKE $3
+        LIMIT 1;
+    `
+
 	var out models.ResponseStudentSessionSearch
 	err := s.db.QueryRowContext(
 		ctx,
 		query,
-		join_code,
-		"%"+*first_name+"%",
-		"%"+*last_name+"%",
-	).Scan(&out.SessionToken, &out.AssessmentID, &out.StudentID, &out.Title, &out.MaxScore)
+		jc,
+		"%"+fn+"%",
+		"%"+ln+"%",
+	).Scan(
+		&out.SessionToken,
+		&out.AssessmentID,
+		&out.StudentID,
+		&out.Title,
+		&out.MaxScore,
+	)
 
 	if err != nil {
-		return nil, fmt.Errorf("session not found: %w", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil // Not found
+		}
+		return nil, fmt.Errorf("db error: %w", err)
 	}
 
 	return &out, nil
