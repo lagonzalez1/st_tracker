@@ -489,7 +489,6 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 		);`
 		rows, err = s.db.QueryContext(c, query, locationId, tutorId)
 	}
-	fmt.Println(query)
 	if err != nil {
 		return nil, fmt.Errorf("error querying Students: %w", err)
 	}

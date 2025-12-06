@@ -400,8 +400,6 @@ func (s *AuthService) GetSessionBChart(req models.RequestSessionBChart) ([]model
 		stu_tracker.Sessions ss
 	`
 	query, args := buildQuerySessionBChart(base, req)
-	fmt.Println(query)
-	fmt.Print(query)
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, err
@@ -457,8 +455,6 @@ func (s *AuthService) GetAssessmentBChart(req models.RequestSessionBChart) ([]mo
 	ON
 		loc.id = ss.location_id`
 	query, args := buildQueryAssessmentBChart(base, req)
-
-	fmt.Print(query)
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, err
@@ -537,7 +533,7 @@ func (s *AuthService) GetTutorsBChart(req models.RequestSessionBChart) ([]models
 		return nil, fmt.Errorf("unable to serach missing org id")
 	}
 	base := `
-    	SELECT
+    	SELECT DISTINCT
 			tr.id,
 			SUM(ss.student_count) as total_student_count,
 			AVG(ss.student_count) as average_student_count,
@@ -726,7 +722,6 @@ func (s *AuthService) GetTutorSessions(req models.RequestTutorSessions) ([]model
 
 func (s *AuthService) GetTutorLowPerformance(c context.Context, req models.RequestSessionBChart) ([]models.ResponseTutorLowPerformance, error) {
 	query, args := buildLowPerformanceTutors(&req)
-	fmt.Println(query)
 	rows, err := s.db.QueryContext(c, query, args...)
 	if err != nil {
 		return nil, err
@@ -1115,12 +1110,12 @@ func (s *AuthService) GetSentimentAnalysis(c context.Context, req models.Request
 			sr.response_text,
 			sr.sentiment_score
 		FROM stu_tracker.Sessions s
-		JOIN stu_tracker.Tutors t ON s.tutor_id = t.id
-		JOIN stu_tracker.Programs p ON s.program_id = p.id
-		RIGHT JOIN stu_tracker.Survey_response sr
-			ON sr.session_id = s.id
+		LEFT JOIN stu_tracker.Tutors t ON s.tutor_id = t.id
+		LEFT JOIN stu_tracker.Programs p ON s.program_id = p.id
+		RIGHT JOIN stu_tracker.Survey_response sr ON sr.session_id = s.id
 	`
 	q, args := buildQuerySentimentAnalysis(query, &req)
+	fmt.Printf("query string:  %s", q)
 	rows, err := s.db.QueryContext(c, q, args...)
 	if err != nil {
 		return nil, err

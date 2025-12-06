@@ -2296,11 +2296,18 @@ func (h *AuthHandler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	var models models.RemoveRequest
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
+	models.OrganizationId = orgid
 	user, err := h.authService.DeleteSession(ctx, models)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
