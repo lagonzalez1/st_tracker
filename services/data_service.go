@@ -562,7 +562,7 @@ func (s *AuthService) SessionInfo(session_id int64) ([]models.SessionInfoStudent
 		st.first_name, st.last_name, COALESCE(st.middle_name, '') as middle_name, 
 		st.email, st.grade_level AS grade, st.period, ss.timeframe, ss.timeframe_start, ss.timeframe_end
 	FROM 
-		stu_tracker.Session_students ss 
+		stu_tracker.Session_students ss
 	LEFT JOIN 
 		stu_tracker.Students st 
 	ON 

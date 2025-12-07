@@ -1361,7 +1361,7 @@ func (s *AuthService) GetSubscriptionsEntitlements(c context.Context, orgid *int
 }
 
 func (s *AuthService) GetSubscriptionsByOrganization(c context.Context, orgid *int64) ([]models.OrganizationSubscription, error) {
-	query := `SELECT id, plan_id, status, current_period_start, current_period_end, cancel_at, stripe_customer_id, stripe_subscription_id
+	query := `SELECT id, plan_id, status, current_period_start, current_period_end, canceled_at, stripe_customer_id, stripe_subscription_id
 			FROM stu_tracker.organization_subscription
 			WHERE organization_id = $1;`
 	rows, err := s.db.QueryContext(c, query, orgid)
@@ -1377,7 +1377,7 @@ func (s *AuthService) GetSubscriptionsByOrganization(c context.Context, orgid *i
 			&s.Status,
 			&s.CurrentPeriodStart,
 			&s.CurrentPeriodEnd,
-			&s.CancelAt,
+			&s.CanceledAt,
 			&s.StripeCustomerID,
 			&s.StripeSubscriptionID,
 		); err != nil {

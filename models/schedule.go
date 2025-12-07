@@ -40,3 +40,20 @@ type RegisterScheduleList struct {
 type RemoveSchedule struct {
 	ID *int64 `json:"id"`
 }
+
+type RegisterScheduleV2 struct {
+	ID             *int64     `json:"id"`
+	JobName        *string    `json:"job_name"`
+	JobDescription *string    `json:"jon_description"`
+	ProgramID      *int64     `json:"program_id"`
+	TutorID        *int64     `json:"tutor_id"`
+	SemesterID     *int64     `json:"semester_id"`
+	SessionDate    time.Time  `json:"session_date"`
+	StartTime      *time.Time `json:"start_time"`
+	EndTime        *time.Time `json:"end_time"`
+	LocationID     *int64     `json:"location_id"`
+	ScheduleType   string     `json:"schedule_type"`
+	Enabled        bool       `json:"enabled"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+	CreatedAt      time.Time  `json:"created_at"`
+}

@@ -270,6 +270,8 @@ CREATE TABLE stu_tracker.Session_students (
 );
 
 
+
+
 -- Create a start and end time?
 CREATE TABLE stu_tracker.Assessments_students (
     id SERIAL PRIMARY KEY,
@@ -484,9 +486,6 @@ CREATE TABLE stu_tracker.Pre_assessment_questionnaire (
     peer_influence smallint NOT NULL CHECK (peer_influence BETWEEN 0 AND 3),  
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
-
-
 
 ALTER TABLE stu_tracker.Students
 ADD COLUMN gender VARCHAR(50) CHECK (
@@ -706,6 +705,7 @@ CREATE TABLE stu_tracker.organization_subscription (
 );
 
 ALTER TABLE stu_tracker.Assessment_answers ADD feedback TEXT;
+ALTER TABLE stu_tracker.Assessment_answers ADD canceled_at TIMESTAMP DEFAULT NULL;
 
 
 CREATE TABLE stu_tracker.Assessment_grader_task(
@@ -735,7 +735,6 @@ ALTER TABLE stu_tracker.Assessment_answers ADD points FLOAT;
 ALTER TABLE stu_tracker.Sessions ADD session_token UUID DEFAULT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_answers_student_question ON stu_tracker.Assessment_answers(assessment_student_id, question_id, choice_id);
-
 CREATE UNIQUE INDEX IF NOT EXISTS ux_grader_task_session_model ON stu_tracker.Assessment_grader_task(session_token, model_id);
 
 
@@ -753,8 +752,45 @@ CREATE TABLE stu_tracker.LLM_usage (
 
 ALTER TABLE stu_tracker.Tutor_schedules ADD COLUMN start_time TIME, ADD COLUMN end_time TIME;
 ALTER TABLE stu_tracker.Tutor_schedules ADD COLUMN location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE CASCADE;
-
-
 ALTER TABLE stu_tracker.Assessment_sessions ADD COLUMN join_code VARCHAR(8) NOT NULL;
 
 CREATE UNIQUE INDEX ON stu_tracker.Assessment_sessions (join_code);
+
+-- 
+
+ALTER TABLE stu_tracker.Session_students ADD CONSTRAINT fk_session_id FOREIGN KEY (session_id) REFERENCES stu_tracker.Sessions(id) ON DELETE CASCADE;
+ALTER TABLE stu_tracker.Assessments ADD COLUMN archive BOOLEAN DEFAULT false;
+ALTER TABLE stu_tracker.Assessments ADD COLUMN representation TEXT DEFAULT NULL;
+ALTER TABLE stu_tracker.Materials ADD COLUMN archive BOOLEAN DEFAULT false;
+ALTER TABLE stu_tracker.Materials ADD COLUMN archive BOOLEAN DEFAULT false;
+
+
+CREATE TABLE IF NOT EXISTS stu_tracker.Schedule_rule (
+    id BIGSERIAL PRIMARY KEY,
+    job_name VARCHAR(255) NOT NULL,
+    job_description TEXT,
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
+    tutor_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
+    location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE CASCADE,
+    
+    -- PATTERN DEFINITION
+    recurrence_type VARCHAR(20) NOT NULL CHECK (recurrence_type IN ('weekly', 'date_range', 'specific_dates')),
+    start_date DATE NOT NULL,
+    end_date DATE,
+    specific_dates DATE[], -- For one-off or irregular dates
+    workweek TEXT[],
+    
+    -- TIME SLOT
+    start_time varchar(8), -- Use TIME type, not VARCHAR
+    end_time varchar(8),
+    
+    -- CONTEXT
+    program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE SET NULL,
+    semester_id INT REFERENCES stu_tracker.Semester(id) ON DELETE SET NULL,
+    
+    -- METADATA
+    enabled BOOLEAN DEFAULT TRUE,
+    archive BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

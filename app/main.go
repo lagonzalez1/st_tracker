@@ -192,6 +192,10 @@ func main() {
 	apiMiddleware.HandleFunc("/create_permission", authHandler.CreatePermission).Methods("POST")
 	apiMiddleware.HandleFunc("/create_schedule", authHandler.CreateSchedule).Methods("POST")
 
+	apiMiddleware.HandleFunc("/v2/create_schedule", authHandler.CreateSchedule).Methods("POST")
+	apiMiddleware.HandleFunc("/v2/delete_schedule", authHandler.CreateSchedule).Methods("POST")
+	apiMiddleware.HandleFunc("/v2/update_schedule", authHandler.CreateSchedule).Methods("POST")
+
 	apiMiddleware.HandleFunc("/create_survey", authHandler.CreateSurvey).Methods("POST")
 	apiMiddleware.HandleFunc("/update_survey", authHandler.UpdateSurvey).Methods("POST")
 

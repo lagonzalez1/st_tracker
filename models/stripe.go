@@ -61,7 +61,7 @@ type OrganizationSubscription struct {
 	Status               *string    `json:"status"`
 	CurrentPeriodStart   time.Time  `json:"current_period_start"`
 	CurrentPeriodEnd     time.Time  `json:"current_period_end"`
-	CancelAt             *time.Time `json:"cancel_at"`
+	CanceledAt           *time.Time `json:"canceled_at"`
 	StripeCustomerID     *string    `json:"stripe_customer_id"`
 	StripeSubscriptionID *string    `json:"stripe_subscription_id"`
 }
