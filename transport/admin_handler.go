@@ -628,21 +628,14 @@ func (h *AuthHandler) GetAssessmentBChart(w http.ResponseWriter, r *http.Request
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	// Undefined variables like optional location_id
-	// Check if exist before
-	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
+
+	var model models.RequestSessionBChart
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "unable to get organization", http.StatusInternalServerError)
 		return
 	}
-	var model models.RequestSessionBChart
-	if query.Get("organization_id") != "" {
-		org_id, err := strconv.ParseInt(query.Get("organization_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-			return
-		}
-		model.OrganizationID = &org_id
-	}
+	model.OrganizationID = &orgid
 
 	if query.Get("location_id") != "" {
 		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)

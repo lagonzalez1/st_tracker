@@ -144,8 +144,8 @@ type ResponseAssessmentsBChart struct {
 	LocationName      string  `json:"location_name"`
 	AssessemtsTotal   int     `json:"assessments_total"`
 	AssessemtsAverage float32 `json:"assessments_average"`
-	MinScore          int     `json:"min_score"`
-	MaxScore          int     `json:"max_score"`
+	MinScore          float32 `json:"min_score"`
+	MaxScore          float32 `json:"max_score"`
 	AssessmentName    string  `json:"assessment_name"`
 	AssessmentCycle   string  `json:"cycle"`
 	AssessmentLetter  string  `json:"letter"`
