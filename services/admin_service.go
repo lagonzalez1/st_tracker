@@ -1397,7 +1397,7 @@ func (s *AuthService) GetSessionVScore(c context.Context, req models.RequestSess
 		sstu.student_id,
 		st.first_name,
 		st.last_name,
-		COUNT(DISTINCT sstu.session_id)::int AS x_sessions,
+		COUNT(sstu.session_id)::int AS x_sessions,
 		ROUND(AVG( (asj.score::numeric / NULLIF(a.max_score, 0)) * 100 ), 1) AS y_avg_score_pct
 		FROM stu_tracker.Session_students sstu
 		JOIN stu_tracker.Sessions ss ON ss.id = sstu.session_id

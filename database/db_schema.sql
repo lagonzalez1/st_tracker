@@ -757,7 +757,6 @@ ALTER TABLE stu_tracker.Assessment_sessions ADD COLUMN join_code VARCHAR(8) NOT 
 CREATE UNIQUE INDEX ON stu_tracker.Assessment_sessions (join_code);
 
 -- 
-
 ALTER TABLE stu_tracker.Session_students ADD CONSTRAINT fk_session_id FOREIGN KEY (session_id) REFERENCES stu_tracker.Sessions(id) ON DELETE CASCADE;
 ALTER TABLE stu_tracker.Assessments ADD COLUMN archive BOOLEAN DEFAULT false;
 ALTER TABLE stu_tracker.Assessments ADD COLUMN representation TEXT DEFAULT NULL;

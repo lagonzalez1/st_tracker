@@ -140,7 +140,8 @@ func (s *AuthService) TutorSearch(c context.Context, query models.SearchQueryTut
 
 func (s *AuthService) StudentSessionSearch(c context.Context, ss models.SearchQuery) ([]models.StudentSessions, error) {
 	query, args := buildStudentSearchQuery(ss)
-	fmt.Println(query)
+	fmt.Println("Params", query)
+	fmt.Println(args...)
 	rows, err := s.db.QueryContext(c, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error querying locations: %w", err)
@@ -1033,9 +1034,9 @@ func buildSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 			ss.session_date
 		FROM 
 			stu_tracker.Sessions ss
-		JOIN 
+		LEFT JOIN 
     		stu_tracker.Tutors t ON ss.tutor_id = t.id 
-		JOIN 
+		LEFT JOIN 
 			stu_tracker.Locations ll ON ll.id = ss.location_id
 		LEFT JOIN 
 			stu_tracker.Programs pg ON pg.id = ss.program_id 
@@ -1044,9 +1045,13 @@ func buildSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 		`
 
 	if ss.SearchTerm != "" {
-		conditions = append(conditions, fmt.Sprintf("ss.notes ILIKE $%d", argIndex))
-		args = append(args, "%"+ss.SearchTerm+"%")
-		argIndex++
+		searchPattern := "%" + strings.ToLower(ss.SearchTerm) + "%"
+		conditions = append(conditions,
+			fmt.Sprintf(`(LOWER(t.first_name || ' ' || t.last_name) LIKE $%d OR
+							 LOWER(sub.first_name || ' ' || sub.last_name) LIKE $%d)`,
+				argIndex, argIndex+1))
+		args = append(args, searchPattern, searchPattern)
+		argIndex += 2
 	}
 	if ss.LocationId != nil {
 		conditions = append(conditions, fmt.Sprintf("ss.location_id = $%d", argIndex))
@@ -1104,11 +1109,16 @@ func buildStudentSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 		JOIN 
 			stu_tracker.Sessions st ON st.id = ss.session_id `
 
+	fmt.Println("search_pattern is null ")
+	fmt.Println(ss.SearchTerm)
 	if ss.SearchTerm != "" {
-		conditions = append(conditions, fmt.Sprintf("s.first_name ILIKE $%d OR s.last_name ILIKE $%d", argIndex, argIndex+1))
-		args = append(args, "%"+ss.SearchTerm+"%", "%"+ss.SearchTerm+"%")
+		searchPattern := "%" + strings.ToLower(ss.SearchTerm) + "%"
+		conditions = append(conditions, fmt.Sprintf(`(LOWER(s.first_name || ' ' || s.last_name) LIKE $%d) OR (LOWER(s.middle_name) LIKE $%d)`, argIndex, argIndex+1))
+		args = append(args, searchPattern, searchPattern)
 		argIndex += 2
 	}
+	fmt.Println("Location is not null is null ")
+	fmt.Println(*ss.LocationId)
 	if ss.LocationId != nil {
 		conditions = append(conditions, fmt.Sprintf("st.location_id = $%d", argIndex))
 		args = append(args, ss.LocationId)
@@ -1148,6 +1158,5 @@ func buildStudentSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 	query += ` GROUP BY s.id, s.first_name, s.last_name
 				ORDER BY session_count DESC, assessment_count DESC;`
 
-	fmt.Println(query)
 	return query, args
 }

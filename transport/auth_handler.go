@@ -5355,14 +5355,17 @@ func (h *AuthHandler) GetSessionSearch(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	// Undefined variables like optional location_id
-	// Check if exist before
-	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
+	var model models.SearchQuery
+	org_id, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
 		return
 	}
-	var model models.SearchQuery
+	model.OrganizationID = &org_id
 
+	if query.Get("search_term") != "" {
+		model.SearchTerm = query.Get("search_term")
+	}
 	if query.Get("location_id") != "" {
 		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
 		if err != nil {
@@ -5379,14 +5382,7 @@ func (h *AuthHandler) GetSessionSearch(w http.ResponseWriter, r *http.Request) {
 		}
 		model.ProgramId = &prog_id
 	}
-	if query.Get("organization_id") != "" {
-		org_id, err := strconv.ParseInt(query.Get("organization_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
-			return
-		}
-		model.OrganizationID = &org_id
-	}
+
 	if query.Get("subject_id") != "" {
 		sub_id, err := strconv.ParseInt(query.Get("subject_id"), 10, 64)
 		if err != nil {
@@ -5512,11 +5508,6 @@ func (h *AuthHandler) GetStudentSessionSearch(w http.ResponseWriter, r *http.Req
 		return
 	}
 	// Undefined variables like optional location_id
-	// Check if exist before
-	if !query.Has("email") || !query.Has("role") || !query.Has("id") || !query.Has("organization_id") {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
-		return
-	}
 	var model models.SearchQuery
 	if query.Get("search_term") != "" {
 		model.SearchTerm = query.Get("search_term")
@@ -5537,14 +5528,7 @@ func (h *AuthHandler) GetStudentSessionSearch(w http.ResponseWriter, r *http.Req
 		}
 		model.ProgramId = &prog_id
 	}
-	if query.Get("organization_id") != "" {
-		org_id, err := strconv.ParseInt(query.Get("organization_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "Unable to parse organization", http.StatusInternalServerError)
-			return
-		}
-		model.OrganizationID = &org_id
-	}
+
 	if query.Get("subject_id") != "" {
 		sub_id, err := strconv.ParseInt(query.Get("subject_id"), 10, 64)
 		if err != nil {
@@ -5580,6 +5564,13 @@ func (h *AuthHandler) GetStudentSessionSearch(w http.ResponseWriter, r *http.Req
 		}
 		model.DateEnd = end_date
 	}
+	org_id, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to parse organization", http.StatusInternalServerError)
+		return
+	}
+	model.OrganizationID = &org_id
+
 	rows, err := h.authService.StudentSessionSearch(ctx, model)
 
 	if err != nil {
