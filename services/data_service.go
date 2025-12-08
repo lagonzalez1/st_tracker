@@ -140,8 +140,6 @@ func (s *AuthService) TutorSearch(c context.Context, query models.SearchQueryTut
 
 func (s *AuthService) StudentSessionSearch(c context.Context, ss models.SearchQuery) ([]models.StudentSessions, error) {
 	query, args := buildStudentSearchQuery(ss)
-	fmt.Println("Params", query)
-	fmt.Println(args...)
 	rows, err := s.db.QueryContext(c, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error querying locations: %w", err)
@@ -1117,8 +1115,6 @@ func buildStudentSearchQuery(ss models.SearchQuery) (string, []interface{}) {
 		args = append(args, searchPattern, searchPattern)
 		argIndex += 2
 	}
-	fmt.Println("Location is not null is null ")
-	fmt.Println(*ss.LocationId)
 	if ss.LocationId != nil {
 		conditions = append(conditions, fmt.Sprintf("st.location_id = $%d", argIndex))
 		args = append(args, ss.LocationId)
