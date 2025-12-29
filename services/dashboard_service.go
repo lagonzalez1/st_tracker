@@ -436,6 +436,99 @@ func (s *AuthService) GetSubjectByLocation(ctx context.Context, org_id int64, lo
 	return subjects, nil
 }
 
+func (s *AuthService) GetGlobalSchedule(ctx context.Context, orgID int64) ([]models.ResponseGlobalSchedule, error) {
+	query := `
+		SELECT
+			id,
+			job_name,
+			job_description,
+			organization_id,
+			tutor_id,
+			location_id,
+			global_rule,
+			cron_job,
+			provider_id,
+			provider_uid,
+			provider_type,
+			provider_employee_id,
+			provider_employee_uid,
+			recurrence_type,
+			start_date,
+			end_date,
+			specific_dates,
+			frequency,
+			start_time,
+			end_time,
+			program_id,
+			semester_id,
+			enabled,
+			archive,
+			created_at,
+			updated_at
+		FROM stu_tracker.Schedule_rule
+		WHERE organization_id = $1
+		  AND enabled = TRUE
+		ORDER BY created_at DESC;
+	`
+	rows, err := s.db.QueryContext(ctx, query, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("error querying global schedules: %w", err)
+	}
+	defer rows.Close()
+	var schedules []models.ResponseGlobalSchedule
+	for rows.Next() {
+		var schedule models.ResponseGlobalSchedule
+		var specificDates pq.StringArray
+		var frequency pq.StringArray
+		err := rows.Scan(
+			&schedule.ID,
+			&schedule.JobName,
+			&schedule.JobDescription,
+			&schedule.OrganizationID,
+			&schedule.TutorID,
+			&schedule.LocationID,
+			&schedule.GlobalRule,
+			&schedule.CronJob,
+			&schedule.ProviderID,
+			&schedule.ProviderUID,
+			&schedule.ProviderType,
+			&schedule.ProviderEmployeeID,
+			&schedule.ProviderEmployeeUID,
+			&schedule.RecurrenceType,
+			&schedule.StartDate,
+			&schedule.EndDate,
+			&specificDates,
+			&frequency,
+			&schedule.StartTime,
+			&schedule.EndTime,
+			&schedule.ProgramID,
+			&schedule.SemesterID,
+			&schedule.Enabled,
+			&schedule.Archive,
+			&schedule.CreatedAt,
+			&schedule.UpdatedAt,
+		)
+		var dates []time.Time
+		for _, s := range specificDates {
+			t, err := time.Parse("2006-01-02", s)
+			if err != nil {
+				return nil, fmt.Errorf("unable to parse date")
+			}
+			dates = append(dates, t)
+		}
+		schedule.SpecificDates = dates
+		schedule.Frequency = frequency
+		if err != nil {
+			return nil, fmt.Errorf("error scanning schedule row: %w", err)
+		}
+		schedules = append(schedules, schedule)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("row iteration error: %w", err)
+	}
+	return schedules, nil
+}
+
 func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, locationId int64, tutorId int64) ([]models.ResponseRequestStudentList, error) {
 	var query string
 	var rows *sql.Rows
@@ -1488,6 +1581,114 @@ func (s *AuthService) GetTutorSessionsAccountability(c context.Context, req mode
 	return &models.ResponseTutorAccountability{
 		SessionDates: tutorList,
 		NonWorkdays:  result,
+	}, nil
+}
+
+func (s *AuthService) GetEntitySchedule(c context.Context, tid, orgid *int64) ([]models.EntitySchedule, error) {
+	query := `
+		SELECT
+			tsa.id AS tutor_schedule_id,
+			sr.id, 
+			sr.job_name, 
+			sr.start_time, 
+			sr.end_time, 
+			sr.recurrence_type,
+			sr.specific_dates,
+			sr.frequency,
+			sr.start_date,
+			sr.end_date
+		FROM stu_tracker.Schedule_rule sr
+		INNER JOIN stu_tracker.Tutor_Schedule_Assignment tsa ON sr.id = tsa.schedule_rule_id
+		WHERE sr.organization_id = $1 
+		AND sr.global_rule = TRUE 
+		AND tsa.tutor_id = $2;
+	`
+	rows, err := s.db.QueryContext(c, query, orgid, tid)
+	if err != nil {
+		return nil, fmt.Errorf("error raised on query row context")
+	}
+	defer rows.Close()
+	var schedules []models.EntitySchedule
+	for rows.Next() {
+		var schedule models.EntitySchedule
+		err := rows.Scan(
+			&schedule.TutorScheduleID,
+			&schedule.ID,
+			&schedule.JobName,
+			&schedule.StartTime,
+			&schedule.EndTime,
+			&schedule.RecurrenceType,
+			pq.Array(&schedule.SpecificDates),
+			pq.Array(&schedule.Frequency),
+			&schedule.StartDate,
+			&schedule.EndDate,
+		)
+		if err != nil {
+			return nil, err
+		}
+		schedules = append(schedules, schedule)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+	return schedules, nil
+}
+
+func (s *AuthService) GetEntityScheduleList(ctx context.Context, uid *int64) (*models.ResponseTutorSchedule, error) {
+	if uid == nil {
+		return nil, fmt.Errorf("params are null")
+	}
+	query := `
+		SELECT DISTINCT
+			gen_date::date AS date_value,
+			ts.program_id,
+			tsa.location_id,
+			ts.start_time, 
+			ts.end_time,
+			pg.program_name,
+			ls.name
+		FROM stu_tracker.Tutor_Schedule_Assignment tsa
+		INNER JOIN stu_tracker.Schedule_rule ts ON tsa.schedule_rule_id = ts.id
+		JOIN LATERAL 
+			generate_series(ts.start_date::date, COALESCE(ts.end_date, ts.start_date)::date, '1 day'::interval) AS t(gen_date)
+		ON true
+		LEFT JOIN stu_tracker.Locations ls
+		ON ls.id = tsa.location_id
+		LEFT JOIN stu_tracker.Programs pg
+		ON pg.id = ts.program_id
+		WHERE tsa.tutor_id = $1 AND (ts.frequency IS NULL OR ts.frequency = '{}'::text[] OR to_char(gen_date, 'DY') = ANY(ts.frequency));
+	`
+	rows, err := s.db.QueryContext(ctx, query, uid)
+	if err != nil {
+		return nil, fmt.Errorf("error querying permissions: %w", err)
+	}
+	defer rows.Close()
+	result := make(map[string][]models.TutorSchedule)
+	for rows.Next() {
+		var w models.TutorSchedule
+		err := rows.Scan(
+			&w.SessionDate,
+			&w.ProgramID,
+			&w.LocationID,
+			&w.StartTime,
+			&w.EndTime,
+			&w.ProgramName,
+			&w.LocationName,
+		)
+		key := w.SessionDate.Format("2006-01-02")
+		result[key] = append(result[key], w)
+		if err != nil {
+			return nil, err
+		}
+	}
+	fmt.Printf("Length: %d", len(result))
+	r, err := s.SessionCompletedCheck(ctx, result, uid)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.ResponseTutorSchedule{
+		Schedule: r,
 	}, nil
 }
 

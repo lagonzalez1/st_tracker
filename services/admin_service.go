@@ -300,6 +300,32 @@ func (s *AuthService) GetSessionAnalytics(req models.RequestSessionBChart) (*mod
 	}, nil
 }
 
+func (s *AuthService) GetSessionsAnalyticsLocal(ctx context.Context, req models.RequestSessionBChart) (*models.SessionsAnalyticsLocal, error) {
+	if req.OrganizationID == nil {
+		return nil, fmt.Errorf("no organization id presented.")
+	}
+	var SessionAnalytics models.SessionsAnalyticsLocal
+	query := `SELECT
+			COUNT(ss.id)                       AS session_count,
+			COALESCE(SUM(ss.duration), 0)      AS session_duration,
+			COUNT(ast.id)                      AS assessment_count
+		FROM stu_tracker.Sessions ss
+		LEFT JOIN stu_tracker.Assessments_students ast
+			ON ast.session_id = ss.id
+		WHERE
+			ss.organization_id = $1
+			AND ss.location_id = $2
+			AND ss.semester_id = $3;
+		`
+
+	err := s.db.QueryRowContext(ctx, query, req.OrganizationID, req.LocationID, req.SemesterID).Scan(&SessionAnalytics.SessionCount, &SessionAnalytics.SessionDuration, &SessionAnalytics.AssessmentCount)
+	if err != nil {
+		return nil, fmt.Errorf("error querying assessment counts: %w", err)
+
+	}
+	return &SessionAnalytics, nil
+}
+
 func (s *AuthService) GetAssessmentCounts(OrganizationID int) (*int, error) {
 	var assessmentCount *int
 

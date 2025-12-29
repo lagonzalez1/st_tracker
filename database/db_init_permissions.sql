@@ -124,6 +124,11 @@ INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:survey-program', 'view survey program', 'root', 'admin');
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:survey-program', 'delete survey program', 'root', 'admin');
 
+-- Gloabl schedule tables
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:global-schedule', 'write global schedules', 'root', 'admin');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:global-schedule', 'view global schedules', 'root', 'admin');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:global-schedule', 'delete global schedules', 'root', 'admin');
+
 -- Root permissions
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:*', 'Root permission for write', 'root', 'root');
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:*', 'Root permission to delete','root', 'root');

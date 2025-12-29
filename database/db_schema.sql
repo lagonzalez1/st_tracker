@@ -756,40 +756,48 @@ ALTER TABLE stu_tracker.Assessment_sessions ADD COLUMN join_code VARCHAR(8) NOT 
 
 CREATE UNIQUE INDEX ON stu_tracker.Assessment_sessions (join_code);
 
--- 
+---- 
 ALTER TABLE stu_tracker.Session_students ADD CONSTRAINT fk_session_id FOREIGN KEY (session_id) REFERENCES stu_tracker.Sessions(id) ON DELETE CASCADE;
 ALTER TABLE stu_tracker.Assessments ADD COLUMN archive BOOLEAN DEFAULT false;
 ALTER TABLE stu_tracker.Assessments ADD COLUMN representation TEXT DEFAULT NULL;
 ALTER TABLE stu_tracker.Materials ADD COLUMN archive BOOLEAN DEFAULT false;
-ALTER TABLE stu_tracker.Materials ADD COLUMN archive BOOLEAN DEFAULT false;
-
 
 CREATE TABLE IF NOT EXISTS stu_tracker.Schedule_rule (
     id BIGSERIAL PRIMARY KEY,
     job_name VARCHAR(255) NOT NULL,
     job_description TEXT,
     organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE CASCADE,
-    tutor_id INT REFERENCES stu_tracker.Tutors(id) ON DELETE CASCADE,
-    location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE CASCADE,
-    
-    -- PATTERN DEFINITION
+    tutor_id INT REFERENCES stu_tracker.Tutors(id) DEFAULT NULL,
+    location_id INT REFERENCES stu_tracker.Locations(id) DEFAULT NULL,
+	global_rule BOOLEAN DEFAULT TRUE,
+    cron_job TEXT,
+    metadata JSONB,
+    provider_id INT DEFAULT NULL,
+    provider_uid TEXT,
+    provider_type TEXT,
+    provider_employee_id BIGINT,
+    provider_employee_uid TEXT,
     recurrence_type VARCHAR(20) NOT NULL CHECK (recurrence_type IN ('weekly', 'date_range', 'specific_dates')),
     start_date DATE NOT NULL,
     end_date DATE,
     specific_dates DATE[], -- For one-off or irregular dates
-    workweek TEXT[],
-    
-    -- TIME SLOT
-    start_time varchar(8), -- Use TIME type, not VARCHAR
-    end_time varchar(8),
-    
-    -- CONTEXT
+    frequency TEXT[], -- 
+    start_time TIME NOT NULL, -- Use TIME type, not VARCHAR
+    end_time TIME NOT NULL,
     program_id INT REFERENCES stu_tracker.Programs(id) ON DELETE SET NULL,
     semester_id INT REFERENCES stu_tracker.Semester(id) ON DELETE SET NULL,
-    
-    -- METADATA
     enabled BOOLEAN DEFAULT TRUE,
     archive BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE stu_tracker.Tutor_Schedule_Assignment (
+    id BIGSERIAL PRIMARY KEY,
+    tutor_id INT REFERENCES stu_tracker.Tutors(id),
+    location_id INT REFERENCES stu_tracker.Locations(id) DEFAULT NULL,
+    schedule_rule_id BIGINT REFERENCES stu_tracker.Schedule_rule(id) 
+);
+
+
+ALTER TABLE stu_tracker.Tutor_locations ADD valid_dates DATE[];

@@ -210,7 +210,7 @@ func (h *AuthHandler) GetGeneratedQuestion(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	valid, err := validateRequest(claims, "write:assessments")
+	valid, err := validateRequest(claims, "view:assessments")
 	if err != nil || !valid {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return

@@ -183,18 +183,29 @@ func main() {
 	apiMiddleware.HandleFunc("/update_subject", authHandler.UpdateSubject).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_subject", authHandler.DeleteSubject).Methods("POST")
 
+	// Implementation
+	apiMiddleware.HandleFunc("/create_schedule_global", authHandler.CreateGlobalSchedule).Methods("POST")
+	apiMiddleware.HandleFunc("/update_schedule_global", authHandler.UpdateGlobalSchedule).Methods("POST")
+	apiMiddleware.HandleFunc("/delete_schedule_global", authHandler.DeleteGlobalSchedule).Methods("POST")
+	apiMiddleware.HandleFunc("/get_schedule_global", authHandler.GetGlobalSchedule).Methods("GET")
+
 	apiMiddleware.HandleFunc("/create_location_contact", authHandler.CreateLocationContact).Methods("POST")
 	apiMiddleware.HandleFunc("/update_location_contact", authHandler.UpdateLocationContact).Methods("POST")
 	apiMiddleware.HandleFunc("/delete_location_contact", authHandler.DeleteLocationContact).Methods("POST")
 
 	apiMiddleware.HandleFunc("/get_location_contact", authHandler.GetLocationContact).Methods("GET")
-
 	apiMiddleware.HandleFunc("/create_permission", authHandler.CreatePermission).Methods("POST")
-	apiMiddleware.HandleFunc("/create_schedule", authHandler.CreateSchedule).Methods("POST")
 
+	apiMiddleware.HandleFunc("/v3/create_schedule", authHandler.CreateScheduleV3).Methods("POST")
+	apiMiddleware.HandleFunc("/v3/delete_entity_schedule", authHandler.DeleteEntitySchedule).Methods("POST")
+	apiMiddleware.HandleFunc("/v3/get_entity_schedule", authHandler.GetEntitySchedule).Methods("GET")
+
+	// This is not in use
+	apiMiddleware.HandleFunc("/create_schedule", authHandler.CreateSchedule).Methods("POST")
 	apiMiddleware.HandleFunc("/v2/create_schedule", authHandler.CreateSchedule).Methods("POST")
 	apiMiddleware.HandleFunc("/v2/delete_schedule", authHandler.CreateSchedule).Methods("POST")
 	apiMiddleware.HandleFunc("/v2/update_schedule", authHandler.CreateSchedule).Methods("POST")
+	// This is not in use
 
 	apiMiddleware.HandleFunc("/create_survey", authHandler.CreateSurvey).Methods("POST")
 	apiMiddleware.HandleFunc("/update_survey", authHandler.UpdateSurvey).Methods("POST")
@@ -227,6 +238,7 @@ func main() {
 	apiMiddleware.HandleFunc("/get_signed_url_materials", authHandler.GetSignedUrlMaterials).Methods("GET")
 	apiMiddleware.HandleFunc("/get_session_accountability", authHandler.GetSessionAccountability).Methods("GET")
 	apiMiddleware.HandleFunc("/get_sessions_scheduled", authHandler.GetSessionScheduled).Methods("GET")
+	apiMiddleware.HandleFunc("/get_entity_scheduled_shift", authHandler.GetEntityScheduleShift).Methods("GET")
 	apiMiddleware.HandleFunc("/get_tutors", authHandler.GetTutors).Methods("GET")
 	apiMiddleware.HandleFunc("/get_assessment_questions", authHandler.GetAssessmentQuestions).Methods("GET")
 	apiMiddleware.HandleFunc("/get_schedule", authHandler.GetSchedules).Methods("GET")
@@ -251,6 +263,7 @@ func main() {
 	apiMiddleware.HandleFunc("/get_programs_bchart", authHandler.GetProgramsBChart).Methods("GET")
 	apiMiddleware.HandleFunc("/get_tutors_bchart", authHandler.GetTutorsBChart).Methods("GET")
 	apiMiddleware.HandleFunc("/get_session_analytics", authHandler.GetSessionAnalytics).Methods("GET")
+	apiMiddleware.HandleFunc("/get_session_analytics_local", authHandler.GetSessionAnalyticsLocal).Methods("GET")
 	apiMiddleware.HandleFunc("/get_tutor_session_analytics", authHandler.GetTutorSessionAnalytics).Methods("GET")
 
 	apiMiddleware.HandleFunc("/get_assessment_trend", authHandler.GetAssessmentTrendLine).Methods("GET")
@@ -271,7 +284,7 @@ func main() {
 
 	apiMiddleware.HandleFunc("/get_generated_questions", authHandler.GetGeneratedQuestion).Methods("GET")
 	apiMiddleware.HandleFunc("/get_generated_materials", authHandler.GetGeneratedMaterials).Methods("GET")
-	//apiMiddleware.HandleFunc("/delete_generated_assessment", authHandler.MicroEventDeleteQuestions).Methods("POST")
+	apiMiddleware.HandleFunc("/delete_generated_assessment", authHandler.MicroEventDeleteQuestions).Methods("POST")
 	apiMiddleware.HandleFunc("/micro_generate", authHandler.MicroEventGenerate).Methods("POST")
 
 	apiMiddleware.HandleFunc("/micro_student_report", authHandler.MicroEventStartStudentReport).Methods("POST")

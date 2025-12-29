@@ -17,9 +17,16 @@ type RequestSessionAnalytics struct {
 }
 
 type SessionAnalytics struct {
-	SessionCount    *int `json:"session_count"`
-	AssessmentCount *int `json:"assessment_count"`
-	StudentCount    *int `json:"student_count"`
+	SessionCount    *int     `json:"session_count"`
+	AssessmentCount *int     `json:"assessment_count"`
+	StudentCount    *int     `json:"student_count"`
+	SessionDuration *float32 `json:"session_duration"`
+}
+
+type SessionsAnalyticsLocal struct {
+	SessionCount    *int     `json:"session_count"`
+	AssessmentCount *int     `json:"assessment_count"`
+	SessionDuration *float32 `json:"session_duration"`
 }
 
 type RequestSessionBChart struct {

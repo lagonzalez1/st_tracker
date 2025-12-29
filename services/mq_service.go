@@ -210,6 +210,7 @@ func (s *AuthService) AddQueueQuestionEvent(ctx context.Context, req *models.Req
 	return inputKey, nil
 }
 
+// This should not be here
 func (s *AuthService) DeleteGeneratedAssessment(ctx context.Context, req models.RemoveGeneratedQuestion) (*models.RemoveResponse, error) {
 	query := `SELECT s3_output_key FROM stu_tracker.Generate_questions_task WHERE input_key = $1 AND organization_id = $2;`
 	var s3_output_key *string
@@ -217,12 +218,10 @@ func (s *AuthService) DeleteGeneratedAssessment(ctx context.Context, req models.
 	if err != nil {
 		return nil, err
 	}
-
 	err = s.DeleteObjectS3(ctx, *s3_output_key)
 	if err != nil {
 		return nil, err
 	}
-
 	deleteQuery := `DELETE FROM stu_tracker.Generate_questions_task WHERE input_key = $1 AND organization_id = $2;`
 	res, err := s.db.ExecContext(ctx, deleteQuery, req.InputKey, req.OrganizationID)
 	if err != nil {
