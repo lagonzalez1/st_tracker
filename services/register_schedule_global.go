@@ -16,7 +16,6 @@ func (s *AuthService) AddScheduleGlobal(c context.Context, req models.RegisterGl
 				organization_id,
 				tutor_id,
 				location_id,
-				global_rule,
 				cron_job,
 				provider_id,
 				provider_uid,
@@ -40,7 +39,7 @@ func (s *AuthService) AddScheduleGlobal(c context.Context, req models.RegisterGl
 				$6,  $7,  $8,  $9,  $10,
 				$11, $12, $13, $14, $15,
 				$16, $17, $18, $19, $20,
-				$21, $22, $23
+				$21, $22
 			)
 			RETURNING id;`
 
@@ -50,7 +49,6 @@ func (s *AuthService) AddScheduleGlobal(c context.Context, req models.RegisterGl
 		req.OrganizationID,
 		req.TutorID,
 		req.LocationID,
-		req.GlobalRule,
 		req.CronJob,
 		req.ProviderID,
 		req.ProviderUID,

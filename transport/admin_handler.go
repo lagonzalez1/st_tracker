@@ -923,12 +923,6 @@ func (h *AuthHandler) GetSessionVScore(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	// Undefined variables like optional location_id
-	// Check if exist before
-	if !query.Has("organization_id") {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
-		return
-	}
 	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
 	if err != nil {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)

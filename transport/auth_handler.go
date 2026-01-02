@@ -4762,12 +4762,7 @@ func (h *AuthHandler) GetPrograms(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) GetSemesterLocations(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-
 	query := r.URL.Query()
-	email := query.Get("email")
-	role := query.Get("role")
-	id := query.Get("id")
-	orgID := query.Get("organization_id")
 	locationID := query.Get("location_id")
 
 	claims, ok := r.Context().Value("props").(jwt.MapClaims)
@@ -4781,24 +4776,24 @@ func (h *AuthHandler) GetSemesterLocations(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if email == "" || role == "" || id == "" || orgID == "" || locationID == "" {
+	if locationID == "" {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
 	}
 
-	orgIDParsed, err := strconv.ParseInt(orgID, 10, 64)
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
 	if err != nil {
 		http.Error(w, "Invalid organization_id", http.StatusBadRequest)
 		return
 	}
 
-	locationIDParsed, err := strconv.ParseInt(locationID, 10, 64)
+	locid, err := strconv.ParseInt(locationID, 10, 64)
 	if err != nil {
 		http.Error(w, "Invalid location_id", http.StatusBadRequest)
 		return
 	}
 
-	rows, err := h.authService.GetSemesterLocationById(ctx, role, locationIDParsed, orgIDParsed)
+	rows, err := h.authService.GetSemesterLocationById(ctx, locid, orgid)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "request timeout", http.StatusGatewayTimeout)

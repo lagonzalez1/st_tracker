@@ -893,7 +893,8 @@ func (s *AuthService) GetRecentLocationSessions(ctx context.Context, orgid *int6
 
 func (s *AuthService) GetLocationSessionAverage(ctx context.Context, orgid *int64, location_id *int64, semester_id *int64) ([]models.ResponseLocalSessionAverage, error) {
 	query := `
-	SELECT t.first_name, t.last_name, s.tutor_id, p.program_name, p.id, SUM(s.duration) AS duration_sum, COUNT(s.id) AS session_count
+	SELECT t.first_name, t.last_name, s.tutor_id, 
+	p.program_name, p.id, SUM(s.duration) AS duration_sum, COUNT(s.id) AS session_count
 	FROM stu_tracker.Sessions s
 	JOIN stu_tracker.Tutors t ON t.id = s.tutor_id
 	JOIN stu_tracker.Programs p ON p.id = s.program_id

@@ -854,7 +854,7 @@ func (s *AuthService) GetSemestersById(ctx context.Context, id int64, role strin
 	return semesters, nil
 }
 
-func (s *AuthService) GetSemesterLocationById(c context.Context, role string, location_id int64, idd int64) ([]models.ResponseRequestSemesterLocationList, error) {
+func (s *AuthService) GetSemesterLocationById(c context.Context, location_id int64, idd int64) ([]models.ResponseRequestSemesterLocationList, error) {
 	var query string
 	query += `SELECT 
 				sl.location_id, sl.semester_id,
