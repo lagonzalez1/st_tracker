@@ -14,12 +14,10 @@ import (
 )
 
 /*
-	//Business logic for user creation
-	//Password hashing
-	//Database insertion
-
+//Business logic for user creation
+//Password hashing
+//Database insertion
 */
-
 type MQChannels struct {
 	Connection *amqp091.Connection
 	Channels   map[string]*amqp091.Channel // Keyed by task type

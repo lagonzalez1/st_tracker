@@ -801,3 +801,18 @@ CREATE TABLE stu_tracker.Tutor_Schedule_Assignment (
 
 
 ALTER TABLE stu_tracker.Tutor_locations ADD valid_dates DATE[];
+
+CREATE TABLE stu_tracker.Survey_response_external (
+    id SERIAL PRIMARY KEY,
+    organization_id INT REFERENCES stu_tracker.Organization(id) ON DELETE SET NULL,
+    question_survey_id INT NOT NULL REFERENCES stu_tracker.survey_questions(id) ON DELETE SET NULL,
+    first_name TEXT,
+    last_name TEXT,
+    location_id INT REFERENCES stu_tracker.Locations(id) ON DELETE CASCADE,
+    response_text TEXT,
+    question_text TEXT,
+    sentiment_score REAL DEFAULT NULL,
+    sentiment_label SMALLINT DEFAULT NULL,
+    response_choice INT REFERENCES stu_tracker.Survey_choice(id) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

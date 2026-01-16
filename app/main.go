@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"time"
+	"tracker/app/cache"
 	"tracker/app/config"
 	"tracker/app/database"
 	"tracker/app/middleware"
@@ -53,20 +54,22 @@ func main() {
 
 	r := mux.NewRouter()
 
+	cacheHandler := cache.New(valkeyClient)
+
 	authService := services.NewAuthService(db, s3Client, mq, valkeyClient)
-	authHandler := transport.NewAuthHandler(authService)
+	authHandler := transport.NewAuthHandler(authService, cacheHandler)
 
 	apiMiddleware := mux.NewRouter().PathPrefix("/api").Subrouter()
-	apiMiddleware.Use(middleware.Middleware(authService))
+	apiMiddleware.Use(middleware.Middleware(authService, cacheHandler))
 
 	// Testing allow different cors http://localhost:3000
 	corsOptions := cors.New(cors.Options{
 		AllowedOrigins:   []string{"https://presentifyclone.click", "http://localhost:3000", "https://checkout.stripe.com"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization", "Stripe-Account", "Stripe-Signature"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization", "Stripe-Account", "Stripe-Signature", "X-District-ID", "X-Location-ID"},
 		ExposedHeaders:   []string{"X-Access-Token"},
 		AllowCredentials: true,
-		Debug:            false, // Log CORS issues
+		Debug:            false,
 	})
 
 	r.HandleFunc("/health_check", authHandler.HealthCheck).Methods("GET")

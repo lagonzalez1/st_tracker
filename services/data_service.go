@@ -201,7 +201,7 @@ func (s *AuthService) GetSessionsTutors(c context.Context, ss models.RequestTuto
 		ON 
 			ss.location_id = lc.id
 		WHERE
-			ss.tutor_id = $1 AND ss.semester_id = $2 AND ss.location_id = $3
+			ss.tutor_id = $1 AND ss.semester_id = $2 AND ss.location_id = $3 AND sm.archive == FALSE
 		ORDER BY 
 			ss.session_date desc;
 		`

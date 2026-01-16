@@ -65,3 +65,11 @@ type OrganizationSubscription struct {
 	StripeCustomerID     *string    `json:"stripe_customer_id"`
 	StripeSubscriptionID *string    `json:"stripe_subscription_id"`
 }
+
+type OrganizationPlanEntitlement struct {
+	PlanID     *int64  `json:"id"`
+	ActionKey  *string `json:"key"`
+	LimitValue *int64  `json:"limit_value"`
+	Enabled    bool    `json:"enabled"`
+	Enterprise bool    `json:"enterprise"`
+}

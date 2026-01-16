@@ -318,7 +318,7 @@ func (h *AuthHandler) GetStudentGroups(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
 	}
-	tid, err := strconv.ParseInt(query.Get("tutor_id"), 10, 64)
+	tid, err := helpers.ExtractInt64Claim(claims, "id")
 	if err != nil {
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return

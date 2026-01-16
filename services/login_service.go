@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 	"tracker/app/config"
 	"tracker/app/models"
@@ -43,13 +44,14 @@ func (s *AuthService) LoginAction(c context.Context, req models.LoginRequest) (*
 	var program_list []models.ResponseRequestProgramList
 	exp := time.Now().Add(1 * time.Hour)
 	iat := time.Now().Unix()
+	lowerEmail := strings.ToLower(req.Email)
 	switch req.Type {
 	case "ROOT":
-		user, err = s.findRootUser(c, req.Email)
+		user, err = s.findRootUser(c, lowerEmail)
 	case "ADMIN":
-		user, err = s.findAdminUser(c, req.Email)
+		user, err = s.findAdminUser(c, lowerEmail)
 	case "TUTOR":
-		user, locations_list, program_list, err = s.findTutorUser(c, req.Email)
+		user, locations_list, program_list, err = s.findTutorUser(c, lowerEmail)
 	default:
 		return nil, errors.New("login type was not specified")
 	}
@@ -66,22 +68,28 @@ func (s *AuthService) LoginAction(c context.Context, req models.LoginRequest) (*
 	if err != nil {
 		return nil, fmt.Errorf("unable to create access token: %w", err)
 	}
-	// Cache claims is now a struct
 	claims, err := json.Marshal(cacheClaims)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal claims for cache %v", err)
 	}
 
-	// Cache permissions ?
-
-	// 5 + hours
 	refreshToken, err := s.generateRefreshToken(user)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create refresh token: %w", err)
 	}
 	userKey := fmt.Sprintf("auth:token:%s", token)
+
 	res := s.vk.Do(c, s.vk.B().Set().Key(userKey).Value(string(claims)).Exat(exp).Build()).Error()
 	if res != nil {
+		return nil, fmt.Errorf("unable to cache login %v", err)
+	}
+	plan, err := s.GetPlanEntitlements(c, &user.OrganizationId)
+	if err != nil {
+		return nil, err
+	}
+	planEntitlementsKey := fmt.Sprintf("auth:plan-entitlement:%d", user.OrganizationId)
+	planCache := s.vk.Do(c, s.vk.B().Set().Key(planEntitlementsKey).Value(string(plan)).Exat(exp).Build()).Error()
+	if planCache != nil {
 		return nil, fmt.Errorf("unable to cache login %v", err)
 	}
 
@@ -314,4 +322,16 @@ func (s *AuthService) generateRefreshToken(user *models.User) (string, error) {
 		return "", fmt.Errorf("failed to sign token: %w", err)
 	}
 	return tokenString, nil
+}
+
+func (s *AuthService) GetPlanEntitlements(ctx context.Context, orgid *int64) ([]byte, error) {
+	org_plan, err := s.GetOrganizationLimits(ctx, orgid)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get plan entitlements")
+	}
+	plan, err := json.Marshal(org_plan)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal claims for cache %v", err)
+	}
+	return plan, nil
 }

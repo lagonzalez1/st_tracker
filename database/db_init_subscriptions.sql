@@ -34,4 +34,4 @@ INSERT INTO stu_tracker.plan_entitlement (plan_id, key, limit_value, enabled, en
 INSERT INTO stu_tracker.plan_entitlement (plan_id, key, limit_value, enabled, enterprise) VALUES (4, 'max_admin_per_district', 50,TRUE, TRUE);
 INSERT INTO stu_tracker.plan_entitlement (plan_id, key, limit_value, enabled, enterprise) VALUES (4, 'max_tutors_per_location', 20,TRUE, TRUE);
 INSERT INTO stu_tracker.plan_entitlement (plan_id, key, limit_value, enabled, enterprise) VALUES (4, 'max_students_per_location', 100,TRUE, TRUE);
-INSERT INTO stu_tracker.plan_entitlement (plan_id, key, limit_value, enabled, Enterprise) VALUES (4, 'max_llm_tokens', 5000000,TRUE,TRUE);
+INSERT INTO stu_tracker.plan_entitlement (plan_id, key, limit_value, enabled, enterprise) VALUES (4, 'max_llm_tokens', 5000000,TRUE,TRUE);

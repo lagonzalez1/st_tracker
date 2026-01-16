@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 	"tracker/app/config"
 	"tracker/app/models"
 
@@ -35,9 +36,10 @@ func (s *AuthService) AddOrganization(c context.Context, req models.RegisterOrga
 			return nil, fmt.Errorf("unable to generate password %w", err)
 		}
 		var AdminID int64
+		email := strings.ToLower(*req.Email)
 		query2 := `INSERT INTO stu_tracker.Admin_root(fullname, email, password_hash, organization_id, organization_name)
 				VALUES ($1,$2,$3,$4,$5) RETURNING id;`
-		err = s.db.QueryRow(query2, req.Fullname, req.Email, hash_password, orgID, req.OrganizationName).Scan(&AdminID)
+		err = s.db.QueryRow(query2, req.Fullname, email, hash_password, orgID, req.OrganizationName).Scan(&AdminID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert student: %w", err)
 		}

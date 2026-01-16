@@ -6,18 +6,20 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
+	"tracker/app/cache"
 	"tracker/app/config"
 	"tracker/app/models"
 	"tracker/app/services"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 /*
 	Valkey Cache
-
 		Callstack:
 			Request ->
 				Middleware ->
@@ -49,7 +51,7 @@ type JWTValidError struct {
 	Code    int
 }
 
-func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
+func Middleware(s *services.AuthService, c *cache.CacheHandler) func(http.Handler) http.Handler {
 	env_config, err := config.LoadConfig()
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -59,6 +61,16 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 				http.Error(w, "Unable to load config files.", http.StatusUnauthorized)
 				return
 			}
+			meteredPaths := map[string]string{
+				"POST /api/create_student":     "max_students_per_location",
+				"POST /api/create_tutor":       "max_tutors_per_location",
+				"POST /api/create_location":    "max_locations_per_district",
+				"POST /api/create_admin_staff": "max_admin_per_district",
+				"POST /api/max_districts":      "max_districts",
+				"POST /api/micro_generate":     "max_llm_tokens",
+			}
+			routeKey := fmt.Sprintf("%s %s", r.Method, r.URL.Path)
+			entitlementKey, exist := meteredPaths[routeKey]
 
 			// Short duration token
 			authHeader := r.Header.Get("Authorization")
@@ -78,7 +90,25 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 				http.Error(w, "Empty Token", http.StatusUnauthorized)
 				return
 			}
+
 			cacheClaims, isHit, _ := GetCacheClaims(ctx, jwtToken, s)
+			// First check the cache and plan limits
+			if isHit && exist {
+				planLimitsOk, err := CheckPlanLimits(ctx, cacheClaims, entitlementKey, s, c, r.Header)
+				fmt.Printf("plan limits ok %v", planLimitsOk)
+				if err != nil {
+					fmt.Println(err)
+					http.Error(w, err.Error(), http.StatusUpgradeRequired)
+					return
+				}
+				if !planLimitsOk {
+					fmt.Println(err)
+					http.Error(w, err.Error(), http.StatusUpgradeRequired)
+					return
+				}
+			}
+
+			// If a cache hit process the request
 			if isHit {
 				cachePermissions, isValid, _ := GetCachePermissions(ctx, cacheClaims, s)
 				if isValid {
@@ -90,15 +120,13 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 					permissions, err := ValidateRequestPermissions(ctx, cacheClaims, s)
 					if err != nil {
 						fmt.Println(err)
-						w.WriteHeader(http.StatusUnauthorized)
-						w.Write([]byte("Unable to parse cookie"))
+						http.Error(w, "unable to validate permissions", http.StatusUnauthorized)
 						return
 					}
 					cachePerm, err := CachePermissions(ctx, cacheClaims, permissions, s)
 					if err != nil {
 						fmt.Println(err)
-						w.WriteHeader(http.StatusUnauthorized)
-						w.Write([]byte("Unable to parse cookie"))
+						http.Error(w, "unable to cache permissions", http.StatusUnauthorized)
 						return
 					}
 					if cachePerm {
@@ -111,99 +139,97 @@ func Middleware(s *services.AuthService) func(http.Handler) http.Handler {
 					}
 				}
 			}
+			// Unable to hit cache validate using db
 			claims, jwtError := validateJWT(jwtToken, env_config.JWT)
-
-			if jwtError.Code == 501 {
-				// Not valid return Unauthorized
-				fmt.Printf("jwtError code 501, %v", err)
-				fmt.Println(jwtError.Message)
-				w.WriteHeader(http.StatusUnauthorized)
-				w.Write([]byte("Unauthorized"))
-				return
-			}
-			if jwtError.Code == 500 {
+			switch jwtError.Code {
+			case 500:
 				cookie_auth, err := r.Cookie("_auth")
 				if err != nil {
-					fmt.Println(err)
-					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to parse cookie"))
+					http.Error(w, "invalid cookie", http.StatusUnauthorized)
 					return
 				}
 				// Validate cookie to ensure new creation of token is valid
 				cookie_claims, jwtError := validateJWT(cookie_auth.Value, env_config.JWT)
 				// If cookie token is expired reject.
 				if jwtError.Code == 500 || jwtError.Code == 501 {
-					fmt.Printf("jwtError on cookie claims code 501, %v", err)
-					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unauthorized"))
+					http.Error(w, "invalid cookie token", http.StatusUnauthorized)
 					return
 				}
-				// Create new access token
+				if cookie_claims != nil && exist {
+					planLimitsOk, err := CheckPlanLimits(ctx, cookie_claims, entitlementKey, s, c, r.Header)
+					fmt.Printf("plan limits ok: %v", planLimitsOk)
+					if err != nil {
+						fmt.Println(err)
+						http.Error(w, err.Error(), http.StatusUpgradeRequired)
+						return
+					}
+					if !planLimitsOk {
+						fmt.Println(err)
+						http.Error(w, err.Error(), http.StatusUpgradeRequired)
+						return
+					}
+				}
 				new_access_token, err := generateJWTToken(cookie_claims)
 				if err != nil {
-					fmt.Println(err)
-					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to parse cookie"))
+					http.Error(w, "unable to create new token", http.StatusUnauthorized)
+
 					return
 				}
-
 				cacheClaims, err := CacheTokenClaims(ctx, cookie_claims, new_access_token, s)
 				if err != nil || !cacheClaims {
-					fmt.Println(err)
-					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to parse cookie"))
+					http.Error(w, "unable to cache new token", http.StatusUnauthorized)
 					return
 				}
-
 				permissions, err := ValidateRequestPermissions(ctx, cookie_claims, s)
 				if err != nil {
-					fmt.Println(err)
-					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to parse cookie"))
+					http.Error(w, "unable to validate permissions", http.StatusUnauthorized)
 					return
 				}
-
 				cachePerm, err := CachePermissions(ctx, cookie_claims, permissions, s)
 				if err != nil || !cachePerm {
-					fmt.Println(err)
-					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to parse cookie"))
+					http.Error(w, "unable to cache permissions", http.StatusUnauthorized)
 					return
 				}
 
-				fmt.Println("Sending new access token ", new_access_token)
 				cookie_claims["permissions"] = permissions
-				// Set the header field with new access token
 				ctx := context.WithValue(r.Context(), "props", cookie_claims)
 				w.Header().Set("X-Access-Token", new_access_token)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
-			}
-			if jwtError.Code == 0 {
+			case 0:
+				if claims != nil && exist {
+					planLimitsOk, err := CheckPlanLimits(ctx, claims, entitlementKey, s, c, r.Header)
+					fmt.Printf("plan limits ok %v", planLimitsOk)
+					if err != nil {
+						fmt.Println(err)
+						http.Error(w, err.Error(), http.StatusUpgradeRequired)
+						return
+					}
+					if !planLimitsOk {
+						fmt.Println(err)
+						http.Error(w, err.Error(), http.StatusUpgradeRequired)
+						return
+					}
+				}
 				permissions, err := ValidateRequestPermissions(ctx, claims, s)
 				if err != nil {
 					fmt.Println(err)
-					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to parse cookie"))
+					http.Error(w, "unable to validate permissions", http.StatusUnauthorized)
 					return
 				}
 				claims["permissions"] = permissions
 				cachePerm, err := CachePermissions(ctx, claims, permissions, s)
 				if err != nil || !cachePerm {
 					fmt.Println(err)
-					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unable to parse cookie"))
+					http.Error(w, "unable to cache permissions", http.StatusUnauthorized)
 					return
 				}
-
 				ctx := context.WithValue(r.Context(), "props", claims)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
 
-			fmt.Printf("Unable to verify token %v", jwtError)
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("Unauthorized"))
+			http.Error(w, "unable to verify request", http.StatusUnauthorized)
 		})
 	}
 }
@@ -303,6 +329,7 @@ func GetCacheClaims(ctx context.Context, token string, s *services.AuthService) 
 	return claims, true, nil
 }
 
+// Dangerous to assume this will always return
 func GetCachePermissions(ctx context.Context, claims jwt.MapClaims, s *services.AuthService) (map[string]bool, bool, error) {
 	id, ok := claims["id"].(float64)
 	if !ok {
@@ -323,6 +350,108 @@ func GetCachePermissions(ctx context.Context, claims jwt.MapClaims, s *services.
 		return nil, false, fmt.Errorf("unable to unmarshal claims")
 	}
 	return permissions, true, nil
+}
+
+func GetCachePlanEntitlements(c context.Context, orgid int64, s *services.AuthService, cache *cache.CacheHandler) ([]models.OrganizationPlanEntitlement, error) {
+	key := fmt.Sprintf("auth:plan-entitlement:%d", orgid)
+	lkey := cache.LockKey(key)
+	data, isHit := cache.CheckCache(c, key)
+	if isHit {
+		var organizationEntitlement []models.OrganizationPlanEntitlement
+		if err := json.Unmarshal([]byte(data), &organizationEntitlement); err != nil {
+			return nil, fmt.Errorf("unable to unmarshal plan entitlements")
+		}
+		return organizationEntitlement, nil
+	}
+	token := uuid.NewString()
+	lock, _ := cache.TryAcquireLock(c, lkey, token)
+	if lock {
+		rows, err := s.GetPlanEntitlements(c, &orgid)
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return nil, fmt.Errorf("deadline exceeded")
+			}
+			if errors.Is(err, context.Canceled) {
+				return nil, fmt.Errorf("context canceled")
+			}
+			return nil, fmt.Errorf("deadline exceeded")
+		}
+		cache.SetCacheByString(c, key, string(rows))
+		cache.SafeUnlock(c, lkey, token)
+	}
+	status := cache.WaitForCacheUpdate(c, key)
+	if status {
+		cdata, isHit := cache.CheckCache(c, key)
+		if isHit {
+			var organizationEntitlement []models.OrganizationPlanEntitlement
+			if err := json.Unmarshal([]byte(cdata), &organizationEntitlement); err != nil {
+			}
+			return organizationEntitlement, nil
+		}
+	}
+	return nil, fmt.Errorf("unable to get data")
+
+}
+
+func CheckPlanLimits(ctx context.Context, claims jwt.MapClaims, entitlementKey string,
+	s *services.AuthService, c *cache.CacheHandler, header http.Header) (bool, error) {
+	orgid, ok := claims["orgid"].(float64)
+	if !ok {
+		return false, fmt.Errorf("unable to get claims value")
+	}
+	var locationID *int64
+	locationStr := header.Get("X-Location-Id")
+	if locationStr != "" {
+		id, err := strconv.ParseInt(locationStr, 10, 64)
+		if err != nil {
+			return false, fmt.Errorf("unable to prase location to int")
+		}
+		locationID = &id
+	}
+	var districtID *int64
+	districtStr := header.Get("X-District-Id")
+	if districtStr != "" {
+		id, err := strconv.ParseInt(districtStr, 10, 64)
+		if err != nil {
+			return false, fmt.Errorf("unable to prase District to int")
+		}
+		districtID = &id
+	}
+	planEntitlements, err := GetCachePlanEntitlements(ctx, int64(orgid), s, c)
+	if err != nil {
+		return false, err
+	}
+	usage, err := CheckPlanEntitlements(ctx, int64(orgid), entitlementKey, locationID, districtID, s, planEntitlements)
+	if err != nil || !usage {
+		return false, err
+	}
+	return usage, nil
+}
+
+func CheckPlanEntitlements(c context.Context, orgid int64, key string, locationID *int64, districtID *int64, s *services.AuthService, plan []models.OrganizationPlanEntitlement) (bool, error) {
+	for _, value := range plan {
+		if key == *value.ActionKey {
+			usage, err := s.CheckUsage(c, int(orgid), key, locationID, districtID)
+			if err != nil {
+				return false, fmt.Errorf("unable to check usage.")
+			}
+			if usage == nil || value.LimitValue == nil {
+				return false, fmt.Errorf("encountered error")
+			}
+			if *usage == *value.LimitValue {
+				return false, fmt.Errorf("Plan limits reached for %s", *value.ActionKey)
+			}
+			if *usage == *value.LimitValue {
+				return false, fmt.Errorf("Plan limits reached for %s", *value.ActionKey)
+			}
+			fmt.Printf("plan limits check-> usage: %v, planValue: %v", *usage, *value.LimitValue)
+			if *usage < *value.LimitValue {
+				return true, nil
+			}
+		}
+	}
+
+	return false, fmt.Errorf("unable to determine usage")
 }
 
 func ValidateRequestPermissions(c context.Context, claims jwt.MapClaims, s *services.AuthService) (map[string]bool, error) {

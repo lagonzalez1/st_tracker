@@ -1386,6 +1386,106 @@ func (s *AuthService) GetSubscriptionsEntitlements(c context.Context, orgid *int
 	return res, nil
 }
 
+func (s *AuthService) GetOrganizationLimits(ctx context.Context, orgid *int64) ([]models.OrganizationPlanEntitlement, error) {
+	query := `SELECT p.plan_id, p.key, p.limit_value, p.enabled, p.enterprise 
+	FROM stu_tracker.plan_entitlement p
+	JOIN stu_tracker.organization_subscription os 
+	ON os.plan_id = p.plan_id
+	WHERE os.organization_id = $1 AND p.enabled = TRUE;`
+	var model []models.OrganizationPlanEntitlement
+	rows, err := s.db.QueryContext(ctx, query, orgid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var entitlement models.OrganizationPlanEntitlement
+		err := rows.Scan(
+			&entitlement.PlanID,
+			&entitlement.ActionKey,
+			&entitlement.LimitValue,
+			&entitlement.Enabled,
+			&entitlement.Enterprise,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan entitlement: %w", err)
+		}
+		model = append(model, entitlement)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("row iteration error: %w", err)
+	}
+
+	return model, nil
+}
+
+func (s *AuthService) CheckUsage(ctx context.Context, orgID int, key string, locationID *int64, districtID *int64) (*int64, error) {
+	var current int64
+	var countQuery string
+	switch key {
+	case "max_students_per_location":
+		fmt.Printf("orgid: %d, location: %d", orgID, *locationID)
+		countQuery = `SELECT
+			COUNT(s.id) as student_count
+			FROM stu_tracker.Locations l
+			JOIN stu_tracker.Students s
+			ON s.location_id = l.id
+			WHERE l.organization_id = $1 and l.id = $2`
+		err := s.db.QueryRowContext(ctx, countQuery, orgID, locationID).Scan(&current)
+		if err != nil {
+			return nil, err
+		}
+		return &current, nil
+	case "max_locations_per_district":
+		countQuery = `
+		SELECT 
+			COUNT(l.id) as location_count
+			FROM stu_tracker.Locations l
+			JOIN stu_tracker.District d
+			ON d.id = l.district_id
+			WHERE l.organization_id = $1 AND d.id = $2;`
+		err := s.db.QueryRowContext(ctx, countQuery, orgID, districtID).Scan(&current)
+		if err != nil {
+			return nil, err
+		}
+		return &current, nil
+	case "max_admin_per_district":
+		countQuery = `SELECT
+			COUNT(t.id) as admin_count
+			FROM stu_tracker.District d
+			JOIN stu_tracker.Admin_staff t
+			ON d.id = t.district_id
+			WHERE d.organization_id = $1 and d.id = $2`
+		err := s.db.QueryRowContext(ctx, countQuery, orgID, districtID).Scan(&current)
+		if err != nil {
+			return nil, err
+		}
+		return &current, nil
+	case "max_tutors_per_location":
+		countQuery = `SELECT
+			COUNT(t.id) as tutor_count
+			FROM stu_tracker.Locations l
+			JOIN stu_tracker.Tutors t
+			ON t.location_id = l.id
+			WHERE l.organization_id = $1 and l.id = $2`
+		err := s.db.QueryRowContext(ctx, countQuery, orgID, locationID).Scan(&current)
+		if err != nil {
+			return nil, err
+		}
+		return &current, nil
+	case "max_llm_tokens":
+		countQuery = "SELECT SUM(output_tokens) FROM stu_tracker.LLM_usage WHERE organization_id = $1"
+		err := s.db.QueryRowContext(ctx, countQuery).Scan(&current)
+		if err != nil {
+			return nil, err
+		}
+		return &current, nil
+	default:
+		return nil, nil
+	}
+}
+
 func (s *AuthService) GetSubscriptionsByOrganization(c context.Context, orgid *int64) ([]models.OrganizationSubscription, error) {
 	query := `SELECT id, plan_id, status, current_period_start, current_period_end, canceled_at, stripe_customer_id, stripe_subscription_id
 			FROM stu_tracker.organization_subscription

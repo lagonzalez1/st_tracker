@@ -83,7 +83,7 @@ func (s *AuthService) AddStudentGroup(ctx context.Context, req models.RegisterSt
 	query := `INSERT INTO stu_tracker.Student_groups(
 		tutor_id, location_id, semester_id, title, description
 	) VALUES ($1, $2, $3, $4, $5) RETURNING id;`
-	err := s.db.QueryRowContext(ctx, query, *req.TutorID, req.LocationID, req.SemesterID, req.Title, req.Description).Scan(&newID)
+	err := s.db.QueryRowContext(ctx, query, req.TutorID, req.LocationID, req.SemesterID, req.Title, req.Description).Scan(&newID)
 	if err != nil {
 		return nil, err
 	}
