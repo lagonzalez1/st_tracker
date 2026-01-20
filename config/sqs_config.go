@@ -18,7 +18,8 @@ func ConnectSQS() (*sqs.Client, error) {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
 	client := sqs.NewFromConfig(cfg, func(o *sqs.Options) {
-		if os.Getenv("APP_ENV") != "production" {
+		value, exist := os.LookupEnv("APP_ENV")
+		if exist && value == "dev" {
 			o.BaseEndpoint = aws.String("http://localstack:4566")
 		}
 	})
