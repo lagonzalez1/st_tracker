@@ -61,7 +61,7 @@ func (s *AuthService) GetOrganizationReportStatus(ctx context.Context, inputKey 
 	}
 
 	if *status == "DONE" && outputKey != nil {
-		var key = "reports/" + *outputKey
+		var key = "reports/" + *outputKey + ".csv"
 		url, err := s.GeneratePresignedUrl(ctx, key)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to get s3 presigned ulr")

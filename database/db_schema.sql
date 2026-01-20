@@ -816,3 +816,8 @@ CREATE TABLE stu_tracker.Survey_response_external (
     response_choice INT REFERENCES stu_tracker.Survey_choice(id) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+
+ALTER TABLE stu_tracker.Student_report ADD json_report JSONB DEFAULT NULL;
+ALTER TABLE stu_tracker.stu_tracker.District ADD active DEFAULT TRUE;
+ALTER TABLE stu_tracker.stu_tracker.District ADD archive DEFAULT FALSE;

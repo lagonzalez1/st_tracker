@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 	"tracker/app/helpers"
@@ -14,6 +15,10 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+)
+
+var (
+	PROD_QUEUE_NAME_DATA_REPORTS = os.Getenv("PROD_QUEUE_NAME_DATA_REPORTS")
 )
 
 func (h *AuthHandler) MicroEventStartStudentReport(w http.ResponseWriter, r *http.Request) {
@@ -47,8 +52,10 @@ func (h *AuthHandler) MicroEventStartStudentReport(w http.ResponseWriter, r *htt
 	}
 	outputKey := uuid.New().String()
 	model.S3OutputKey = &outputKey
-	id, err := h.authService.AddStudentReportQuery(ctx, model)
+	//id, err := h.authService.AddStudentReportQuery(ctx, model) Note replaced
+	id, err := h.authService.ProcessStudentReport(ctx, model)
 	if err != nil {
+
 		if errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "request timeout", http.StatusGatewayTimeout)
 			return
@@ -62,6 +69,23 @@ func (h *AuthHandler) MicroEventStartStudentReport(w http.ResponseWriter, r *htt
 		fmt.Printf("service error: %v\n", err)
 		return
 	}
+	// Update the db, tag the payload
+	payload, err := h.sqsHandler.TagPayloadStudentReport(ctx, "fetch_student_data", &model)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Unable to tag request ", http.StatusInternalServerError)
+		return
+	}
+	// Update the db, tag the payload
+
+	sqs, err := h.sqsHandler.SendMessageToQueue(ctx, &PROD_QUEUE_NAME_DATA_REPORTS, string(payload))
+	if err != nil {
+		fmt.Printf("Unable to send message to queue: %v\n", err)
+		http.Error(w, "Unable to send message to queue ", http.StatusInternalServerError)
+		return
+	}
+	fmt.Print(sqs.ResultMetadata)
+
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(id)

@@ -11,12 +11,11 @@ import (
 
 func LoadConfig() (*models.Config, error) {
 	env := os.Getenv("APP_ENV")
-	fmt.Println("Current ENV---", env)
 	if env == "" {
 		env = "development"
 	}
 	envFile := ".env." + env
-
+	fmt.Printf("Using env file %s", envFile)
 	err := godotenv.Load(envFile)
 	if err != nil {
 		log.Println("Error loading .env file")

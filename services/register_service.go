@@ -8,6 +8,7 @@ import (
 	"tracker/app/models"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/valkey-io/valkey-go"
 	"golang.org/x/crypto/bcrypt"
@@ -24,19 +25,21 @@ type MQChannels struct {
 }
 
 type AuthService struct {
-	db *sql.DB
-	s3 *s3.Client
-	mq *database.MQChannels
-	vk valkey.Client
+	db  *sql.DB
+	s3  *s3.Client
+	mq  *database.MQChannels
+	vk  valkey.Client
+	sqs *sqs.Client
 }
 
 // Return the struct object by reference.
-func NewAuthService(db *sql.DB, client *s3.Client, mq *database.MQChannels, vk valkey.Client) *AuthService {
+func NewAuthService(db *sql.DB, client *s3.Client, mq *database.MQChannels, vk valkey.Client, sqs *sqs.Client) *AuthService {
 	return &AuthService{
-		db: db,
-		s3: client,
-		mq: mq,
-		vk: vk,
+		db:  db,
+		s3:  client,
+		mq:  mq,
+		vk:  vk,
+		sqs: sqs,
 	}
 }
 

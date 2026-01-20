@@ -43,6 +43,18 @@ func (s *AuthService) AddOrganization(c context.Context, req models.RegisterOrga
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert student: %w", err)
 		}
+		const (
+			InitSubsriptionID  = 1
+			Status             = "Trial active"
+			SubscriptionStatus = "Status ok"
+		)
+		subscribeBasicPlan := `INSERT INTO stu_tracker.organization_subscription(organization_id, plan_id, status, subscription_status)
+				VALUES ($1,$2,$3,$4);`
+		_, err3 := s.db.ExecContext(c, subscribeBasicPlan, orgID, InitSubsriptionID, Status, SubscriptionStatus)
+		if err3 != nil {
+			return nil, fmt.Errorf("failed to insert student: %w", err)
+		}
+
 		return &models.RegisterOrganizationResponse{
 			Status: "OK",
 		}, nil

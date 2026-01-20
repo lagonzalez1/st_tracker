@@ -218,6 +218,8 @@ type RegisterRequestDistrict struct {
 	Region         string `json:"region"`
 	State          string `json:"state"`
 	AdminId        int64  `json:"admin_id"`
+	Active         bool   `json:"active"`
+	Archive        bool   `json:"archive"`
 	OrganizationId *int64 `json:"organization_id"`
 }
 

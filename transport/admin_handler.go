@@ -1384,12 +1384,13 @@ func (h *AuthHandler) GetTutorFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	orgID, err := helpers.ExtractInt64Claim(claims, "orgid")
 	if err != nil {
 		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
 		return
 	}
-	var model models.RequestDownloadData
+	var model *models.RequestDownloadData
+	model = &models.RequestDownloadData{}
 	if query.Get("location_id") != "" {
 		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
 		if err != nil {
@@ -1435,7 +1436,6 @@ func (h *AuthHandler) GetTutorFile(w http.ResponseWriter, r *http.Request) {
 		}
 		model.DateEnd = DateEnd
 	}
-
 	if query.Get("subject_id") != "" {
 		subject_id, err := strconv.ParseInt(query.Get("subject_id"), 10, 64)
 		if err != nil {
@@ -1447,12 +1447,25 @@ func (h *AuthHandler) GetTutorFile(w http.ResponseWriter, r *http.Request) {
 
 	var tutor = "tutor"
 	model.Entity = &tutor
-
-	inputKey, err := h.authService.AddFileDownloadEvent(ctx, model, orgID)
+	inputKey, err := h.authService.ProcessDownloadEvent(ctx, model, &orgID)
 	if err != nil {
 		http.Error(w, "unable to add message to MQ", http.StatusInternalServerError)
 		return
 	}
+	payload, err := h.sqsHandler.TagPayloadTutorDownload(ctx, "fetch_tutor_data", model)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Unable to tag request ", http.StatusInternalServerError)
+		return
+	}
+
+	sqs, err := h.sqsHandler.SendMessageToQueue(ctx, &PROD_QUEUE_NAME_DATA_REPORTS, string(payload))
+	if err != nil {
+		fmt.Printf("Unable to send message to queue: %v\n", err)
+		http.Error(w, "Unable to send message to queue ", http.StatusInternalServerError)
+		return
+	}
+	fmt.Print(sqs.ResultMetadata)
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
@@ -1474,12 +1487,13 @@ func (h *AuthHandler) GetStudentFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	orgID, err := helpers.ExtractFloat64Claim(claims, "orgid")
+	orgID, err := helpers.ExtractInt64Claim(claims, "orgid")
 	if err != nil {
 		http.Error(w, "Unable to parse claims query", http.StatusBadRequest)
 		return
 	}
-	var model models.RequestDownloadData
+	var model *models.RequestDownloadData
+	model = &models.RequestDownloadData{}
 	if query.Get("location_id") != "" {
 		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
 		if err != nil {
@@ -1542,12 +1556,12 @@ func (h *AuthHandler) GetStudentFile(w http.ResponseWriter, r *http.Request) {
 
 	var student = "student"
 	model.Entity = &student
-
-	inputKey, err := h.authService.AddFileDownloadEvent(ctx, model, orgID)
+	inputKey, err := h.authService.ProcessDownloadEvent(ctx, model, &orgID)
 	if err != nil {
 		http.Error(w, "unable to send message to rabbitMQ", http.StatusBadRequest)
 		return
 	}
+
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(inputKey)

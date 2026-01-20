@@ -12,9 +12,9 @@ func (s *AuthService) AddDistrict(ctx context.Context, req models.RegisterReques
 		return nil, fmt.Errorf("missing required fields: Name, Adminid, Region")
 	}
 	var newID int64
-	query := `INSERT INTO stu_tracker.District (name, city, region, state, organization_id) 
-			  VALUES ($1, $2, $3, $4, $5) RETURNING id;`
-	err := s.db.QueryRow(query, req.Name, req.City, req.Region, req.State, *req.OrganizationId).Scan(&newID)
+	query := `INSERT INTO stu_tracker.District (name, city, region, state, organization_id, active, archive) 
+			  VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id;`
+	err := s.db.QueryRow(query, req.Name, req.City, req.Region, req.State, *req.OrganizationId, req.Active, req.Archive).Scan(&newID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}
@@ -29,10 +29,10 @@ func (s *AuthService) UpdateDistrict(ctx context.Context, req models.RegisterReq
 	if req.Name == "" || req.Region == "" || req.OrganizationId == nil {
 		return nil, fmt.Errorf("missing required fields: Name, Region, Orgid")
 	}
-	query := `UPDATE stu_tracker.District SET name = $1, city = $2, region = $3, state = $4, organization_id = $5 WHERE id = $6`
-	_, err := s.db.ExecContext(ctx, query, req.Name, req.City, req.Region, req.State, *req.OrganizationId, *req.ID)
+	query := `UPDATE stu_tracker.District SET name = $1, city = $2, region = $3, state = $4, organization_id = $5, active = $6, archive = $7 WHERE id = $6`
+	_, err := s.db.ExecContext(ctx, query, req.Name, req.City, req.Region, req.State, *req.OrganizationId, req.Active, req.Archive, *req.ID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to insert student: %w", err)
+		return nil, fmt.Errorf("failed to update district: %w", err)
 	}
 	return &models.ResponseUpdate{
 		Status: "Updated",

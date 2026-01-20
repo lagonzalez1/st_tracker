@@ -13,6 +13,7 @@ import (
 	"tracker/app/database"
 	"tracker/app/middleware"
 	"tracker/app/services"
+	"tracker/app/sqs"
 	"tracker/app/transport"
 
 	"github.com/gorilla/mux"
@@ -30,34 +31,43 @@ func main() {
 	}
 	defer db.Close()
 
-	mq, mq_err := database.ConnectRabbitMQ()
-	if mq_err != nil {
-		fmt.Printf("Rabbit MQ connection failed: %v", mq_err)
-		log.Fatalf("Rabbit MQ connection failed: %v", mq_err)
-	}
-	defer mq.Connection.Close()
+	/*
+		mq, mq_err := database.ConnectRabbitMQ()
+		if mq_err != nil {
+			fmt.Printf("Rabbit MQ connection failed: %v", mq_err)
+			log.Fatalf("Rabbit MQ connection failed: %v", mq_err)
+		}
+		defer mq.Connection.Close()
+	*/
 	// Close channel generate
 
-	s3Client, s3_err := config.ConnectS3Client()
-	if s3_err != nil {
-		fmt.Printf("s3 client connection failed: %v", s3Client)
-		log.Fatalf("s3 client connection failed: %v", s3Client)
+	s3Client, s3Error := config.ConnectS3()
+	if s3Error != nil {
+		fmt.Printf("s3 client connection failed: %v", s3Error)
+		log.Fatalf("s3 client connection failed: %v", s3Error)
+	}
+
+	sqsClient, sqsError := config.ConnectSQS()
+	if sqsError != nil {
+		fmt.Printf("sqs connection failed: %v", sqsError)
+		log.Fatalf("sqs connection failed: %v", sqsError)
 	}
 
 	// Interface
-	valkeyClient, val_err := config.LoadValKey()
-	if val_err != nil {
-		fmt.Printf("valkey client connection failed: %v", val_err)
-		log.Fatalf("valkey client connection failed: %v", val_err)
+	valkeyClient, valError := config.LoadValKey()
+	if valError != nil {
+		fmt.Printf("valkey client connection failed: %v", valError)
+		log.Fatalf("valkey client connection failed: %v", valError)
 	}
 	defer valkeyClient.Close()
 
 	r := mux.NewRouter()
 
 	cacheHandler := cache.New(valkeyClient)
+	sqsHandler := sqs.New(sqsClient)
 
-	authService := services.NewAuthService(db, s3Client, mq, valkeyClient)
-	authHandler := transport.NewAuthHandler(authService, cacheHandler)
+	authService := services.NewAuthService(db, s3Client, nil, valkeyClient, sqsClient)
+	authHandler := transport.NewAuthHandler(authService, cacheHandler, sqsHandler)
 
 	apiMiddleware := mux.NewRouter().PathPrefix("/api").Subrouter()
 	apiMiddleware.Use(middleware.Middleware(authService, cacheHandler))
@@ -256,6 +266,7 @@ func main() {
 	apiMiddleware.HandleFunc("/location_program_list", authHandler.GetLocationPrograms).Methods("GET")
 	apiMiddleware.HandleFunc("/get_permissions", authHandler.GetPermissions).Methods("GET")
 	apiMiddleware.HandleFunc("/get_org_permissions", authHandler.GetOrganizationPermissions).Methods("GET")
+	// This needs some work
 	apiMiddleware.HandleFunc("/semester_location_list", authHandler.GetSemesterLocations).Methods("GET")
 
 	apiMiddleware.HandleFunc("/get_cycle_growth", authHandler.GetCycleGrowth).Methods("GET")

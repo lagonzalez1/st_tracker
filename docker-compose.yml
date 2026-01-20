@@ -9,16 +9,16 @@ services:
     env_file:
       - .env.development
     depends_on:
-      - rabbitmq
       - db
       - valkey
+      - localstack
     volumes:
       - .:/app
     working_dir: /app
     command: sh -c "set -o allexport && . .env.development && go run app/main.go"
     networks:
       - appnet
-
+  
   db:
     image: ankane/pgvector
     ports:
@@ -61,7 +61,20 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
-    
+  
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=sqs
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - DEFAULT_REGION=us-west-1
+    volumes:
+      - localstack-data:/var/lib/localstack
+    networks:
+      - appnet
 
 networks:
   appnet:
@@ -69,6 +82,7 @@ networks:
 
 volumes:
   valkey-data:
+  localstack-data:
     
   
 

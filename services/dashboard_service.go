@@ -867,7 +867,7 @@ func (s *AuthService) GetSemesterLocationById(c context.Context, location_id int
 			  ON
 			  	ss.id = sl.semester_id
 			  WHERE 
-			  	sl.organization_id = $1 AND sl.location_id = $2;`
+			  	sl.organization_id = $1 AND sl.location_id = $2 AND ss.active = TRUE AND ss.archive = FALSE;`
 	rows, err := s.db.QueryContext(c, query, idd, location_id)
 	if err != nil {
 		return nil, fmt.Errorf("error quering get districts by id %w", err)
@@ -1656,7 +1656,8 @@ func (s *AuthService) GetEntityScheduleList(ctx context.Context, uid *int64) (*m
 		ON ls.id = tsa.location_id
 		LEFT JOIN stu_tracker.Programs pg
 		ON pg.id = ts.program_id
-		WHERE tsa.tutor_id = $1 AND (ts.frequency IS NULL OR ts.frequency = '{}'::text[] OR to_char(gen_date, 'DY') = ANY(ts.frequency));
+		WHERE tsa.tutor_id = $1 AND (ts.frequency IS NULL OR ts.frequency = '{}'::text[] OR to_char(gen_date, 'DY') = ANY(ts.frequency))
+		AND gen_date::date <> ALL(ts.specific_dates::date[]) ORDER BY gen_date::date;
 	`
 	rows, err := s.db.QueryContext(ctx, query, uid)
 	if err != nil {

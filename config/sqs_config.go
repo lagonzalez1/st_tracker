@@ -3,18 +3,24 @@ package config
 import (
 	"context"
 	"fmt"
+	"os"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
 // It loads configuration from the environment, shared config files, or IAM role.
-func ConnectS3() (*s3.Client, error) {
+func ConnectSQS() (*sqs.Client, error) {
 	region := "us-west-1"
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
-	s3Client := s3.NewFromConfig(cfg)
-	return s3Client, nil
+	client := sqs.NewFromConfig(cfg, func(o *sqs.Options) {
+		if os.Getenv("APP_ENV") != "production" {
+			o.BaseEndpoint = aws.String("http://localstack:4566")
+		}
+	})
+	return client, nil
 }

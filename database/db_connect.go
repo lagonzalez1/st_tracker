@@ -40,17 +40,16 @@ func ConnectDB() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	// This is the configured port for docker-compose
-	if port == 5433 {
+	switch port {
+	case 5433:
 		ssl += `disable`
-	}
-	// Port for production
-	if port == 5432 {
+		break
+	case 2222:
+		ssl += `disable`
+		break
+	case 5432:
 		ssl += `require`
-	}
-	// This was used to run docker independently.
-	if port == 2222 {
-		ssl += `disable`
+		break
 	}
 	psql_info := fmt.Sprintf("host=%s port=%d user=%s "+"password=%s dbname=%s sslmode=%s",
 		host,
@@ -61,7 +60,6 @@ func ConnectDB() (*sql.DB, error) {
 		ssl,
 	)
 	// Need to set max connection pool here ?
-	fmt.Println(psql_info)
 	db, err := sql.Open("postgres", psql_info)
 	if err != nil {
 		return nil, err
@@ -74,7 +72,7 @@ func ConnectDB() (*sql.DB, error) {
 		fmt.Println("error on createSchemaIfNotExist")
 		return nil, err
 	}
-	fmt.Println("Postgres connected.")
+	fmt.Printf("Postgres connected, url: %s", psql_info)
 	return db, nil
 }
 

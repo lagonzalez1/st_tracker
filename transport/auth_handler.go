@@ -14,6 +14,7 @@ import (
 	"tracker/app/helpers"
 	"tracker/app/models"
 	"tracker/app/services"
+	"tracker/app/sqs"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -26,12 +27,14 @@ import (
 type AuthHandler struct {
 	authService *services.AuthService
 	cacheHander *cache.CacheHandler
+	sqsHandler  *sqs.SqsHandler
 }
 
-func NewAuthHandler(authService *services.AuthService, cacheHandler *cache.CacheHandler) *AuthHandler {
+func NewAuthHandler(authService *services.AuthService, cacheHandler *cache.CacheHandler, sqsHandler *sqs.SqsHandler) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
 		cacheHander: cacheHandler,
+		sqsHandler:  sqsHandler,
 	}
 }
 
@@ -142,11 +145,7 @@ func (h *AuthHandler) CreateDistrict(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
 	// Check if claims is the same as input data
-	if orgID != *models.OrganizationId {
-		http.Error(w, "Invalid claims and input missmatch", http.StatusBadRequest)
-		fmt.Printf("Claims is different from input data: %v", err)
-		return
-	}
+	models.OrganizationId = &orgID
 	cacheKey := fmt.Sprintf("get:districts:%d", orgID)
 	// Need to handle 3 cases of logins for different permissions
 	user, err := h.authService.AddDistrict(ctx, models)
@@ -1624,19 +1623,29 @@ func (h *AuthHandler) CreateSemester(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) UpdateSemester(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+	claims, ok := r.Context().Value("props").(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		fmt.Printf("error found reading body")
 		return
 	}
-
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "Unable to semester", http.StatusBadRequest)
+		return
+	}
 	var models models.RegisterRequestSemester
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
 
+	key := fmt.Sprintf("get:semesters:%d", orgid)
 	// Need to handle 3 cases of logins for different permissions
 	user, err := h.authService.UpdateSemester(ctx, models)
 	if err != nil {
@@ -1653,6 +1662,7 @@ func (h *AuthHandler) UpdateSemester(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("service error: %v\n", err)
 		return
 	}
+	h.cacheHander.ClearCache(ctx, key)
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
@@ -4273,10 +4283,25 @@ func (h *AuthHandler) GetEntityScheduleShift(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	// Need to cache this
-	//
-	// Cache on schedule:schedule_id:tutor_id
-	// Cache invalidate on -> Tutor submits a new session
-	// Cache invalidate on -> Admin submits a new schedule, edit,
+	/**
+		// Level 1: Individual schedule data (rarely changes)
+		schedule:data:{id} = { schedule details }
+
+		// Level 2: Tutor's combined schedule (depends on subscriptions)
+		tutor:schedule:{tutorId} = { combined view }
+
+		// Level 3: Schedule-to-tutor mapping
+		schedule:subscribers:{scheduleId} = Set[tutor1, tutor2, tutor3]
+
+
+		1. First set the schedule:data:{id} => Schedule details
+
+		2. Then set the tutors to subscribe to each schedule => tutor:schedule:{schedule_id} = { schedules }
+		** This is the mapping of Table(Tutor_Schedule_Assignment)
+
+		3. Then the mappings to each subscriber -> subscriber:schedule:{schedule_id} = SET[tutor_id, tutor_id]
+
+	**/
 	rows, err := h.authService.GetEntityScheduleList(ctx, &uid)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {

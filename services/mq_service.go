@@ -102,7 +102,20 @@ func (s *AuthService) AddSentimentWorker(ctx context.Context, session_id *int64,
 	return true, nil
 }
 
+func (s *AuthService) AddStudentReportRequest(ctx context.Context, req models.RequestStudentReport) (*string, error) {
+	// Added to differentiate future request from view, donwload, ...
+	tag := make(map[string]models.RequestStudentReport)
+	tag["view_student_report"] = req
+	_, err := json.Marshal(req)
+	if err != nil {
+		log.Printf("Failed to marchal json for MQ: %v", err)
+		return nil, err
+	}
+	return nil, err
+}
+
 func (s *AuthService) AddStudentReportQuery(ctx context.Context, req models.RequestStudentReport) (*string, error) {
+
 	jsonBody, err := json.Marshal(req)
 	if err != nil {
 		log.Printf("Failed to marchal json for MQ: %v", err)
