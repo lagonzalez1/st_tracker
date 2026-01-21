@@ -78,7 +78,7 @@ func (h *AuthHandler) MicroEventStartStudentReport(w http.ResponseWriter, r *htt
 	}
 	// Update the db, tag the payload
 
-	sqs, err := h.sqsHandler.SendMessageToQueue(ctx, &PROD_QUEUE_NAME_DATA_REPORTS, string(payload))
+	sqs, err := h.sqsHandler.SendMessageToQueue(ctx, PROD_QUEUE_NAME_DATA_REPORTS, string(payload))
 	if err != nil {
 		fmt.Printf("Unable to send message to queue: %v\n", err)
 		http.Error(w, "Unable to send message to queue ", http.StatusInternalServerError)

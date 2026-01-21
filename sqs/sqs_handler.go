@@ -69,16 +69,30 @@ func (s *SqsHandler) TagPayloadTutorDownload(ctx context.Context, key string, pa
 	return jsonData, nil
 }
 
-func (sh *SqsHandler) SendMessageToQueue(ctx context.Context, queueName *string, messageBody string) (*sqs.SendMessageOutput, error) {
+func (sh *SqsHandler) SendMessageToQueue(ctx context.Context, queueName string, messageBody string) (*sqs.SendMessageOutput, error) {
+	fmt.Printf("[DEBUG] Queue name received: '%s'\n", queueName)
+	fmt.Printf("[DEBUG] Queue name length: %d\n", len(queueName))
+
 	urlOut, err := sh.sqs.GetQueueUrl(ctx, &sqs.GetQueueUrlInput{
-		QueueName: aws.String(*queueName),
+		QueueName: aws.String(queueName),
 	})
 	if err != nil {
+		fmt.Printf("[ERROR] GetQueueUrl failed: %v\n", err)
 		return nil, fmt.Errorf("Error found getting url : %w", err)
 	}
-	fmt.Println("Sending to queue URL:", *urlOut.QueueUrl)
-	return sh.sqs.SendMessage(ctx, &sqs.SendMessageInput{
+
+	fmt.Printf("[DEBUG] Got queue URL: %s\n", *urlOut.QueueUrl)
+
+	resp, err := sh.sqs.SendMessage(ctx, &sqs.SendMessageInput{
 		MessageBody: aws.String(messageBody),
-		QueueUrl:    aws.String(*urlOut.QueueUrl),
+		QueueUrl:    urlOut.QueueUrl,
 	})
+
+	if err != nil {
+		fmt.Printf("[ERROR] SendMessage failed: %v\n", err)
+		return nil, err
+	}
+
+	fmt.Printf("[SUCCESS] Message sent: %s\n", *resp.MessageId)
+	return resp, nil
 }
