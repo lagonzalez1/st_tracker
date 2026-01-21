@@ -58,7 +58,7 @@ func main() {
 	}
 
 	// Interface
-	valkeyClient, valError := config.LoadValKey(cfg.ValKey)
+	valkeyClient, valError := config.LoadValKey(cfg)
 	if valError != nil {
 		fmt.Printf("valkey client connection failed: %v", valError)
 		log.Fatalf("valkey client connection failed: %v", valError)

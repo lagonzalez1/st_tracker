@@ -17,7 +17,9 @@ func LoadConfig() (*models.Config, error) {
 	if env == "prod" {
 		env = "production"
 	}
+
 	envFile := ".env." + env
+	fmt.Println("env: ", env)
 	fmt.Printf("Using env file %s", envFile)
 	err := godotenv.Load(envFile)
 	if err != nil {
