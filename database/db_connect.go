@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"tracker/app/config"
+	"tracker/app/models"
 
 	_ "github.com/lib/pq"
 )
@@ -28,15 +28,11 @@ import (
 
 */
 
-func ConnectDB() (*sql.DB, error) {
-	env_config, err := config.LoadConfig()
-	if err != nil {
-		return nil, err
-	}
+func ConnectDB(DB models.PostGresConfig) (*sql.DB, error) {
 	var ssl string
-	host, username := env_config.DB.Host, env_config.DB.Username
-	password, name := env_config.DB.Password, env_config.DB.Name
-	port, err := strconv.Atoi(env_config.DB.Port)
+	host, username := DB.Host, DB.Username
+	password, name := DB.Password, DB.Name
+	port, err := strconv.Atoi(DB.Port)
 	if err != nil {
 		return nil, err
 	}

@@ -9,6 +9,11 @@ type Config struct {
 	S3            S3Client
 	ValKey        ValKey
 	StripeWebhook string
+	SQS           SQSConfig
+}
+
+type SQSConfig struct {
+	DataReportsQueue string
 }
 
 type PostGresConfig struct {

@@ -11,8 +11,11 @@ import (
 
 func LoadConfig() (*models.Config, error) {
 	env := os.Getenv("APP_ENV")
-	if env == "" {
+	if env == "dev" {
 		env = "development"
+	}
+	if env == "prod" {
+		env = "production"
 	}
 	envFile := ".env." + env
 	fmt.Printf("Using env file %s", envFile)
@@ -53,6 +56,9 @@ func LoadConfig() (*models.Config, error) {
 		ValKey: models.ValKey{
 			Port: os.Getenv("VALKEY_PORT"),
 			Host: os.Getenv("VALKEY_HOST"),
+		},
+		SQS: models.SQSConfig{
+			DataReportsQueue: os.Getenv("PROD_QUEUE_NAME_DATA_REPORTS"),
 		},
 	}
 	return cfg, nil

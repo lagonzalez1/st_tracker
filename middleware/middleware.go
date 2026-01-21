@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 	"tracker/app/cache"
-	"tracker/app/config"
 	"tracker/app/models"
 	"tracker/app/services"
 
@@ -51,16 +50,12 @@ type JWTValidError struct {
 	Code    int
 }
 
-func Middleware(s *services.AuthService, c *cache.CacheHandler) func(http.Handler) http.Handler {
-	env_config, err := config.LoadConfig()
+func Middleware(s *services.AuthService, c *cache.CacheHandler, cfg *models.Config) func(http.Handler) http.Handler {
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 			defer cancel()
-			if err != nil {
-				http.Error(w, "Unable to load config files.", http.StatusUnauthorized)
-				return
-			}
 			meteredPaths := map[string]string{
 				"POST /api/create_student":     "max_students_per_location",
 				"POST /api/create_tutor":       "max_tutors_per_location",
@@ -140,7 +135,7 @@ func Middleware(s *services.AuthService, c *cache.CacheHandler) func(http.Handle
 				}
 			}
 			// Unable to hit cache validate using db
-			claims, jwtError := validateJWT(jwtToken, env_config.JWT)
+			claims, jwtError := validateJWT(jwtToken, cfg.JWT)
 			switch jwtError.Code {
 			case 500:
 				cookie_auth, err := r.Cookie("_auth")
@@ -149,7 +144,7 @@ func Middleware(s *services.AuthService, c *cache.CacheHandler) func(http.Handle
 					return
 				}
 				// Validate cookie to ensure new creation of token is valid
-				cookie_claims, jwtError := validateJWT(cookie_auth.Value, env_config.JWT)
+				cookie_claims, jwtError := validateJWT(cookie_auth.Value, cfg.JWT)
 				// If cookie token is expired reject.
 				if jwtError.Code == 500 || jwtError.Code == 501 {
 					http.Error(w, "invalid cookie token", http.StatusUnauthorized)
@@ -169,7 +164,7 @@ func Middleware(s *services.AuthService, c *cache.CacheHandler) func(http.Handle
 						return
 					}
 				}
-				new_access_token, err := generateJWTToken(cookie_claims)
+				new_access_token, err := generateJWTToken(cookie_claims, cfg.JWT)
 				if err != nil {
 					http.Error(w, "unable to create new token", http.StatusUnauthorized)
 
@@ -234,13 +229,8 @@ func Middleware(s *services.AuthService, c *cache.CacheHandler) func(http.Handle
 	}
 }
 
-func generateJWTToken(claims jwt.MapClaims) (string, error) {
-	env_config, err := config.LoadConfig()
-	if err != nil {
-		return fmt.Sprintf("unable to load config env %v", err), err
-	}
-	jwt_token := env_config.JWT
-	secret_key := []byte(jwt_token)
+func generateJWTToken(claims jwt.MapClaims, token string) (string, error) {
+	secret_key := []byte(token)
 	// Need to create a role to return here ?
 	jwt_object := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":   claims["sub"],

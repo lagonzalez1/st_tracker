@@ -25,7 +25,11 @@ func hello(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	db, db_err := database.ConnectDB()
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Database connection failed: %v", err)
+	}
+	db, db_err := database.ConnectDB(cfg.DB)
 	if db_err != nil {
 		log.Fatalf("Database connection failed: %v", db_err)
 	}
@@ -54,7 +58,7 @@ func main() {
 	}
 
 	// Interface
-	valkeyClient, valError := config.LoadValKey()
+	valkeyClient, valError := config.LoadValKey(cfg.ValKey)
 	if valError != nil {
 		fmt.Printf("valkey client connection failed: %v", valError)
 		log.Fatalf("valkey client connection failed: %v", valError)
@@ -67,10 +71,10 @@ func main() {
 	sqsHandler := sqs.New(sqsClient)
 
 	authService := services.NewAuthService(db, s3Client, nil, valkeyClient, sqsClient)
-	authHandler := transport.NewAuthHandler(authService, cacheHandler, sqsHandler)
+	authHandler := transport.NewAuthHandler(authService, cacheHandler, sqsHandler, cfg)
 
 	apiMiddleware := mux.NewRouter().PathPrefix("/api").Subrouter()
-	apiMiddleware.Use(middleware.Middleware(authService, cacheHandler))
+	apiMiddleware.Use(middleware.Middleware(authService, cacheHandler, cfg))
 
 	// Testing allow different cors http://localhost:3000
 	corsOptions := cors.New(cors.Options{
@@ -330,7 +334,7 @@ func main() {
 		Handler:        handler,
 	}
 
-	err := httpListen.ListenAndServe()
+	err = httpListen.ListenAndServe()
 
 	if errors.Is(err, http.ErrServerClosed) {
 		fmt.Printf("server closed\n")

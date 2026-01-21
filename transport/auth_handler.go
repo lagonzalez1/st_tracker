@@ -28,13 +28,15 @@ type AuthHandler struct {
 	authService *services.AuthService
 	cacheHander *cache.CacheHandler
 	sqsHandler  *sqs.SqsHandler
+	config      *models.Config
 }
 
-func NewAuthHandler(authService *services.AuthService, cacheHandler *cache.CacheHandler, sqsHandler *sqs.SqsHandler) *AuthHandler {
+func NewAuthHandler(authService *services.AuthService, cacheHandler *cache.CacheHandler, sqsHandler *sqs.SqsHandler, config *models.Config) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
 		cacheHander: cacheHandler,
 		sqsHandler:  sqsHandler,
+		config:      config,
 	}
 }
 
