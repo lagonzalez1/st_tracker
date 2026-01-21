@@ -69,9 +69,16 @@ func (s *SqsHandler) TagPayloadTutorDownload(ctx context.Context, key string, pa
 	return jsonData, nil
 }
 
-func (sh *SqsHandler) SendMessageToQueue(ctx context.Context, url *string, messageBody string) (*sqs.SendMessageOutput, error) {
+func (sh *SqsHandler) SendMessageToQueue(ctx context.Context, queueName *string, messageBody string) (*sqs.SendMessageOutput, error) {
+	urlOut, err := sh.sqs.GetQueueUrl(ctx, &sqs.GetQueueUrlInput{
+		QueueName: aws.String(*queueName),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Error found getting url : %w", err)
+	}
+	fmt.Println("Sending to queue URL:", *urlOut.QueueUrl)
 	return sh.sqs.SendMessage(ctx, &sqs.SendMessageInput{
 		MessageBody: aws.String(messageBody),
-		QueueUrl:    url,
+		QueueUrl:    aws.String(*urlOut.QueueUrl),
 	})
 }
