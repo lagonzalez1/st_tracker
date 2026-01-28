@@ -60,7 +60,9 @@ func LoadConfig() (*models.Config, error) {
 			Host: os.Getenv("VALKEY_HOST"),
 		},
 		SQS: models.SQSConfig{
-			DataReportsQueue: os.Getenv("PROD_QUEUE_NAME_DATA_REPORTS"),
+			DataReportsQueue:      os.Getenv("PROD_QUEUE_NAME_DATA_REPORTS"),
+			AssessmentGraderQueue: os.Getenv("PROD_QUEUE_NAME_DATA_ASSESSMENTS"),
+			GenerateContentQueue:  os.Getenv("PROD_QUEUE_NAME_GENERATE_CONTENT"),
 		},
 	}
 	return cfg, nil

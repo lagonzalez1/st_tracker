@@ -92,6 +92,11 @@ func (s *AuthService) RegisterRootUser(req models.RegisterRequestAdminRoot) (*mo
 		return nil, fmt.Errorf("failed to create organization: %v", err)
 	}
 
+	// Need to add organization to -> organization_subscription
+	// The following must be created first
+	// customer_id From stripe
+	// Append to organization_subscription
+
 	var user models.RegisterResponseAdminRoot
 	err = s.db.QueryRow(query, req.Email, string(hashedPassword), req.OrganizationName, organizationID).Scan(
 		&user.ID,

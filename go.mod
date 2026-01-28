@@ -15,6 +15,8 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/rs/cors v1.11.1
+	github.com/stripe/stripe-go/v83 v83.0.1
+	github.com/valkey-io/valkey-go v1.0.65
 	github.com/xuri/excelize/v2 v2.9.0
 	golang.org/x/crypto v0.36.0
 	golang.org/x/oauth2 v0.25.0
@@ -49,9 +51,6 @@ require (
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.4 // indirect
-	github.com/stripe/stripe-go v70.15.0+incompatible // indirect
-	github.com/stripe/stripe-go/v83 v83.0.1 // indirect
-	github.com/valkey-io/valkey-go v1.0.65 // indirect
 	github.com/xuri/efp v0.0.0-20250227110027-3491fafc2b79 // indirect
 	github.com/xuri/nfp v0.0.0-20250226145837-86d5fc24b2ba // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.54.0 // indirect

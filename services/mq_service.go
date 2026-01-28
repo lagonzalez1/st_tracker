@@ -152,70 +152,23 @@ func (s *AuthService) AddStudentReportQuery(ctx context.Context, req models.Requ
 	return inputKey, nil
 }
 
-func (s *AuthService) AddQueueMaterialsEvent(ctx context.Context, req *models.RequestEventGeneration) (*string, error) {
-	jsonBody, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-	mq := s.mq.Channels["produce"]
-	if mq == nil {
-		return nil, fmt.Errorf("channel is not open")
-	}
-	err = mq.Publish(
-		"ai_events_exchange",
-		"produce",
-		false, false,
-		amqp091.Publishing{
-			ContentType: "application/json",
-			Body:        []byte(jsonBody),
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
+func (s *AuthService) CreateMaterialsGenerationTask(ctx context.Context, req *models.RequestEventGeneration) (*string, error) {
 	var status string = "STARTED"
 	var intputKey *string
 	query := `INSERT INTO stu_tracker.Generate_materials_task(status, s3_output_key, organization_id, assessment_id) VALUES ($1,$2, $3,$4) RETURNING input_key;`
-	err = s.db.QueryRowContext(ctx, query, status, req.RequestMaterials.S3OutputKey, req.OrganizationID, req.RequestMaterials.AssessmentId).Scan(&intputKey)
+	err := s.db.QueryRowContext(ctx, query, status, req.RequestMaterials.S3OutputKey, req.OrganizationID, req.RequestMaterials.AssessmentId).Scan(&intputKey)
 	if err != nil {
 		return nil, err
 	}
 	return intputKey, nil
 }
 
-func (s *AuthService) AddQueueQuestionEvent(ctx context.Context, req *models.RequestEventGeneration) (*string, error) {
-	jsonBody, err := json.Marshal(req)
-	if err != nil {
-		log.Printf("Failed to marshal JSON for MQ: %v", err)
-		return nil, err
-	}
+func (s *AuthService) CreateAssessmentGenerationTask(ctx context.Context, req *models.RequestEventGeneration) (*string, error) {
 
-	mq := s.mq.Channels["produce"]
-	if mq == nil {
-		err := fmt.Errorf("RabbitMQ channel 'generate' not found")
-		log.Printf("Failure: %v", err)
-		return nil, err
-	}
-	log.Printf("Attempting to publish message to exchange 'ai_events_exchange'...")
-
-	err = mq.Publish(
-		"ai_events_exchange",
-		"produce",
-		false, false,
-		amqp091.Publishing{
-			ContentType: "application/json",
-			Body:        []byte(jsonBody),
-		},
-	)
-	if err != nil {
-		log.Printf("Failure: Failed to publish message to RabbitMQ: %v", err)
-		return nil, err
-	}
-	log.Println("Success: Message published to RabbitMQ.")
 	var status string = "STARTED"
 	var inputKey *string
 	query := `INSERT INTO stu_tracker.Generate_questions_task (status, s3_output_key, organization_id) VALUES ($1, $2, $3) RETURNING input_key;`
-	err = s.db.QueryRowContext(ctx, query, status, req.RequestQuestions.S3OutputKey, req.OrganizationID).Scan(&inputKey)
+	err := s.db.QueryRowContext(ctx, query, status, req.RequestQuestions.S3OutputKey, req.OrganizationID).Scan(&inputKey)
 	if err != nil {
 		log.Printf("Failure: Failed to insert record into database: %v", err)
 		return nil, err

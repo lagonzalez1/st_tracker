@@ -270,7 +270,6 @@ func main() {
 	apiMiddleware.HandleFunc("/location_program_list", authHandler.GetLocationPrograms).Methods("GET")
 	apiMiddleware.HandleFunc("/get_permissions", authHandler.GetPermissions).Methods("GET")
 	apiMiddleware.HandleFunc("/get_org_permissions", authHandler.GetOrganizationPermissions).Methods("GET")
-	// This needs some work
 	apiMiddleware.HandleFunc("/semester_location_list", authHandler.GetSemesterLocations).Methods("GET")
 
 	apiMiddleware.HandleFunc("/get_cycle_growth", authHandler.GetCycleGrowth).Methods("GET")

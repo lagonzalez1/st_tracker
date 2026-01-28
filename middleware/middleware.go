@@ -421,21 +421,20 @@ func CheckPlanLimits(ctx context.Context, claims jwt.MapClaims, entitlementKey s
 func CheckPlanEntitlements(c context.Context, orgid int64, key string, locationID *int64, districtID *int64, s *services.AuthService, plan []models.OrganizationPlanEntitlement) (bool, error) {
 	for _, value := range plan {
 		if key == *value.ActionKey {
-			usage, err := s.CheckUsage(c, int(orgid), key, locationID, districtID)
-			if err != nil {
+			usage, exist, err := s.CheckUsage(c, int(orgid), key, locationID, districtID)
+			if err != nil || !exist {
 				return false, fmt.Errorf("unable to check usage.")
 			}
-			if usage == nil || value.LimitValue == nil {
-				return false, fmt.Errorf("encountered error")
-			}
-			if *usage == *value.LimitValue {
+			fmt.Printf("[MIDDLEWARE] Value of check usage: %d", usage)
+			fmt.Printf("[MIDDLEWARE] Value of check usage: %d", *value.LimitValue)
+			if usage >= *value.LimitValue {
 				return false, fmt.Errorf("Plan limits reached for %s", *value.ActionKey)
 			}
-			if *usage == *value.LimitValue {
+			if usage == *value.LimitValue {
 				return false, fmt.Errorf("Plan limits reached for %s", *value.ActionKey)
 			}
-			fmt.Printf("plan limits check-> usage: %v, planValue: %v", *usage, *value.LimitValue)
-			if *usage < *value.LimitValue {
+			fmt.Printf("[MIDDLEWARE] Plan limits check-> usage: %v, planValue: %v", usage, *value.LimitValue)
+			if usage < *value.LimitValue && exist {
 				return true, nil
 			}
 		}

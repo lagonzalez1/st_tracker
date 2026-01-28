@@ -60,7 +60,7 @@ func (h *AuthHandler) MicroEventStartStudentReport(w http.ResponseWriter, r *htt
 			return
 		}
 		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "Unable to start AddQueueQuestionEvent ", http.StatusInternalServerError)
+		http.Error(w, "Unable to start ", http.StatusInternalServerError)
 		fmt.Printf("service error: %v\n", err)
 		return
 	}
@@ -152,7 +152,6 @@ func (h *AuthHandler) MicroEventGenerate(w http.ResponseWriter, r *http.Request)
 	outputKey := uuid.New()
 	var models models.RequestEventGeneration
 	key := outputKey.String()
-
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
@@ -170,8 +169,7 @@ func (h *AuthHandler) MicroEventGenerate(w http.ResponseWriter, r *http.Request)
 	case "generate_questions":
 		models.OrganizationID = &orgID
 		models.RequestQuestions.S3OutputKey = &key
-
-		id, err := h.authService.AddQueueQuestionEvent(ctx, &models)
+		id, err := h.authService.CreateAssessmentGenerationTask(ctx, &models)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				http.Error(w, "request timeout", http.StatusGatewayTimeout)
@@ -182,10 +180,23 @@ func (h *AuthHandler) MicroEventGenerate(w http.ResponseWriter, r *http.Request)
 				return
 			}
 			// 6. You could also inspect SQL errors here if you like.
-			http.Error(w, "Unable to start AddQueueQuestionEvent ", http.StatusInternalServerError)
+			http.Error(w, "Unable to start CreateAssessmentGenerationTask ", http.StatusInternalServerError)
 			fmt.Printf("service error: %v\n", err)
 			return
 		}
+		payload, err := h.sqsHandler.TagPayloadAssessmentGenerator(ctx, "process_assessment_generation", &models)
+		if err != nil {
+			issue := fmt.Sprintf("unable to tag request: %v", err)
+			http.Error(w, issue, http.StatusInternalServerError)
+			return
+		}
+		sqs, err := h.sqsHandler.SendMessageToQueue(ctx, h.config.SQS.GenerateContentQueue, string(payload))
+		if err != nil {
+			fmt.Printf("Unable to send message to queue: %v\n", err)
+			http.Error(w, "Unable to send message to queue ", http.StatusInternalServerError)
+			return
+		}
+		fmt.Print(sqs.ResultMetadata)
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(id)
@@ -193,7 +204,7 @@ func (h *AuthHandler) MicroEventGenerate(w http.ResponseWriter, r *http.Request)
 		models.OrganizationID = &orgID
 		models.RequestMaterials.S3OutputKey = &key
 
-		id, err := h.authService.AddQueueMaterialsEvent(ctx, &models)
+		id, err := h.authService.CreateMaterialsGenerationTask(ctx, &models)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				http.Error(w, "request timeout", http.StatusGatewayTimeout)
@@ -204,10 +215,23 @@ func (h *AuthHandler) MicroEventGenerate(w http.ResponseWriter, r *http.Request)
 				return
 			}
 			// 6. You could also inspect SQL errors here if you like.
-			http.Error(w, "Unable to start AddQueueQuestionEvent ", http.StatusInternalServerError)
+			http.Error(w, "Unable to start CreateMaterialsGenerationTask ", http.StatusInternalServerError)
 			fmt.Printf("service error: %v\n", err)
 			return
 		}
+		payload, err := h.sqsHandler.TagPayloadAssessmentGenerator(ctx, "process_materials_generation", &models)
+		if err != nil {
+			issue := fmt.Sprintf("unable to tag request: %v", err)
+			http.Error(w, issue, http.StatusInternalServerError)
+			return
+		}
+		sqs, err := h.sqsHandler.SendMessageToQueue(ctx, h.config.SQS.GenerateContentQueue, string(payload))
+		if err != nil {
+			fmt.Printf("Unable to send message to queue: %v\n", err)
+			http.Error(w, "Unable to send message to queue ", http.StatusInternalServerError)
+			return
+		}
+		fmt.Print(sqs.ResultMetadata)
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(id)
@@ -238,24 +262,23 @@ func (h *AuthHandler) GetGeneratedQuestion(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "missing paramaters", http.StatusInternalServerError)
 		return
 	}
-	status, outputKey, err := h.authService.GetQuestionGenerationStatus(ctx, &inputKey)
+	status, jsonOutput, err := h.authService.GetQuestionGenerationStatus(ctx, &inputKey)
 	if err != nil {
 		http.Error(w, "error on GetQuestionGenerationStatus", http.StatusInternalServerError)
 		return
 	}
 	var response *string
-	if *status == "COMPLETE" {
-		var key = "assessments/" + *outputKey
-		response, err = h.authService.GetS3Object(ctx, key, "tracker-client-storage")
+	var assessment *models.Assessment
+	if *status == "COMPLETE" || *status == "DONE" {
+		err := json.Unmarshal(jsonOutput, &assessment)
 		if err != nil {
-			http.Error(w, "unable to get s3 object", http.StatusInternalServerError)
+			http.Error(w, "unable to parse json into assessment", http.StatusInternalServerError)
 			return
 		}
 	}
-
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	payload := map[string]interface{}{"status": status, "response": response}
+	payload := map[string]interface{}{"status": status, "response": response, "assessment": assessment}
 	json.NewEncoder(w).Encode(payload)
 }
 
@@ -279,32 +302,31 @@ func (h *AuthHandler) GetGeneratedMaterials(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "missing paramaters", http.StatusInternalServerError)
 		return
 	}
-	status, outputKey, err := h.authService.GetMaterialsGenerationStatus(ctx, &inputKey)
+	status, outputKey, jsonOutput, err := h.authService.GetMaterialsGenerationStatus(ctx, &inputKey)
 	if err != nil {
 		http.Error(w, "error on GetMaterialsGenerationStatus", http.StatusInternalServerError)
 		return
 	}
 	var response *string
+	var materials *models.Materials
 	var signedUrl *string
-	if *status == "DONE" {
-		var objectKey = "materials/" + *outputKey
-		response, err = h.authService.GetS3Object(ctx, objectKey, "tracker-client-storage")
+	if *status == "DONE" || *status == "COMPLETE" {
+		err := json.Unmarshal(jsonOutput, &materials)
 		if err != nil {
-			http.Error(w, "unable to get s3 object", http.StatusInternalServerError)
+			http.Error(w, "unable to parse json into assessment", http.StatusInternalServerError)
 			return
 		}
-		var updateKey = string(objectKey + ".pdf")
-		url, err := h.authService.GeneratePutPresignedUrlMaterials(ctx, &updateKey, "application/pdf", 60)
+		path := fmt.Sprintf("materials/%s.pdf", *outputKey)
+		url, err := h.authService.GeneratePutPresignedUrlMaterials(ctx, &path, "application/pdf", 5)
 		if err != nil {
-			http.Error(w, "unable to get signed url object", http.StatusInternalServerError)
-			return
+			http.Error(w, "unable to create signed url for upload", http.StatusInternalServerError)
 		}
 		signedUrl = url
 	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	payload := map[string]interface{}{"status": status, "response": response, "signed_url": signedUrl, "output_key": *outputKey}
+	payload := map[string]interface{}{"status": status, "response": response, "output_key": *outputKey, "materials": materials, "signed_url": signedUrl}
 	json.NewEncoder(w).Encode(payload)
 }
 

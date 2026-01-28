@@ -28,6 +28,7 @@ class Secrets:
         self.STRIPE_PUBLIC = data.get("STRIPE_PUBLIC")
         self.STRIPE_WEBHOOK = data.get("STRIPE_WEBHOOK")
         self.PROD_QUEUE_NAME_DATA_REPORTS = data.get("PROD_QUEUE_NAME_DATA_REPORTS")
+        self.PROD_QUEUE_NAME_DATA_ASSESSMENTS = data.get("PROD_QUEUE_NAME_DATA_ASSESSMENTS")
 
     def to_env_dict(self):
         return {
@@ -53,7 +54,8 @@ class Secrets:
             "STRIPE_SECRET": self.STRIPE_SECRET,
             "STRIPE_PUBLIC": self.STRIPE_PUBLIC,
             "STRIPE_WEBHOOK": self.STRIPE_WEBHOOK,
-            "PROD_QUEUE_NAME_DATA_REPORTS": self.PROD_QUEUE_NAME_DATA_REPORTS
+            "PROD_QUEUE_NAME_DATA_REPORTS": self.PROD_QUEUE_NAME_DATA_REPORTS,
+            "PROD_QUEUE_NAME_DATA_ASSESSMENTS": self.PROD_QUEUE_NAME_DATA_ASSESSMENTS
         }
 
 ## Returns dictionary of env keys.

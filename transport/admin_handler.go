@@ -1553,14 +1553,27 @@ func (h *AuthHandler) GetStudentFile(w http.ResponseWriter, r *http.Request) {
 		stringPtr := query.Get("data_type")
 		model.DataType = &stringPtr
 	}
-
 	var student = "student"
 	model.Entity = &student
 	inputKey, err := h.authService.ProcessDownloadEvent(ctx, model, &orgID)
 	if err != nil {
-		http.Error(w, "unable to send message to rabbitMQ", http.StatusBadRequest)
+		http.Error(w, "unable to add message to MQ", http.StatusInternalServerError)
 		return
 	}
+	payload, err := h.sqsHandler.TagPayloadTutorDownload(ctx, "fetch_student_data", model)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Unable to tag request ", http.StatusInternalServerError)
+		return
+	}
+
+	sqs, err := h.sqsHandler.SendMessageToQueue(ctx, h.config.SQS.DataReportsQueue, string(payload))
+	if err != nil {
+		fmt.Printf("Unable to send message to queue: %v\n", err)
+		http.Error(w, "Unable to send message to queue ", http.StatusInternalServerError)
+		return
+	}
+	fmt.Print(sqs.ResultMetadata)
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")

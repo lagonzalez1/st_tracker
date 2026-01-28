@@ -817,7 +817,8 @@ CREATE TABLE stu_tracker.Survey_response_external (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-
 ALTER TABLE stu_tracker.Student_report ADD json_report JSONB DEFAULT NULL;
-ALTER TABLE stu_tracker.stu_tracker.District ADD active DEFAULT TRUE;
-ALTER TABLE stu_tracker.stu_tracker.District ADD archive DEFAULT FALSE;
+ALTER TABLE stu_tracker.District ADD active BOOLEAN DEFAULT TRUE;
+ALTER TABLE stu_tracker.District ADD archive BOOLEAN DEFAULT FALSE;
+ALTER TABLE stu_tracker.Generate_questions_task ADD json_output JSONB DEFAULT NULL;
+ALTER TABLE stu_tracker.Generate_materials_task ADD json_output JSONB DEFAULT NULL;

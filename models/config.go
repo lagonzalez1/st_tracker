@@ -13,7 +13,9 @@ type Config struct {
 }
 
 type SQSConfig struct {
-	DataReportsQueue string
+	DataReportsQueue      string
+	AssessmentGraderQueue string
+	GenerateContentQueue  string
 }
 
 type PostGresConfig struct {

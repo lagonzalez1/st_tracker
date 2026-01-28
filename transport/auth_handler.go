@@ -4861,7 +4861,7 @@ func (h *AuthHandler) GetMaterials(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid organization_id", http.StatusBadRequest)
 		return
 	}
-	key := fmt.Sprintf("get:materials%d", orgid)
+	key := fmt.Sprintf("get:materials:%d", orgid)
 	lkey := h.cacheHander.LockKey(key)
 
 	cdata, isHit := h.cacheHander.CheckCache(ctx, key)
@@ -6607,6 +6607,7 @@ func (h *AuthHandler) GetAnnouncementsAck(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(response)
 }
 
+// to do
 func (h *AuthHandler) CreateStudentSession(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
@@ -6650,17 +6651,20 @@ func (h *AuthHandler) CreateStudentSession(w http.ResponseWriter, r *http.Reques
 		req.SessionToken = models.SessionToken
 		req.TutorID = models.Session.TutorId
 		req.SemesterID = models.Session.SemesterId
-		evn, err := h.authService.AddGraderEvent(ctx, req)
+		payload, err := h.sqsHandler.TagPayloadAssessmentGrader(ctx, "process_assessment_grader", &req)
 		if err != nil {
 			issue := fmt.Sprintf("unable to add event to mq: %v", err)
 			http.Error(w, issue, http.StatusInternalServerError)
 			return
 		}
-		if !evn {
-			issue := fmt.Sprintf("unable to add event to mq: %v", err)
-			http.Error(w, issue, http.StatusInternalServerError)
+		sqs, err := h.sqsHandler.SendMessageToQueue(ctx, h.config.SQS.AssessmentGraderQueue, string(payload))
+		if err != nil {
+			fmt.Printf("Unable to send message to queue: %v\n", err)
+			http.Error(w, "Unable to send message to queue ", http.StatusInternalServerError)
 			return
 		}
+		fmt.Print(sqs.ResultMetadata)
+
 	}
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")

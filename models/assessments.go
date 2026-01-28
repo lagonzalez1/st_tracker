@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type AssessmentGrader struct {
 	QuestionID   *int64  `json:"question_id"`
 	Points       int     `json:"points"`
@@ -102,4 +104,33 @@ type SQSAssessmentPayload struct {
 	LastName     string                 `json:"last_name"`
 	AssessmentID *int64                 `json:"assessment_id"`
 	Answers      map[string]interface{} `json:"answers"`
+}
+
+type Choice struct {
+	ChoiceID    *int   `json:"choice_id,omitempty" db:"choice_id"`
+	ChoiceText  string `json:"choice_text" db:"choice_text"`
+	IsCorrect   bool   `json:"is_correct" db:"is_correct"`
+	OrderNumber int    `json:"order_number" db:"order_number"`
+}
+
+// Question represents a single assessment question
+type Question struct {
+	QuestionID   *int     `json:"question_id,omitempty" db:"question_id"`
+	StandardText string   `json:"standard_text" db:"standard_text"`
+	ImageURL     *string  `json:"image_url,omitempty" db:"image_url"`
+	QuestionText string   `json:"question_text" db:"question_text"`
+	QuestionType string   `json:"question_type" db:"question_type"`
+	Points       float64  `json:"points" db:"points"`
+	OrderNumber  int      `json:"order_number" db:"order_number"`
+	IsRequired   bool     `json:"is_required" db:"is_required"`
+	Choices      []Choice `json:"choices" db:"choices"`
+
+	// Optional metadata fields
+	CreatedAt *time.Time `json:"created_at,omitempty" db:"created_at"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty" db:"updated_at"`
+}
+
+// Assessment represents the full assessment with questions
+type Assessment struct {
+	Questions []Question `json:"questions"`
 }

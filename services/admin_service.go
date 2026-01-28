@@ -1420,7 +1420,7 @@ func (s *AuthService) GetOrganizationLimits(ctx context.Context, orgid *int64) (
 	return model, nil
 }
 
-func (s *AuthService) CheckUsage(ctx context.Context, orgID int, key string, locationID *int64, districtID *int64) (*int64, error) {
+func (s *AuthService) CheckUsage(ctx context.Context, orgID int, key string, locationID *int64, districtID *int64) (int64, bool, error) {
 	var current int64
 	var countQuery string
 	switch key {
@@ -1434,9 +1434,9 @@ func (s *AuthService) CheckUsage(ctx context.Context, orgID int, key string, loc
 			WHERE l.organization_id = $1 and l.id = $2`
 		err := s.db.QueryRowContext(ctx, countQuery, orgID, locationID).Scan(&current)
 		if err != nil {
-			return nil, err
+			return 0, false, err
 		}
-		return &current, nil
+		return current, true, nil
 	case "max_locations_per_district":
 		countQuery = `
 		SELECT 
@@ -1447,9 +1447,9 @@ func (s *AuthService) CheckUsage(ctx context.Context, orgID int, key string, loc
 			WHERE l.organization_id = $1 AND d.id = $2;`
 		err := s.db.QueryRowContext(ctx, countQuery, orgID, districtID).Scan(&current)
 		if err != nil {
-			return nil, err
+			return 0, false, err
 		}
-		return &current, nil
+		return current, true, nil
 	case "max_admin_per_district":
 		countQuery = `SELECT
 			COUNT(t.id) as admin_count
@@ -1459,9 +1459,9 @@ func (s *AuthService) CheckUsage(ctx context.Context, orgID int, key string, loc
 			WHERE d.organization_id = $1 and d.id = $2`
 		err := s.db.QueryRowContext(ctx, countQuery, orgID, districtID).Scan(&current)
 		if err != nil {
-			return nil, err
+			return 0, false, err
 		}
-		return &current, nil
+		return current, true, nil
 	case "max_tutors_per_location":
 		countQuery = `SELECT
 			COUNT(t.id) as tutor_count
@@ -1471,18 +1471,46 @@ func (s *AuthService) CheckUsage(ctx context.Context, orgID int, key string, loc
 			WHERE l.organization_id = $1 and l.id = $2`
 		err := s.db.QueryRowContext(ctx, countQuery, orgID, locationID).Scan(&current)
 		if err != nil {
-			return nil, err
+			return 0, false, err
 		}
-		return &current, nil
+		return current, true, nil
 	case "max_llm_tokens":
-		countQuery = "SELECT SUM(output_tokens) FROM stu_tracker.LLM_usage WHERE organization_id = $1"
-		err := s.db.QueryRowContext(ctx, countQuery).Scan(&current)
+		var (
+			totalTokens  int64 = 0
+			inputTokens  int64
+			outputTokens int64
+		)
+		countQuery = `
+		SELECT 
+			SUM(input_tokens) AS total_input_tokens,
+			SUM(output_tokens) AS total_output_tokens
+		FROM stu_tracker.LLM_usage
+		WHERE DATE(created_at) = CURRENT_DATE
+		AND organization_id = $1;`
+		rows, err := s.db.QueryContext(ctx, countQuery, orgID)
 		if err != nil {
-			return nil, err
+			return 0, false, err
 		}
-		return &current, nil
+		defer rows.Close()
+		if !rows.Next() {
+			return 0, true, err
+		}
+		for rows.Next() {
+			if err := rows.Scan(
+				&inputTokens,
+				&outputTokens,
+			); err != nil {
+				return 0, false, err
+			}
+			totalTokens += inputTokens + outputTokens
+		}
+
+		if err := rows.Err(); err != nil {
+			return 0, false, err
+		}
+		return totalTokens, true, nil
 	default:
-		return nil, nil
+		return 0, false, nil
 	}
 }
 

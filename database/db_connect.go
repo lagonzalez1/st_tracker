@@ -65,10 +65,10 @@ func ConnectDB(DB models.PostGresConfig) (*sql.DB, error) {
 	}
 	err = CreateSchemaIfNotExist(db)
 	if err != nil {
-		fmt.Println("error on createSchemaIfNotExist")
+		fmt.Println("[POSTGRES ERROR]error on createSchemaIfNotExist")
 		return nil, err
 	}
-	fmt.Printf("Postgres connected, url: %s", psql_info)
+	fmt.Printf("[POSTGRES] Postgres connected, url: %s", psql_info)
 	return db, nil
 }
 
@@ -142,6 +142,6 @@ func CreateSchemaIfNotExist(db *sql.DB) error {
 		return fmt.Errorf("error executing schema SQL: %v", err)
 	}
 
-	fmt.Println("Database schema created successfully.")
+	fmt.Println("[POSTGRES] Database schema created successfully.")
 	return nil
 }

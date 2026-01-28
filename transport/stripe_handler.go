@@ -111,6 +111,12 @@ func (h *AuthHandler) CreatePortalSession(w http.ResponseWriter, r *http.Request
 }
 
 func (h *AuthHandler) StripeWebhook(w http.ResponseWriter, r *http.Request) {
+
+	fmt.Println("=== Webhook Debug Info ===")
+	fmt.Printf("Method: %s\n", r.Method)
+	fmt.Printf("Content-Type: %s\n", r.Header.Get("Content-Type"))
+	fmt.Printf("Stripe-Signature: %s\n", r.Header.Get("Stripe-Signature"))
+
 	const tolerance = 300 // seconds
 	endpointSecret := os.Getenv("STRIPE_WEBHOOK")
 	ctx := r.Context()

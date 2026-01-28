@@ -21,7 +21,7 @@ func (s *AuthService) GenerateMaterialsPresignedUrl(ctx context.Context, id stri
 		ResponseContentDisposition: aws.String("inline"),
 	}
 	presignOpts := func(po *s3.PresignOptions) {
-		po.Expires = 5 * time.Minute
+		po.Expires = 10 * time.Minute
 	}
 	presignResult, err := presigner.PresignGetObject(context.TODO(), presignParams, presignOpts)
 	if err != nil {

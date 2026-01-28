@@ -1,29 +1,29 @@
 package models
 
 type RequestEventGeneration struct {
-	GenerationType   *string           `json:"generation_type"`
+	GenerationType   *string           `json:"generate_type"`
 	RequestQuestions *RequestQuestions `json:"generate_questions"`
 	RequestMaterials *RequestMaterials `json:"generate_materials"`
 	OrganizationID   *int64            `json:"organization_id"`
 }
 
 type RequestQuestions struct {
-	S3OutputKey    *string `json:"s3_output_key"`
-	DistrictID     *int64  `json:"district_id"`
-	SubjectID      *int64  `json:"subject_id"`
-	OrganizationID *int64  `json:"organization_id"`
-	Description    *string `json:"description"`
-	Difficulty     *string `json:"difficulty"`
-	GradeLevel     *int64  `json:"grade_level"`
-	MaxPoints      *int64  `json:"max_points"`
-	QuestionsCount *int64  `json:"questions_count"`
+	S3OutputKey        *string `json:"s3_output_key"`
+	DistrictID         *int64  `json:"district_id"`
+	SubjectID          *int64  `json:"subject_id"`
+	Description        *string `json:"description"`
+	Difficulty         *string `json:"difficulty"`
+	GradeLevel         *int64  `json:"grade_level"`
+	MaxPoints          *int64  `json:"max_points"`
+	QuestionsCount     *int64  `json:"question_count"`
+	CustomInstructions *string `json:"custom_instructions"`
 }
 
 type RequestMaterials struct {
-	S3OutputKey    *string `json:"s3_output_key"`
-	OrganizationID *int64  `json:"organization_id"`
-	AssessmentId   *int64  `json:"assessment_id"`
-	BiasType       *string `json:"bias_type"`
+	S3OutputKey        *string `json:"s3_output_key"`
+	AssessmentId       *int64  `json:"assessment_id"`
+	BiasType           *string `json:"bias_type"`
+	CustomInstructions *string `json:"custom_instructions"`
 }
 
 type RemoveGeneratedQuestion struct {

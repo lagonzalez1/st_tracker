@@ -69,6 +69,56 @@ func (s *SqsHandler) TagPayloadTutorDownload(ctx context.Context, key string, pa
 	return jsonData, nil
 }
 
+func (s *SqsHandler) TagPayloadAssessmentGrader(ctx context.Context, key string, payload *models.RequestAssessmentGrader) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context cancelled: %w", err)
+	}
+
+	if payload == nil {
+		return nil, fmt.Errorf("payload cannot be nil")
+	}
+
+	data := struct {
+		Task string                         `json:"task"`
+		Body models.RequestAssessmentGrader `json:"body"`
+	}{
+		Task: key,
+		Body: *payload,
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	return jsonData, nil
+}
+
+func (s *SqsHandler) TagPayloadAssessmentGenerator(ctx context.Context, key string, payload *models.RequestEventGeneration) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context cancelled: %w", err)
+	}
+
+	if payload == nil {
+		return nil, fmt.Errorf("payload cannot be nil")
+	}
+
+	data := struct {
+		Task string                        `json:"task"`
+		Body models.RequestEventGeneration `json:"body"`
+	}{
+		Task: key,
+		Body: *payload,
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	return jsonData, nil
+}
+
 func (sh *SqsHandler) SendMessageToQueue(ctx context.Context, queueName string, messageBody string) (*sqs.SendMessageOutput, error) {
 	fmt.Printf("[DEBUG] Queue name received: '%s'\n", queueName)
 	fmt.Printf("[DEBUG] Queue name length: %d\n", len(queueName))
