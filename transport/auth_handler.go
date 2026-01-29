@@ -1018,12 +1018,17 @@ func (h *AuthHandler) UpdateMaterial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "unable to parse claims orgid", http.StatusBadRequest)
+		return
+	}
 	var models models.RegisterRequestMaterials
 	if err := json.Unmarshal([]byte(body), &models); err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
 	}
-
+	key := fmt.Sprintf("get:materials:%d", orgid)
 	// If there is a delete or update request delete the file associated with key
 	if models.SReferenceDelete {
 		stringPtr, err := h.authService.DoesReferenceExist(ctx, models.ID)
@@ -1068,7 +1073,7 @@ func (h *AuthHandler) UpdateMaterial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user.UploadUrl = presigned_url
-
+	h.cacheHander.ClearCache(ctx, key)
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
