@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"tracker/app/models"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -137,6 +138,41 @@ func (sh *SqsHandler) SendMessageToQueue(ctx context.Context, queueName string, 
 		MessageBody: aws.String(messageBody),
 		QueueUrl:    urlOut.QueueUrl,
 	})
+
+	if err != nil {
+		fmt.Printf("[ERROR] SendMessage failed: %v\n", err)
+		return nil, err
+	}
+
+	fmt.Printf("[SUCCESS] Message sent: %s\n", *resp.MessageId)
+	return resp, nil
+}
+
+func (sh *SqsHandler) SendMessageToFIFOQueue(ctx context.Context, queueName string, messageBody string, orgid int64) (*sqs.SendMessageOutput, error) {
+	fmt.Printf("[DEBUG] Queue name received: '%s'\n", queueName)
+	fmt.Printf("[DEBUG] Queue name length: %d\n", len(queueName))
+
+	urlOut, err := sh.sqs.GetQueueUrl(ctx, &sqs.GetQueueUrlInput{
+		QueueName: aws.String(queueName),
+	})
+	if err != nil {
+		fmt.Printf("[ERROR] GetQueueUrl failed: %v\n", err)
+		return nil, fmt.Errorf("Error found getting url : %w", err)
+	}
+
+	input := &sqs.SendMessageInput{
+		MessageBody: aws.String(messageBody),
+		QueueUrl:    urlOut.QueueUrl,
+	}
+
+	if strings.HasSuffix(queueName, ".fifo") {
+		messageId := fmt.Sprintf("message:queue:%d", orgid)
+		input.MessageGroupId = aws.String(messageId)
+	}
+
+	fmt.Printf("[DEBUG] Got queue URL: %s\n", *urlOut.QueueUrl)
+
+	resp, err := sh.sqs.SendMessage(ctx, input)
 
 	if err != nil {
 		fmt.Printf("[ERROR] SendMessage failed: %v\n", err)

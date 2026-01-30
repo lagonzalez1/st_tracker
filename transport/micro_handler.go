@@ -190,7 +190,7 @@ func (h *AuthHandler) MicroEventGenerate(w http.ResponseWriter, r *http.Request)
 			http.Error(w, issue, http.StatusInternalServerError)
 			return
 		}
-		sqs, err := h.sqsHandler.SendMessageToQueue(ctx, h.config.SQS.GenerateContentQueue, string(payload))
+		sqs, err := h.sqsHandler.SendMessageToFIFOQueue(ctx, h.config.SQS.GenerateContentQueue, string(payload), orgID)
 		if err != nil {
 			fmt.Printf("Unable to send message to queue: %v\n", err)
 			http.Error(w, "Unable to send message to queue ", http.StatusInternalServerError)
@@ -225,7 +225,7 @@ func (h *AuthHandler) MicroEventGenerate(w http.ResponseWriter, r *http.Request)
 			http.Error(w, issue, http.StatusInternalServerError)
 			return
 		}
-		sqs, err := h.sqsHandler.SendMessageToQueue(ctx, h.config.SQS.GenerateContentQueue, string(payload))
+		sqs, err := h.sqsHandler.SendMessageToFIFOQueue(ctx, h.config.SQS.GenerateContentQueue, string(payload), orgID)
 		if err != nil {
 			fmt.Printf("Unable to send message to queue: %v\n", err)
 			http.Error(w, "Unable to send message to queue ", http.StatusInternalServerError)
