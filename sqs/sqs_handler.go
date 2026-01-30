@@ -2,6 +2,7 @@ package sqs
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -168,6 +169,7 @@ func (sh *SqsHandler) SendMessageToFIFOQueue(ctx context.Context, queueName stri
 	if strings.HasSuffix(queueName, ".fifo") {
 		messageId := fmt.Sprintf("message:queue:%d", orgid)
 		input.MessageGroupId = aws.String(messageId)
+		input.MessageDeduplicationId = aws.String(generateDeduplicationId(messageBody))
 	}
 
 	fmt.Printf("[DEBUG] Got queue URL: %s\n", *urlOut.QueueUrl)
@@ -181,4 +183,9 @@ func (sh *SqsHandler) SendMessageToFIFOQueue(ctx context.Context, queueName stri
 
 	fmt.Printf("[SUCCESS] Message sent: %s\n", *resp.MessageId)
 	return resp, nil
+}
+
+func generateDeduplicationId(messageBody string) string {
+	hash := sha256.Sum256([]byte(messageBody))
+	return fmt.Sprintf("%x", hash)
 }
