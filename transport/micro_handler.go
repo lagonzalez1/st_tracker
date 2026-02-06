@@ -119,7 +119,6 @@ func (h *AuthHandler) MicroGetStudentReport(w http.ResponseWriter, r *http.Reque
 			return
 		}
 	}
-
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	payload := map[string]interface{}{"status": status, "report": report}

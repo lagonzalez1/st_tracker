@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 	"tracker/app/models"
@@ -273,31 +274,92 @@ func buildLowPerformanceTutors(ss *models.RequestSessionBChart) (string, []inter
 	return query, args
 }
 
-func (s *AuthService) GetSessionAnalytics(req models.RequestSessionBChart) (*models.SessionAnalytics, error) {
-	if req.OrganizationID == nil {
-		return &models.SessionAnalytics{
-			SessionCount:    nil,
-			AssessmentCount: nil,
-			StudentCount:    nil,
-		}, nil
-	}
-	sessionCount, studentCount, err := s.GetSessionCounts(int(*req.OrganizationID))
+func (s *AuthService) GetSessionAnalytics(req models.RequestSessionBChart) (*models.GuageDataAnalytics, error) {
+	sessionData, err := s.GetSessionCounts(req)
 	if err != nil {
 		return nil, fmt.Errorf("error getting session counts: %w", err)
 	}
 
 	// Get assessment counts
-	assessmentCount, err := s.GetAssessmentCounts(int(*req.OrganizationID))
+	assessmentCount, err := s.GetAssessmentCounts(req)
 	if err != nil {
 		return nil, fmt.Errorf("error getting assessment counts: %w", err)
 	}
 
 	// Return the combined results
-	return &models.SessionAnalytics{
-		SessionCount:    sessionCount,
-		AssessmentCount: assessmentCount,
-		StudentCount:    studentCount,
+	return &models.GuageDataAnalytics{
+		SessionAnalytics:           sessionData,
+		AssessmentSessionAnalytics: assessmentCount,
 	}, nil
+}
+
+func (s *AuthService) GetAssessmentCounts(req models.RequestSessionBChart) (*models.AssessmentSessionAnalytics, error) {
+	assessmentSessionAnalytics := &models.AssessmentSessionAnalytics{}
+
+	query := `
+        SELECT 
+			COUNT(ast.id) AS assessment_counts
+		FROM stu_tracker.Assessments_students ast
+		JOIN stu_tracker.Sessions ss ON ss.id = ast.session_id
+		WHERE 
+			ast.created_at >= NOW() - INTERVAL '90 days'
+			AND ss.organization_id = $1
+			AND ($2::bigint IS NULL OR ss.location_id = $2)
+			AND ($3::bigint IS NULL OR ss.semester_id = $3)
+    	`
+	err := s.db.QueryRow(query, req.OrganizationID, req.LocationID, req.SemesterID).Scan(&assessmentSessionAnalytics.AssessmentCounts)
+	if err != nil {
+		return nil, fmt.Errorf("error querying assessment counts: %w", err)
+	}
+	log.Printf("[GetAssessmentCounts] Pass rate result: %d", *assessmentSessionAnalytics.AssessmentCounts)
+
+	query2 := `
+			SELECT 
+			COALESCE(
+				ROUND(
+					(COUNT(*) FILTER (
+						WHERE (ast.score / NULLIF(a.max_score, 0)) * 100 >= 70
+					) * 100.0 / NULLIF(COUNT(*), 0))::numeric,
+					1
+				),
+				0
+			) AS pass_rate
+		FROM stu_tracker.Assessments_students ast
+		JOIN stu_tracker.Sessions ss ON ss.id = ast.session_id
+		JOIN stu_tracker.Assessments a ON a.id = ast.assessment_id -- Added this join
+		WHERE ss.organization_id = $1
+		AND ($2::bigint IS NULL OR ss.location_id = $2)
+		AND ($3::bigint IS NULL OR ss.semester_id = $3)
+		AND ast.created_at >= NOW() - INTERVAL '90 days';
+	`
+	err = s.db.QueryRow(query2, req.OrganizationID, req.LocationID, req.SemesterID).Scan(&assessmentSessionAnalytics.PassRate)
+	if err != nil {
+		return nil, fmt.Errorf("error querying assessment counts: %w", err)
+	}
+	log.Printf("[GetAssessmentCounts] Pass rate result: %.1f%%", *assessmentSessionAnalytics.PassRate)
+
+	return assessmentSessionAnalytics, nil
+}
+
+func (s *AuthService) GetSessionCounts(req models.RequestSessionBChart) (*models.SessionAnalytics, error) {
+	sessions := &models.SessionAnalytics{}
+	query := `
+        SELECT
+			COUNT(ss.id) AS session_count,
+			COALESCE(SUM(ss.student_count), 0) AS student_count,
+			COALESCE(AVG(ss.duration), 0) AS average_session_duration,
+			ROUND(AVG(student_count)::numeric, 2) AS avg_students_per_session
+		FROM
+			stu_tracker.Sessions ss
+		WHERE
+			ss.organization_id = $1 AND ($2::bigint IS NULL OR ss.location_id = $2) AND ($3::bigint IS NULL OR ss.semester_id = $3)
+		`
+
+	err := s.db.QueryRow(query, req.OrganizationID, req.LocationID, req.SemesterID).Scan(&sessions.SessionCount, &sessions.StudentCount, &sessions.AverageSessionDuration, &sessions.AverageStudentSession)
+	if err != nil {
+		return nil, fmt.Errorf("error querying session counts: %w", err)
+	}
+	return sessions, nil
 }
 
 func (s *AuthService) GetSessionsAnalyticsLocal(ctx context.Context, req models.RequestSessionBChart) (*models.SessionsAnalyticsLocal, error) {
@@ -315,63 +377,14 @@ func (s *AuthService) GetSessionsAnalyticsLocal(ctx context.Context, req models.
 		WHERE
 			ss.organization_id = $1
 			AND ss.location_id = $2
-			AND ss.semester_id = $3;
+			AND ($3::bigint IS NULL OR ss.semester_id = $3)
 		`
 
 	err := s.db.QueryRowContext(ctx, query, req.OrganizationID, req.LocationID, req.SemesterID).Scan(&SessionAnalytics.SessionCount, &SessionAnalytics.SessionDuration, &SessionAnalytics.AssessmentCount)
 	if err != nil {
 		return nil, fmt.Errorf("error querying assessment counts: %w", err)
-
 	}
 	return &SessionAnalytics, nil
-}
-
-func (s *AuthService) GetAssessmentCounts(OrganizationID int) (*int, error) {
-	var assessmentCount *int
-
-	query := `
-        SELECT
-			COUNT(ast.id) AS assessments_count
-		FROM
-			stu_tracker.Sessions ss
-		INNER JOIN
-			stu_tracker.Assessments_students ast
-		ON
-			ss.id = ast.session_id
-		WHERE
-			ss.organization_id = $1
-		AND
-			DATE(ast.created_at) = CURRENT_DATE;
-    	`
-	err := s.db.QueryRow(query, OrganizationID).Scan(&assessmentCount)
-	if err != nil {
-		return nil, fmt.Errorf("error querying assessment counts: %w", err)
-	}
-
-	return assessmentCount, nil
-}
-
-func (s *AuthService) GetSessionCounts(OrganizationID int) (*int, *int, error) {
-	var sessionCount, studentCount *int
-
-	query := `
-        SELECT
-			COUNT(ss.id) AS session_count,
-			SUM(ss.student_count) AS student_count
-		FROM
-			stu_tracker.Sessions ss
-		WHERE
-			ss.organization_id = $1
-		AND
-			DATE(ss.session_date) = CURRENT_DATE;
-		`
-
-	err := s.db.QueryRow(query, OrganizationID).Scan(&sessionCount, &studentCount)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error querying session counts: %w", err)
-	}
-
-	return sessionCount, studentCount, nil
 }
 
 /*

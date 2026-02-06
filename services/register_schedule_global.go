@@ -169,3 +169,23 @@ func (s *AuthService) HardDeleteScheduleGlobal(c context.Context, scheduleID, or
 		ID:     &deletedID,
 	}, nil
 }
+
+func (s *AuthService) InvalidateByRule(ctx context.Context, ruleID int64) ([]int64, error) {
+	// 1. Find all affected tutors
+	query := `SELECT tutor_id FROM stu_tracker.Tutor_Schedule_Assignment WHERE schedule_rule_id = $1`
+	rows, err := s.db.QueryContext(ctx, query, ruleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tutorIDs []int64
+	for rows.Next() {
+		var tid int64
+		if err := rows.Scan(&tid); err != nil {
+			return nil, fmt.Errorf("unable to scan row")
+		}
+		tutorIDs = append(tutorIDs, tid)
+	}
+	return tutorIDs, nil
+}

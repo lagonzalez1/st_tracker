@@ -122,6 +122,7 @@ type ResponseRequestStudentList struct {
 	SemesterId        *int64  `json:"semester_id"`
 	DirectPartnership bool    `json:"direct_partnership"`
 	TeacherID         *int64  `json:"teacher_id"`
+	TutorID           *int64  `json:"tutor_id"`
 	TeacherName       *string `json:"teacher_name"`
 	LocationId        *int64  `json:"location_id"`
 	DurationRequired  *bool   `json:"duration_required"`

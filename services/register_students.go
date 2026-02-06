@@ -94,26 +94,58 @@ func (s *AuthService) AddStudentGroup(ctx context.Context, req models.RegisterSt
 }
 
 func (s *AuthService) AddStudentGroupAttendies(ctx context.Context, req models.RegisterStudentGroupAttendies) (*models.SimpleReponse, error) {
+	if len(req.Students) == 0 {
+		// Optional: allow emptying the group
+		_, err := s.db.ExecContext(ctx, `
+            DELETE FROM stu_tracker.Student_group_attendees
+            WHERE student_group_id = $1
+        `, req.GroupID)
+		if err != nil {
+			return nil, err
+		}
+		return &models.SimpleReponse{Status: "OK"}, nil
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	// 1. Remove current members
+	_, err = tx.ExecContext(ctx, `
+        DELETE FROM stu_tracker.Student_group_attendees
+        WHERE student_group_id = $1
+    `, req.GroupID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Insert the new desired list
 	values := make([]string, 0, len(req.Students))
-	args := make([]interface{}, 0, len(req.Students))
+	args := make([]interface{}, 0, len(req.Students)*2)
 
 	for i, student := range req.Students {
 		values = append(values, fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2))
 		args = append(args, student.ID, req.GroupID)
 	}
-	fmt.Print(len(values))
-	fmt.Print(len(args))
 
-	query := fmt.Sprintf(`INSERT INTO stu_tracker.Student_group_attendees(student_id, student_group_id) VALUES %s ON CONFLICT DO NOTHING;`, strings.Join(values, ", "))
-	fmt.Println(query)
-	_, err := s.db.ExecContext(ctx, query, args...)
+	query := fmt.Sprintf(`
+        INSERT INTO stu_tracker.Student_group_attendees (student_id, student_group_id)
+        VALUES %s
+        ON CONFLICT DO NOTHING
+    `, strings.Join(values, ", "))
+
+	_, err = tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
-	return &models.SimpleReponse{
-		ID:     nil,
-		Status: "OK",
-	}, nil
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return &models.SimpleReponse{Status: "OK"}, nil
 }
 
 func (s *AuthService) UpdateStudentGroup(ctx context.Context, req models.RegisterStudentGroup) (*models.ResponseUpdate, error) {

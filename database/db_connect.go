@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 	"tracker/app/models"
 
 	_ "github.com/lib/pq"
@@ -55,11 +56,16 @@ func ConnectDB(DB models.PostGresConfig) (*sql.DB, error) {
 		name,
 		ssl,
 	)
-	// Need to set max connection pool here ?
+
 	db, err := sql.Open("postgres", psql_info)
 	if err != nil {
 		return nil, err
 	}
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxIdleTime(5 * time.Minute)
+	db.SetConnMaxLifetime(60 * time.Minute)
+
 	if err = db.Ping(); err != nil {
 		return nil, err
 	}
@@ -68,7 +74,8 @@ func ConnectDB(DB models.PostGresConfig) (*sql.DB, error) {
 		fmt.Println("[POSTGRES ERROR]error on createSchemaIfNotExist")
 		return nil, err
 	}
-	fmt.Printf("[POSTGRES] Postgres connected, url: %s", psql_info)
+	fmt.Printf("[POSTGRES] Postgres connected, url: %s (pool: maxOpen=%d, maxIdle=%d)\n",
+		psql_info, db.Stats().MaxOpenConnections, db.Stats().Idle)
 	return db, nil
 }
 

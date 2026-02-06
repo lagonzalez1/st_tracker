@@ -17,10 +17,22 @@ type RequestSessionAnalytics struct {
 }
 
 type SessionAnalytics struct {
-	SessionCount    *int     `json:"session_count"`
-	AssessmentCount *int     `json:"assessment_count"`
-	StudentCount    *int     `json:"student_count"`
-	SessionDuration *float32 `json:"session_duration"`
+	SessionCount           *int     `json:"session_count"`
+	AssessmentCount        *int     `json:"assessment_count"`
+	StudentCount           *int     `json:"student_count"`
+	AverageStudentSession  *float32 `json:"average_student_session"`
+	AverageSessionDuration *float32 `json:"average_session_duration"`
+}
+
+type AssessmentSessionAnalytics struct {
+	SessionDate      time.Time `json:"session_date"`
+	PassRate         *float32  `json:"pass_rate"`
+	AssessmentCounts *int      `json:"assessment_counts"`
+}
+
+type GuageDataAnalytics struct {
+	SessionAnalytics           *SessionAnalytics           `json:"session_analytics"`
+	AssessmentSessionAnalytics *AssessmentSessionAnalytics `json:"assessment_session_analytics"`
 }
 
 type SessionsAnalyticsLocal struct {

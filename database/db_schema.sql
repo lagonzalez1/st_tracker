@@ -269,9 +269,6 @@ CREATE TABLE stu_tracker.Session_students (
     FOREIGN KEY (student_id) REFERENCES stu_tracker.Students(id) ON DELETE CASCADE
 );
 
-
-
-
 -- Create a start and end time?
 CREATE TABLE stu_tracker.Assessments_students (
     id SERIAL PRIMARY KEY,

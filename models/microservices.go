@@ -1,16 +1,29 @@
 package models
 
 type RequestEventGeneration struct {
-	GenerationType   *string           `json:"generate_type"`
-	RequestQuestions *RequestQuestions `json:"generate_questions"`
-	RequestMaterials *RequestMaterials `json:"generate_materials"`
-	OrganizationID   *int64            `json:"organization_id"`
+	GenerationType              *string                      `json:"generate_type"`
+	RequestQuestions            *RequestQuestions            `json:"generate_questions"`
+	RequestQuestionsDoMaterials *RequestQuestionsDoMaterials `json:"generate_questions_do_materials"`
+	RequestMaterials            *RequestMaterials            `json:"generate_materials"`
+	OrganizationID              *int64                       `json:"organization_id"`
 }
 
 type RequestQuestions struct {
 	S3OutputKey        *string `json:"s3_output_key"`
 	DistrictID         *int64  `json:"district_id"`
 	SubjectID          *int64  `json:"subject_id"`
+	Description        *string `json:"description"`
+	Difficulty         *string `json:"difficulty"`
+	GradeLevel         *int64  `json:"grade_level"`
+	MaxPoints          *int64  `json:"max_points"`
+	QuestionsCount     *int64  `json:"question_count"`
+	CustomInstructions *string `json:"custom_instructions"`
+}
+type RequestQuestionsDoMaterials struct {
+	S3OutputKey        *string `json:"s3_output_key"`
+	DistrictID         *int64  `json:"district_id"`
+	SubjectID          *int64  `json:"subject_id"`
+	MaterailId         *int64  `json:"material_id"`
 	Description        *string `json:"description"`
 	Difficulty         *string `json:"difficulty"`
 	GradeLevel         *int64  `json:"grade_level"`

@@ -26,55 +26,49 @@ func (h *AuthHandler) GetSessionAnalytics(w http.ResponseWriter, r *http.Request
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	// Undefined variables like optional location_id
-	// Check if exist before
-	if !query.Has("id") {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
-		return
-	}
-	var model models.RequestSessionBChart
+	var m models.RequestSessionBChart
 	org_id, err := helpers.ExtractInt64Claim(claims, "orgid")
 	if err != nil {
 		http.Error(w, "Unable to parse id", http.StatusInternalServerError)
 		return
 	}
-	model.OrganizationID = &org_id
+	m.OrganizationID = &org_id
 
-	if query.Get("location_id") != "" {
+	if query.Has("location_id") {
 		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
 		if err != nil {
 			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
 			return
 		}
-		model.LocationID = &loc_id
+		m.LocationID = &loc_id
 	}
-	if query.Get("semester_id") != "" {
+	if query.Has("semester_id") {
 		sem_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
 		if err != nil {
 			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
 			return
 		}
-		model.SemesterID = &sem_id
+		m.SemesterID = &sem_id
 	}
-	if query.Get("start_date") != "" {
+	if query.Has("start_date") {
 		start_time, err := time.Parse("2006-01-02", query.Get("start_date"))
 		if err != nil {
 			http.Error(w, "unable to parse start time", http.StatusInternalServerError)
 			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
 			return
 		}
-		model.StartDate = start_time
+		m.StartDate = start_time
 	}
-	if query.Get("end_date") != "" {
+	if query.Has("end_date") {
 		end_date, err := time.Parse("2006-01-02", query.Get("end_date"))
 		if err != nil {
 			http.Error(w, "unable to parse end time", http.StatusInternalServerError)
 			fmt.Printf("Unable to get rows in GetSessionBChart %v", err)
 			return
 		}
-		model.EndDate = end_date
+		m.EndDate = end_date
 	}
-	user, err := h.authService.GetSessionAnalytics(model)
+	user, err := h.authService.GetSessionAnalytics(m)
 	if err != nil {
 		http.Error(w, "Unable to create Admin staff", http.StatusInternalServerError)
 		fmt.Printf("Unable to insert Admin staff: %v", err)
@@ -113,7 +107,7 @@ func (h *AuthHandler) GetSessionAnalyticsLocal(w http.ResponseWriter, r *http.Re
 	}
 	model.OrganizationID = &org_id
 
-	if query.Get("location_id") != "" {
+	if query.Has("location_id") {
 		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
 		if err != nil {
 			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
@@ -121,7 +115,7 @@ func (h *AuthHandler) GetSessionAnalyticsLocal(w http.ResponseWriter, r *http.Re
 		}
 		model.LocationID = &loc_id
 	}
-	if query.Get("semester_id") != "" {
+	if query.Has("semester_id") {
 		sem_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
 		if err != nil {
 			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
@@ -149,8 +143,8 @@ func (h *AuthHandler) GetSessionAnalyticsLocal(w http.ResponseWriter, r *http.Re
 	}
 	user, err := h.authService.GetSessionsAnalyticsLocal(ctx, model)
 	if err != nil {
-		http.Error(w, "Unable to create Admin staff", http.StatusInternalServerError)
-		fmt.Printf("Unable to insert Admin staff: %v", err)
+		http.Error(w, "Unable to get GetSessionsAnalyticsLocal", http.StatusInternalServerError)
+		fmt.Printf("Unable to get GetSessionsAnalyticsLocal: %v", err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -186,7 +180,7 @@ func (h *AuthHandler) GetTutorSessionAnalytics(w http.ResponseWriter, r *http.Re
 		model.OrganizationID = &org_id
 	}
 
-	if query.Get("location_id") != "" {
+	if query.Has("location_id") {
 		loc_id, err := strconv.ParseInt(query.Get("location_id"), 10, 64)
 		if err != nil {
 			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
@@ -194,7 +188,7 @@ func (h *AuthHandler) GetTutorSessionAnalytics(w http.ResponseWriter, r *http.Re
 		}
 		model.LocationID = &loc_id
 	}
-	if query.Get("semester_id") != "" {
+	if query.Has("semester_id") {
 		sem_id, err := strconv.ParseInt(query.Get("semester_id"), 10, 64)
 		if err != nil {
 			http.Error(w, "Unable to parse id", http.StatusInternalServerError)

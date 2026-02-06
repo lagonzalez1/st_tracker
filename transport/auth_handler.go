@@ -2870,6 +2870,18 @@ func (h *AuthHandler) UpdateGlobalSchedule(w http.ResponseWriter, r *http.Reques
 		fmt.Printf("Unable to create subject: %v\n", err)
 		return
 	}
+	if user.Status == "OK" {
+		invalidateIds, err := h.authService.InvalidateByRule(ctx, *user.ID)
+		if err != nil {
+			http.Error(w, "Unable to create subject", http.StatusInternalServerError)
+			fmt.Printf("Fatal error, unable to retrive ids for invalidation %v\n", err)
+			return
+		}
+		for i := range invalidateIds {
+			key := fmt.Sprintf("tutor:raw_schedule:%d", invalidateIds[i])
+			h.cacheHander.ClearCache(ctx, key)
+		}
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(user)
@@ -4289,44 +4301,80 @@ func (h *AuthHandler) GetEntityScheduleShift(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "missing id value", http.StatusBadRequest)
 		return
 	}
-	// Need to cache this
-	/**
-		// Level 1: Individual schedule data (rarely changes)
-		schedule:data:{id} = { schedule details }
 
-		// Level 2: Tutor's combined schedule (depends on subscriptions)
-		tutor:schedule:{tutorId} = { combined view }
-
-		// Level 3: Schedule-to-tutor mapping
-		schedule:subscribers:{scheduleId} = Set[tutor1, tutor2, tutor3]
-
-
-		1. First set the schedule:data:{id} => Schedule details
-
-		2. Then set the tutors to subscribe to each schedule => tutor:schedule:{schedule_id} = { schedules }
-		** This is the mapping of Table(Tutor_Schedule_Assignment)
-
-		3. Then the mappings to each subscriber -> subscriber:schedule:{schedule_id} = SET[tutor_id, tutor_id]
-
-	**/
-	rows, err := h.authService.GetEntityScheduleList(ctx, &uid)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+	cacheKey := fmt.Sprintf("tutor:raw_schedule:%d", uid)
+	lkey := h.cacheHander.LockKey(cacheKey)
+	cdata, isHit := h.cacheHander.CheckCache(ctx, cacheKey)
+	if isHit {
+		var scheduleMap map[string][]models.TutorSchedule
+		if err := json.Unmarshal([]byte(cdata), &scheduleMap); err != nil {
+			http.Error(w, "Unable to parse id", http.StatusInternalServerError)
 			return
 		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
+		schedule, err := h.authService.SessionCompletedCheck(ctx, scheduleMap, &uid)
+		if err != nil {
+			http.Error(w, "Unable to get schedule details", http.StatusInternalServerError)
 			return
 		}
-		http.Error(w, "Unable to GetTutorSchedule", http.StatusInternalServerError)
-		fmt.Printf("service error: %v\n", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		response := map[string]interface{}{"data": schedule}
+		json.NewEncoder(w).Encode(response)
+		return
+
+	}
+	token := uuid.NewString()
+	lock, _ := h.cacheHander.TryAcquireLock(ctx, lkey, token)
+	if lock {
+		rows, err := h.authService.GetEntityScheduleList(ctx, &uid)
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				http.Error(w, "request timeout", http.StatusGatewayTimeout)
+				return
+			}
+			if errors.Is(err, context.Canceled) {
+				http.Error(w, "request canceled", http.StatusRequestTimeout)
+				return
+			}
+			http.Error(w, "Unable to GetTutorSchedule", http.StatusInternalServerError)
+			fmt.Printf("service error: %v\n", err)
+			return
+		}
+		schedule, err := h.authService.SessionCompletedCheck(ctx, rows, &uid)
+		if err != nil {
+			http.Error(w, "Unable to get schedule details", http.StatusInternalServerError)
+			return
+		}
+		h.cacheHander.SetCache(ctx, cacheKey, rows)
+		h.cacheHander.SafeUnlock(ctx, lkey, token)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		response := map[string]interface{}{"data": schedule}
+		json.NewEncoder(w).Encode(response)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	response := map[string]interface{}{"data": rows}
-	json.NewEncoder(w).Encode(response)
+	status := h.cacheHander.WaitForCacheUpdate(ctx, cacheKey)
+	if status {
+		cdata, isHit := h.cacheHander.CheckCache(ctx, cacheKey)
+		if isHit {
+			var schedule map[string][]models.TutorSchedule
+			if err := json.Unmarshal([]byte(cdata), &schedule); err != nil {
+				http.Error(w, "Unable to parse id", http.StatusInternalServerError)
+				return
+			}
+			schedule, err := h.authService.SessionCompletedCheck(ctx, schedule, &uid)
+			if err != nil {
+				http.Error(w, "Unable to get schedule details", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			response := map[string]interface{}{"data": schedule}
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+	}
+
 }
 
 func (h *AuthHandler) GetSessionScheduled(w http.ResponseWriter, r *http.Request) {
@@ -4501,37 +4549,69 @@ func (h *AuthHandler) GetStudents(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to parse location id", http.StatusInternalServerError)
 		return
 	}
-	tid, err := helpers.ExtractInt64Claim(claims, "id")
-	if err != nil {
-		http.Error(w, "Unable to parse location id", http.StatusInternalServerError)
-		return
-	}
-	role, err := helpers.ExtractStringClaims(claims, "type")
-	if err != nil {
-		http.Error(w, "Unable to parse location id", http.StatusInternalServerError)
-		return
-	}
-	rows, err := h.authService.GetStudentsByID(ctx, orgid, role, locationId, tid)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "request timeout", http.StatusGatewayTimeout)
+	key := fmt.Sprintf("get:students:%d:%d", orgid, locationId)
+	lkey := h.cacheHander.LockKey(key)
+	res, isHit := h.cacheHander.CheckCache(ctx, key)
+	if isHit {
+		var rows []models.ResponseRequestStudentList
+		err = json.Unmarshal([]byte(res), &rows)
+		if err != nil {
+			fmt.Printf("unable to parse byte stream %v", err)
 			return
 		}
-		if errors.Is(err, context.Canceled) {
-			http.Error(w, "request canceled", http.StatusRequestTimeout)
-			return
-		}
-		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		fmt.Printf("service error: %v\n", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		response := map[string]interface{}{"data": &rows}
+		json.NewEncoder(w).Encode(response)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	token := uuid.NewString()
+	lock, _ := h.cacheHander.TryAcquireLock(ctx, lkey, token)
+	if lock {
+		rows, err := h.authService.GetStudentsByID(ctx, orgid, locationId)
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				http.Error(w, "request timeout", http.StatusGatewayTimeout)
+				return
+			}
+			if errors.Is(err, context.Canceled) {
+				http.Error(w, "request canceled", http.StatusRequestTimeout)
+				return
+			}
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			fmt.Printf("service error: %v\n", err)
+			return
+		}
+		_, err = h.cacheHander.SetCache(ctx, key, rows)
+		if err != nil {
+			fmt.Printf("SetCache error %v", err)
+			return
+		}
+		h.cacheHander.SafeUnlock(ctx, lkey, token)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		response := map[string]interface{}{"data": rows}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	status := h.cacheHander.WaitForCacheUpdate(ctx, key)
+	if status {
+		res, isHit := h.cacheHander.CheckCache(ctx, key)
+		if isHit {
+			var rows []models.ResponseRequestStudentList
+			err = json.Unmarshal([]byte(res), &rows)
+			if err != nil {
+				fmt.Printf("unable to parse byte stream %v", err)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			response := map[string]interface{}{"data": rows}
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+	}
 
-	// Example response
-	response := map[string]interface{}{"data": rows}
-	json.NewEncoder(w).Encode(response)
 }
 
 func (h *AuthHandler) GetStudentDetails(w http.ResponseWriter, r *http.Request) {
@@ -6128,13 +6208,18 @@ func (h *AuthHandler) GetRecentLocationSessions(w http.ResponseWriter, r *http.R
 		http.Error(w, "Missing parameter", http.StatusBadRequest)
 		return
 	}
-	semester_id := query.Get("semester_id")
-	sid, err := strconv.ParseInt(semester_id, 10, 64)
-	if err != nil {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
-		return
+	var semesterID *int64 = nil
+	if query.Has("semester_id") {
+		semester_id := query.Get("semester_id")
+		id, err := strconv.ParseInt(semester_id, 10, 64)
+		if err != nil {
+			http.Error(w, "Missing semester_id parameter", http.StatusBadRequest)
+			return
+		}
+		semesterID = &id
 	}
-	rows, err := h.authService.GetRecentLocationSessions(ctx, &orgid, &lid, &sid)
+
+	rows, err := h.authService.GetRecentLocationSessions(ctx, &orgid, &lid, semesterID)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "request timeout", http.StatusGatewayTimeout)
@@ -6145,7 +6230,7 @@ func (h *AuthHandler) GetRecentLocationSessions(w http.ResponseWriter, r *http.R
 			return
 		}
 		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		http.Error(w, "internal server error GetRecentLocationSessions", http.StatusInternalServerError)
 		fmt.Printf("service error: %v\n", err)
 		return
 	}
@@ -6181,16 +6266,22 @@ func (h *AuthHandler) GetLocationSessionAverage(w http.ResponseWriter, r *http.R
 	tutor_id := query.Get("location_id")
 	lid, err := strconv.ParseInt(tutor_id, 10, 64)
 	if err != nil {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
+		http.Error(w, "Missing location_id parameter", http.StatusBadRequest)
 		return
 	}
-	semester_id := query.Get("semester_id")
-	sid, err := strconv.ParseInt(semester_id, 10, 64)
-	if err != nil {
-		http.Error(w, "Missing parameter", http.StatusBadRequest)
-		return
+
+	var semesterID *int64 = nil
+	if query.Has("semester_id") {
+		semester_id := query.Get("semester_id")
+		id, err := strconv.ParseInt(semester_id, 10, 64)
+		if err != nil {
+			http.Error(w, "Missing semester_id parameter", http.StatusBadRequest)
+			return
+		}
+		semesterID = &id
 	}
-	rows, err := h.authService.GetLocationSessionAverage(ctx, &orgid, &lid, &sid)
+
+	rows, err := h.authService.GetLocationSessionAverage(ctx, &orgid, &lid, semesterID)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "request timeout", http.StatusGatewayTimeout)
@@ -6201,7 +6292,7 @@ func (h *AuthHandler) GetLocationSessionAverage(w http.ResponseWriter, r *http.R
 			return
 		}
 		// 6. You could also inspect SQL errors here if you like.
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		http.Error(w, "internal server error GetLocationSessionAverage", http.StatusInternalServerError)
 		fmt.Printf("service error: %v\n", err)
 		return
 	}

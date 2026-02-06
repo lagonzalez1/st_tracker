@@ -529,13 +529,12 @@ func (s *AuthService) GetGlobalSchedule(ctx context.Context, orgID int64) ([]mod
 	return schedules, nil
 }
 
-func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, locationId int64, tutorId int64) ([]models.ResponseRequestStudentList, error) {
+func (s *AuthService) GetStudentsByID(c context.Context, id int64, locationId int64) ([]models.ResponseRequestStudentList, error) {
 	var query string
 	var rows *sql.Rows
 	var err error
 	// If Admin or root return all students given organization and location id
-	if role == "ADMIN" || role == "ROOT" {
-		query += `
+	query += `
 		SELECT stu.id, stu.first_name, stu.last_name, stu.middle_name, 
 		stu.location_id, stu.email, stu.grade_level, stu.active, stu.period, 
 		stu.created_at, stu.semester_id, stu.direct_partnership,
@@ -547,41 +546,15 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 		stu.timeframe_end,
 		stu.duration_required,
 		stu.gender,
-		stu.race
+		stu.race,
+		stu.tutor_id
 		FROM stu_tracker.Students stu
 		JOIN stu_tracker.Locations loc
 		ON stu.location_id = loc.id
 		LEFT JOIN stu_tracker.Locations_teachers lt
 		ON lt.id = stu.teacher_id
 		WHERE loc.organization_id = $1 AND loc.id = $2;`
-		rows, err = s.db.QueryContext(c, query, id, locationId)
-	}
-	// If tutor return all students and if tutor_id is marked return such students
-	if role == "TUTOR" {
-		query += `
-		SELECT stu.id, stu.first_name, stu.last_name, stu.middle_name, 
-		stu.location_id, stu.email, stu.grade_level, stu.active, stu.period, 
-		stu.created_at, stu.semester_id, stu.direct_partnership, 
-		COALESCE(stu.created_by, 'NA') AS created_by, stu.teacher_id,
-		COALESCE(lt.name, '') AS teacher_name,
-		stu.timeframe,
-		stu.timeframe_start,
-		stu.timeframe_end,
-		stu.duration_required,
-		stu.gender,
-		stu.race
-		FROM stu_tracker.Students stu
-		JOIN stu_tracker.Locations loc
-		ON stu.location_id = loc.id
-		LEFT JOIN stu_tracker.Locations_teachers lt
-		ON lt.id = stu.teacher_id
-		WHERE loc.id = $1
-		AND ( 
-			stu.direct_partnership = FALSE 
-			OR (stu.direct_partnership = TRUE AND stu.tutor_id = $2)
-		);`
-		rows, err = s.db.QueryContext(c, query, locationId, tutorId)
-	}
+	rows, err = s.db.QueryContext(c, query, id, locationId)
 	if err != nil {
 		return nil, fmt.Errorf("error querying Students: %w", err)
 	}
@@ -614,6 +587,7 @@ func (s *AuthService) GetStudentsByID(c context.Context, id int64, role string, 
 			&student.DurationRequired,
 			&student.Gender,
 			&student.Race,
+			&student.TutorID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan row: %v", err)
@@ -1634,7 +1608,7 @@ func (s *AuthService) GetEntitySchedule(c context.Context, tid, orgid *int64) ([
 	return schedules, nil
 }
 
-func (s *AuthService) GetEntityScheduleList(ctx context.Context, uid *int64) (*models.ResponseTutorSchedule, error) {
+func (s *AuthService) GetEntityScheduleList(ctx context.Context, uid *int64) (map[string][]models.TutorSchedule, error) {
 	if uid == nil {
 		return nil, fmt.Errorf("params are null")
 	}
@@ -1682,15 +1656,8 @@ func (s *AuthService) GetEntityScheduleList(ctx context.Context, uid *int64) (*m
 			return nil, err
 		}
 	}
-	fmt.Printf("Length: %d", len(result))
-	r, err := s.SessionCompletedCheck(ctx, result, uid)
-	if err != nil {
-		return nil, err
-	}
 
-	return &models.ResponseTutorSchedule{
-		Schedule: r,
-	}, nil
+	return result, nil
 }
 
 func (s *AuthService) GetTutorSchedule(ctx context.Context, uid *int64, pid []int64) (*models.ResponseTutorSchedule, error) {
@@ -1888,7 +1855,7 @@ func (s *AuthService) GetAnnouncements(c context.Context, req models.Announcemen
 		return announcements, nil
 	}
 	if req.Role == "TUTOR" {
-		announcements, err := s.getTutorAnnouncements(c, req.LocationIDs, int64(req.OrganizationID), req.ProgramID)
+		announcements, err := s.getTutorAnnouncements(c, req.LocationIDs, int64(req.OrganizationID), req.ProgramID, &req.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -1985,35 +1952,40 @@ func (s *AuthService) GetAnnouncementsAck(c context.Context, orgid *int64, aid *
 	return a, nil
 }
 
-func (s *AuthService) getTutorAnnouncements(c context.Context, loc_id []int64, org_id int64, pro_id []int64) ([]models.AnnouncementsList, error) {
-	var query string
-	query += `
-		SELECT an.id, an.title, an.body, 
-		an.created_at, an.severity, 
-		an.program_id, an.admin_id, 
-		an.staff_id, an.location_id, 
-		COALESCE(ads.fullname, adr.fullname, 'Unknown') AS staff_name,
-		COALESCE(loc.name, 'NA') AS location_name, 
-		COALESCE(pr.program_name, 'NA') AS program_name
-		FROM stu_tracker.Announcements an 
-		LEFT JOIN stu_tracker.Admin_staff ads
-		ON ads.id = an.staff_id
-		LEFT JOIN stu_tracker.Admin_root adr
-		ON adr.id = an.admin_id
-		LEFT JOIN stu_tracker.Locations loc
-		ON loc.id = an.location_id
-		LEFT JOIN stu_tracker.Programs pr
-		ON pr.id = an.program_id
-		WHERE 
-			(an.location_id = ANY($1) OR an.program_id = ANY($2))
-		AND an.organization_id = $3
-		ORDER BY 
-		an.created_at DESC`
-	rows, err := s.db.QueryContext(c, query, pq.Array(loc_id), pq.Array(pro_id), org_id)
+func (s *AuthService) getTutorAnnouncements(c context.Context, loc_id []int64, org_id int64, pro_id []int64, tutorId *int64) ([]models.AnnouncementsList, error) {
+	if tutorId == nil {
+		return nil, fmt.Errorf("tutor id is required")
+	}
+
+	// Added ua.acknowledged and the LEFT JOIN on User_Acknowledgments
+	query := `
+        SELECT an.id, an.title, an.body, 
+        an.created_at, an.severity, 
+        an.program_id, an.admin_id, 
+        an.staff_id, an.location_id, 
+        COALESCE(ads.fullname, adr.fullname, 'Unknown') AS staff_name,
+        COALESCE(loc.name, 'NA') AS location_name, 
+        COALESCE(pr.program_name, 'NA') AS program_name,
+        COALESCE(ua.acknowledged, FALSE) AS acknowledged
+        FROM stu_tracker.Announcements an 
+        LEFT JOIN stu_tracker.Admin_staff ads ON ads.id = an.staff_id
+        LEFT JOIN stu_tracker.Admin_root adr ON adr.id = an.admin_id
+        LEFT JOIN stu_tracker.Locations loc ON loc.id = an.location_id
+        LEFT JOIN stu_tracker.Programs pr ON pr.id = an.program_id
+        LEFT JOIN stu_tracker.User_Acknowledgments ua ON ua.announcement_id = an.id AND ua.tutor_id = $4
+        WHERE 
+            (an.location_id = ANY($1) OR an.program_id = ANY($2))
+        AND an.organization_id = $3
+        ORDER BY 
+        an.created_at DESC`
+
+	// Pass tutorId as the 4th parameter ($4)
+	rows, err := s.db.QueryContext(c, query, pq.Array(loc_id), pq.Array(pro_id), org_id, *tutorId)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+
 	var announcements []models.AnnouncementsList
 	for rows.Next() {
 		var announcement models.AnnouncementsList
@@ -2030,16 +2002,14 @@ func (s *AuthService) getTutorAnnouncements(c context.Context, loc_id []int64, o
 			&announcement.StaffName,
 			&announcement.LocationName,
 			&announcement.ProgramName,
+			&announcement.Ack,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
 		}
 		announcements = append(announcements, announcement)
 	}
-	// Check for any errors encountered during iteration
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
+
 	return announcements, nil
 }
 
