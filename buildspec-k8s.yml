@@ -1,5 +1,4 @@
 version: 0.2
-
 phases:
   install:
     commands:
@@ -35,8 +34,8 @@ phases:
       - kubectl set image deployment/app tracker-container=$REPOSITORY_URI:$IMAGE_TAG
       - kubectl rollout status deployment/app
       - printf '[{"name":"app","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
-  artifacts:
-    files:
-      - imagedefinitions.json
-      - k8s/base/app/deployment.yaml
-    discard-paths: no
+artifacts:
+  files:
+    - imagedefinitions.json
+    - k8s/base/app/deployment.yaml
+  discard-paths: no
