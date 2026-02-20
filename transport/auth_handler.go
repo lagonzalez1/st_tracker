@@ -47,6 +47,13 @@ func (h *AuthHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	// Example response
 }
 
+func (h *AuthHandler) Ready(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	// Example response
+}
+
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -2877,8 +2884,10 @@ func (h *AuthHandler) UpdateGlobalSchedule(w http.ResponseWriter, r *http.Reques
 			fmt.Printf("Fatal error, unable to retrive ids for invalidation %v\n", err)
 			return
 		}
+		fmt.Printf("Ids to update: %v", invalidateIds)
 		for i := range invalidateIds {
 			key := fmt.Sprintf("tutor:raw_schedule:%d", invalidateIds[i])
+			fmt.Printf("Attempting to remove the following: %s", key)
 			h.cacheHander.ClearCache(ctx, key)
 		}
 	}

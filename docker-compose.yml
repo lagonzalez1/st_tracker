@@ -30,17 +30,6 @@ services:
     command: postgres -p 5433
     networks:
       - appnet
-
-  rabbitmq:
-    image: rabbitmq:3-management
-    ports:
-      - "5672:5672"      # AMQP (for your app)
-      - "15672:15672"    # Management UI
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    networks:
-      - appnet
   
   valkey:
     image: valkey/valkey:9.0-alpine3.22

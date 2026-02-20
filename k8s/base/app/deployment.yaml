@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  namespace: myapp
+spec:
+  replicas: 2  # Start with 2 for high availability
+  selector:
+    matchLabels:
+      app: my-tracker-api
+  template:
+    metadata:
+      labels:
+        app: my-tracker-api
+    spec:
+      containers:
+      - name: app
+        image: 156884456760.dkr.ecr.us-west-1.amazonaws.com/tracker/api-prod:v1.0  # You'll need to build and push this
+        imagePullPolicy: IfNotPresent
+        # For local development, use the built image or build in-cluster
+        ports:
+        - containerPort: 3333
+        env:
+        - name: APP_ENV
+          value: "prod"
+        volumeMounts:
+        - name: env-volume
+          mountPath: /app/.env.production
+          subPath: .env.production
+        workingDir: /app
+        command: ["/app/main"]  # Assuming you build a binary
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2"
+        livenessProbe:
+          httpGet:
+            path: /health_check
+            port: 3333
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3333
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: env-volume
+        secret:
+          secretName: app-env-file

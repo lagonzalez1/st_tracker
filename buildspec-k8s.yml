@@ -1,0 +1,42 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      # Ensure we have kubectl to talk to EKS
+      - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+      - chmod +x ./kubectl
+      - mv ./kubectl /usr/local/bin/kubectl
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      # This is the "semi-manual" login that works perfectly with the ECR flag
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - REPOSITORY_URI=156884456760.dkr.ecr.us-west-1.amazonaws.com/tracker/api-prod
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      # This runs YOUR Dockerfile (ensure it's in the root of the repo)
+      - docker build -f Dockerfile.prod -t $REPOSITORY_URI:latest .
+      - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker image to ECR...
+      - docker push $REPOSITORY_URI:latest
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - echo Connecting to EKS...
+      - aws eks update-kubeconfig --name tracker-cluster --region us-west-1
+      - echo Deploying new image to cluster...
+      # Replace 'tracker-api' with the name of your deployment in K8s
+      - kubectl set image deployment/app tracker-container=$REPOSITORY_URI:$IMAGE_TAG
+      - kubectl rollout status deployment/app
+      - printf '[{"name":"app","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+  artifacts:
+    files:
+      - imagedefinitions.json
+      - k8s/base/app/deployment.yaml
+    discard-paths: no

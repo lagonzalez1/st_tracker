@@ -10,20 +10,30 @@ import (
 )
 
 func LoadConfig() (*models.Config, error) {
-	env := os.Getenv("APP_ENV")
-	if env == "dev" {
-		env = "development"
-	}
-	if env == "prod" {
-		env = "production"
+	appEnv := os.Getenv("APP_ENV")
+
+	// 2. Map shorthand to full names using a simple map
+	envMapping := map[string]string{
+		"dev":  "development",
+		"prod": "production",
 	}
 
-	envFile := ".env." + env
-	fmt.Println("env: ", env)
-	fmt.Printf("Using env file %s", envFile)
+	if fullEnv, ok := envMapping[appEnv]; ok {
+		appEnv = fullEnv
+	} else if appEnv == "" {
+		appEnv = "production" // Fallback
+	}
+
+	// 3. Construct filename
+	envFile := fmt.Sprintf(".env.%s", appEnv)
+
+	// 4. Try to load.
+	// Note: It's common in Prod to NOT use a file and use K8s env vars directly.
 	err := godotenv.Load(envFile)
 	if err != nil {
-		log.Println("Error loading .env file")
+		log.Printf("Note: %s not found. Using system environment variables.", envFile)
+	} else {
+		log.Printf("Successfully loaded configuration from %s", envFile)
 	}
 	cfg := &models.Config{
 		JWT:           os.Getenv("JWT"),

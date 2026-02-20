@@ -56,7 +56,7 @@ func ConnectDB(DB models.PostGresConfig) (*sql.DB, error) {
 		name,
 		ssl,
 	)
-
+	fmt.Printf("Connection string: %s", psql_info)
 	db, err := sql.Open("postgres", psql_info)
 	if err != nil {
 		return nil, err

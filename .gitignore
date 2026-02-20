@@ -5,3 +5,8 @@
 .env.production
 ./env.development
 ./env.production
+
+k8s/*
+!k8s/base/
+!k8s/base/app/
+!k8s/base/app/deployment.yaml

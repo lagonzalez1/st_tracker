@@ -29,21 +29,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
+	fmt.Println("POD STARTING...")
+
 	db, db_err := database.ConnectDB(cfg.DB)
 	if db_err != nil {
 		log.Fatalf("Database connection failed: %v", db_err)
 	}
 	defer db.Close()
-
-	/*
-		mq, mq_err := database.ConnectRabbitMQ()
-		if mq_err != nil {
-			fmt.Printf("Rabbit MQ connection failed: %v", mq_err)
-			log.Fatalf("Rabbit MQ connection failed: %v", mq_err)
-		}
-		defer mq.Connection.Close()
-	*/
-	// Close channel generate
 
 	s3Client, s3Error := config.ConnectS3()
 	if s3Error != nil {
@@ -87,6 +79,7 @@ func main() {
 	})
 
 	r.HandleFunc("/health_check", authHandler.HealthCheck).Methods("GET")
+	r.HandleFunc("/ready", authHandler.Ready).Methods("GET")
 	r.HandleFunc("/hello", hello).Methods("GET")
 	r.HandleFunc("/register", authHandler.Register).Methods("POST")
 	r.HandleFunc("/login", authHandler.Login).Methods("POST")
