@@ -29,7 +29,7 @@ COPY --from=builder /app/main /app/main
 COPY --from=builder /app/database/*.sql ./database/
 
 # Copy .env file if needed
-COPY .env.development .
+# COPY .env.development .
 
 # Grant permissions
 RUN chmod +x /app/main
