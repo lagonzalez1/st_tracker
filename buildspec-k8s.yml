@@ -31,8 +31,8 @@ phases:
       - aws eks update-kubeconfig --name tracker-cluster --region us-west-1
       - echo Deploying new image to cluster...
       # Replace 'tracker-api' with the name of your deployment in K8s
-      - kubectl set image deployment/app tracker-container=$REPOSITORY_URI:$IMAGE_TAG
-      - kubectl rollout status deployment/app
+      - kubectl set image deployment/app app=$REPOSITORY_URI:$IMAGE_TAG -n myapp
+      - kubectl rollout status deployment/app -n myapp
       - printf '[{"name":"app","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
 artifacts:
   files:
