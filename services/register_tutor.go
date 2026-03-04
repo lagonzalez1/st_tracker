@@ -92,9 +92,11 @@ func (s *AuthService) UpdateTutor(c context.Context, req models.RegisterRequestT
 			query += `, email = $7 WHERE id = $8`
 			email := strings.ToLower(req.EmailChange)
 			values = append(values, email, req.ID)
+		} else {
+			query += " WHERE id = $7"
+			values = append(values, req.ID)
 		}
-		query += " WHERE id = $7"
-		values = append(values, req.ID)
+
 		_, err = s.db.Exec(query, values...)
 		if err != nil {
 			return nil, err
@@ -105,15 +107,16 @@ func (s *AuthService) UpdateTutor(c context.Context, req models.RegisterRequestT
 		SET first_name = $1, last_name = $2, organization_id = $3, location_id = $4, active = $5`
 		values = append(values, req.FirstName, req.LastName, *req.OrganizationId, req.LocationId, req.Active)
 		if req.EmailChange != "" {
-			email := strings.ToLower(req.Email)
-			query += `, email = $6 WHERE id = $7`
+			email := strings.ToLower(req.EmailChange)
+			query += `, email = $6 WHERE id = $7;`
 			values = append(values, email, req.ID)
+		} else {
+			query += " WHERE id = $6"
+			values = append(values, req.ID)
 		}
-		query += " WHERE id = $6"
-		values = append(values, req.ID)
 		_, err := s.db.ExecContext(c, query, values...)
 		if err != nil {
-			return nil, fmt.Errorf("failed to insert student: %w", err)
+			return nil, fmt.Errorf("failed to insert tutor: %w", err)
 		}
 	}
 

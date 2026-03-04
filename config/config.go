@@ -35,6 +35,9 @@ func LoadConfig() (*models.Config, error) {
 	} else {
 		log.Printf("Successfully loaded configuration from %s", envFile)
 	}
+
+	// Set Stripe API key
+
 	cfg := &models.Config{
 		JWT:           os.Getenv("JWT"),
 		Port:          os.Getenv("B_PORT"),
@@ -46,6 +49,7 @@ func LoadConfig() (*models.Config, error) {
 			Port:     os.Getenv("POSTGRES_PORT"),
 			Host:     os.Getenv("POSTGRES_HOST"),
 			Name:     os.Getenv("DB_NAME"),
+			Env:      os.Getenv("APP_ENV"),
 		},
 		SignUp: models.SignUpConfig{
 			ORG_ADD_KEY:   os.Getenv("ORG_ADD_KEY"),

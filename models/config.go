@@ -25,6 +25,7 @@ type PostGresConfig struct {
 	Port     string
 	Host     string
 	Name     string
+	Env      string
 }
 
 type SignUpConfig struct {

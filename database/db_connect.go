@@ -37,17 +37,12 @@ func ConnectDB(DB models.PostGresConfig) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch port {
-	case 5433:
+	if DB.Env == "dev" {
 		ssl += `disable`
-		break
-	case 2222:
-		ssl += `disable`
-		break
-	case 5432:
+	} else {
 		ssl += `require`
-		break
 	}
+
 	psql_info := fmt.Sprintf("host=%s port=%d user=%s "+"password=%s dbname=%s sslmode=%s",
 		host,
 		port,

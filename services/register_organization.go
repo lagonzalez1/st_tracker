@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 	"tracker/app/config"
 	"tracker/app/models"
 
+	"github.com/stripe/stripe-go/v83"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -19,7 +21,6 @@ func (s *AuthService) AddOrganization(c context.Context, req models.RegisterOrga
 	if req.Email == nil || req.Password == nil || req.Code == nil {
 		return nil, fmt.Errorf("missing required fields: email, password")
 	}
-	fmt.Println("SIGN UPN KEY", env_config.SignUp.ORG_ADD_KEY)
 	if *req.Code == env_config.SignUp.ORG_ADD_KEY || *req.Code == env_config.SignUp.ORG_ADD_KEY_1 || *req.Code == env_config.SignUp.ORG_ADD_KEY_2 || *req.Code == env_config.SignUp.ORG_ADD_KEY_3 {
 		var orgID *int64
 		query := `INSERT INTO stu_tracker.Organization(title, address, zip_code, state, city) 
@@ -43,21 +44,26 @@ func (s *AuthService) AddOrganization(c context.Context, req models.RegisterOrga
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert student: %w", err)
 		}
-		const (
-			InitSubsriptionID  = 1
-			Status             = "Trial active"
-			SubscriptionStatus = "Status ok"
-		)
-		subscribeBasicPlan := `INSERT INTO stu_tracker.organization_subscription(organization_id, plan_id, status, subscription_status)
-				VALUES ($1,$2,$3,$4);`
-		_, err3 := s.db.ExecContext(c, subscribeBasicPlan, orgID, InitSubsriptionID, Status, SubscriptionStatus)
-		if err3 != nil {
-			return nil, fmt.Errorf("failed to insert student: %w", err)
-		}
-
-		return &models.RegisterOrganizationResponse{
-			Status: "OK",
-		}, nil
+		return &models.RegisterOrganizationResponse{Status: "Ok", OrganizationId: orgID}, nil
 	}
-	return &models.RegisterOrganizationResponse{Status: "Error"}, nil
+	return nil, fmt.Errorf("unable to create organization")
+}
+
+func (s *AuthService) AddOrganizationInitSubscription(c context.Context, orgID *int64, customer *stripe.Customer, subscription *stripe.Subscription) error {
+	now := time.Now().UTC()
+	const (
+		Plan_id            = 1
+		Status             = "Trial active"
+		SubscriptionStatus = "Status ok"
+	)
+	CurrentPeriodStart := now.Truncate(time.Second)
+	CurrentPeriodEnd := now.AddDate(0, 0, 15).Truncate(time.Second)
+	subscribeBasicPlan := `INSERT INTO stu_tracker.organization_subscription
+		(organization_id, plan_id, status, current_period_start, current_period_end, stripe_customer_id, stripe_subscription_id, subscription_status)
+		VALUES ($1,$2,$3,$4, $5, $6,$7,$8);`
+	_, err := s.db.ExecContext(c, subscribeBasicPlan, orgID, Plan_id, Status, CurrentPeriodStart, CurrentPeriodEnd, customer.ID, subscription.ID, SubscriptionStatus)
+	if err != nil {
+		return err
+	}
+	return nil
 }

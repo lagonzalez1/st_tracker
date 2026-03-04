@@ -10,6 +10,8 @@ import (
 	"github.com/stripe/stripe-go/v83"
 	portalsession "github.com/stripe/stripe-go/v83/billingportal/session"
 	"github.com/stripe/stripe-go/v83/checkout/session"
+	"github.com/stripe/stripe-go/v83/customer"
+	"github.com/stripe/stripe-go/v83/subscription"
 )
 
 // purchase_intent -> New user, create subscription and save the customer_id
@@ -19,7 +21,12 @@ import (
 // Initially no customer_id has been attached.
 func (s *AuthService) CreateCheckoutSession(ctx context.Context, model *models.PurchaseIntent, orgid *int64) (*models.StripeCreateCheckoutSessionResponse, error) {
 	stripe.Key = os.Getenv("STRIPE_SECRET")
-	domain := "http://localhost:3000/dashboard"
+	var domain string
+	if os.Getenv("APP_ENV") == "dev" {
+		domain = fmt.Sprintf(`%s/dashboard`, os.Getenv("DEV_URL"))
+	} else {
+		domain = fmt.Sprintf(`%s/dashboard`, os.Getenv("PROD_URL"))
+	}
 	p := &stripe.CheckoutSessionLineItemParams{
 		Price:    stripe.String(*model.PriceID),
 		Quantity: stripe.Int64(1),
@@ -69,7 +76,13 @@ func (s *AuthService) CreatePortalSession(ctx context.Context, orgid *int64) (*m
 	if stripe_customer_id == nil {
 		return nil, fmt.Errorf("stripe customer not found")
 	}
-	domain := "http://localhost:3000/dashboard"
+	var domain string
+	if os.Getenv("APP_ENV") == "dev" {
+		domain = fmt.Sprintf(`%s/dashboard`, os.Getenv("DEV_URL"))
+	} else {
+		domain = fmt.Sprintf(`%s/dashboard`, os.Getenv("PROD_URL"))
+	}
+
 	stripe.Key = os.Getenv("STRIPE_SECRET")
 	params := &stripe.BillingPortalSessionParams{
 		Customer:  stripe.String(*stripe_customer_id),
@@ -119,8 +132,17 @@ func (s *AuthService) GetSubscriptionById(spid string) (*models.SubscriptionPlan
 	return &plan, nil
 }
 
-func (s *AuthService) GetSubscriptionPlanByPriceID(pid string) (*models.AvilableSubscriptions, error) {
+func (s *AuthService) GetStripePriceId(c context.Context, id int) (*string, error) {
+	q := `SELECT stripe_price_id FROM stu_tracker.subscription_plan WHERE id = $1;`
+	var stripeId *string
+	err := s.db.QueryRowContext(c, q, id).Scan(&stripeId)
+	if err != nil {
+		return nil, err
+	}
+	return stripeId, nil
+}
 
+func (s *AuthService) GetSubscriptionPlanByPriceID(pid string) (*models.AvilableSubscriptions, error) {
 	q := `SELECT id, code, name, stripe_price_id, is_active FROM stu_tracker.subscription_plan; 
 	WHERE stripe_price_id = $1; `
 	var d *models.AvilableSubscriptions
@@ -129,4 +151,29 @@ func (s *AuthService) GetSubscriptionPlanByPriceID(pid string) (*models.Avilable
 		return nil, err
 	}
 	return d, nil
+}
+
+func CreateStripeCustomer(email, name string) (*stripe.Customer, error) {
+	params := &stripe.CustomerParams{
+		Email: stripe.String(email),
+		Name:  stripe.String(name),
+	}
+	return customer.New(params)
+}
+
+func CreateTrialSubscription(stripeCustomerID, priceID string, trialDays int64) (*stripe.Subscription, error) {
+	params := &stripe.SubscriptionParams{
+		Customer: stripe.String(stripeCustomerID),
+		Items: []*stripe.SubscriptionItemsParams{
+			{
+				Price: stripe.String(priceID),
+			},
+		},
+		TrialPeriodDays: stripe.Int64(trialDays),
+		// Subscription won't charge until trial ends
+		PaymentSettings: &stripe.SubscriptionPaymentSettingsParams{
+			SaveDefaultPaymentMethod: stripe.String("on_subscription"),
+		},
+	}
+	return subscription.New(params)
 }

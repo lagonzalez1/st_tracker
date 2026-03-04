@@ -90,7 +90,6 @@ func Middleware(s *services.AuthService, c *cache.CacheHandler, cfg *models.Conf
 			// First check the cache and plan limits
 			if isHit && exist {
 				planLimitsOk, err := CheckPlanLimits(ctx, cacheClaims, entitlementKey, s, c, r.Header)
-				fmt.Printf("plan limits ok %v", planLimitsOk)
 				if err != nil {
 					fmt.Println(err)
 					http.Error(w, err.Error(), http.StatusUpgradeRequired)
@@ -152,7 +151,6 @@ func Middleware(s *services.AuthService, c *cache.CacheHandler, cfg *models.Conf
 				}
 				if cookie_claims != nil && exist {
 					planLimitsOk, err := CheckPlanLimits(ctx, cookie_claims, entitlementKey, s, c, r.Header)
-					fmt.Printf("plan limits ok: %v", planLimitsOk)
 					if err != nil {
 						fmt.Println(err)
 						http.Error(w, err.Error(), http.StatusUpgradeRequired)
@@ -194,7 +192,6 @@ func Middleware(s *services.AuthService, c *cache.CacheHandler, cfg *models.Conf
 			case 0:
 				if claims != nil && exist {
 					planLimitsOk, err := CheckPlanLimits(ctx, claims, entitlementKey, s, c, r.Header)
-					fmt.Printf("plan limits ok %v", planLimitsOk)
 					if err != nil {
 						fmt.Println(err)
 						http.Error(w, err.Error(), http.StatusUpgradeRequired)

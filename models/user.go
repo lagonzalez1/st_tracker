@@ -39,7 +39,8 @@ type LoginResponsePermissions struct {
 }
 
 type RegisterOrganizationResponse struct {
-	Status string `json:"status,omitempty"`
+	Status         string `json:"status,omitempty"`
+	OrganizationId *int64 `json:"organization_id,omitempty"`
 }
 
 type ResponseGenerationOrganization struct {
@@ -454,6 +455,7 @@ type RemoveResponse struct {
 
 type RemoveRequest struct {
 	ID             *int64 `json:"id"`
+	LocationID     *int64 `json:"location_id"`
 	OrganizationId int64  `json:"organization_id"`
 }
 
@@ -675,7 +677,7 @@ type ServiceSession struct {
 	CreatedAt       time.Time     `json:"created_at"`
 	EditedAt        string        `json:"edited_at"`
 	SubjectName     string        `json:"subject_name"`
-	StudentCount    int64         `json:"student_count"`
+	StudentCount    *int64        `json:"student_count"`
 	AssessmentCount *int64        `json:"assessment_count"`
 	SubFirstName    *string       `json:"substitute_first_name"`
 	SubLastName     *string       `json:"substitute_last_name"`
@@ -1140,9 +1142,9 @@ type Students struct {
 	ID               *int64  `json:"id"`
 	SessionID        *int64  `json:"session_id"`
 	StudentID        *int64  `json:"student_id"`
-	FirstName        string  `json:"first_name"`
-	MiddleName       string  `json:"middle_name"`
-	LastName         string  `json:"last_name"`
+	FirstName        *string `json:"first_name"`
+	MiddleName       *string `json:"middle_name"`
+	LastName         *string `json:"last_name"`
 	Grade            int64   `json:"grade_level"`
 	Timeframe        *bool   `json:"timeframe"`
 	DurationRequired *bool   `json:"duration_required"`

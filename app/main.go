@@ -18,6 +18,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"github.com/stripe/stripe-go/v83"
 )
 
 func hello(w http.ResponseWriter, r *http.Request) {
@@ -30,6 +31,8 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 	fmt.Println("POD STARTING...")
+	// Set stripe key
+	stripe.Key = os.Getenv("STRIPE_SECRET")
 
 	db, db_err := database.ConnectDB(cfg.DB)
 	if db_err != nil {

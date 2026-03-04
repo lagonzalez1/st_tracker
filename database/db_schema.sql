@@ -255,6 +255,8 @@ CREATE TABLE stu_tracker.Sessions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE stu_tracker.Sessions ADD end_time VARCHAR(10) DEFAULT NULL;
+
 
 CREATE TABLE stu_tracker.Session_students (
     id SERIAL PRIMARY KEY,

@@ -323,6 +323,11 @@ func (h *AuthHandler) CreateStudent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 
 	var models models.RegisterRequestStudents
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -344,6 +349,8 @@ func (h *AuthHandler) CreateStudent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, issue, http.StatusInternalServerError)
 		return
 	}
+	key := fmt.Sprintf("get:students:%d:%d", orgid, *models.LocationId)
+	h.cacheHander.ClearCache(ctx, key)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(user)
@@ -374,6 +381,11 @@ func (h *AuthHandler) UpdateStudent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 
 	var models models.RegisterRequestStudents
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -396,6 +408,9 @@ func (h *AuthHandler) UpdateStudent(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Unable to update student: %v\n", err)
 		return
 	}
+	key := fmt.Sprintf("get:students:%d:%d", orgid, *models.LocationId)
+	h.cacheHander.ClearCache(ctx, key)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(user)
@@ -426,6 +441,11 @@ func (h *AuthHandler) DeleteStudent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	orgid, err := helpers.ExtractInt64Claim(claims, "orgid")
+	if err != nil {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 
 	var models models.RemoveRequest
 	if err := json.Unmarshal(body, &models); err != nil {
@@ -433,7 +453,6 @@ func (h *AuthHandler) DeleteStudent(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error decoding JSON: %v\n", err)
 		return
 	}
-
 	user, err := h.authService.DeleteStudent(ctx, models)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -448,6 +467,10 @@ func (h *AuthHandler) DeleteStudent(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Unable to delete student: %v\n", err)
 		return
 	}
+
+	key := fmt.Sprintf("get:students:%d:%d", orgid, *models.LocationID)
+	h.cacheHander.ClearCache(ctx, key)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(user)
@@ -1580,6 +1603,37 @@ func (h *AuthHandler) CreateOrganization(w http.ResponseWriter, r *http.Request)
 		fmt.Printf("service error: %v\n", err)
 		return
 	}
+	if user.OrganizationId != nil {
+		const (
+			TRIAL      = 1
+			TRIAL_DAYS = 15
+		)
+		stripeId, err := h.authService.GetStripePriceId(ctx, TRIAL)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			fmt.Printf("service error: %v\n", err)
+			return
+		}
+		customer, err := services.CreateStripeCustomer(*models.Email, *models.Fullname)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			fmt.Printf("service error: %v\n", err)
+			return
+		}
+		subscription, err := services.CreateTrialSubscription(customer.ID, *stripeId, TRIAL_DAYS)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			fmt.Printf("service error: %v\n", err)
+			return
+		}
+		err = h.authService.AddOrganizationInitSubscription(ctx, user.OrganizationId, customer, subscription)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			fmt.Printf("service error: %v\n", err)
+			return
+		}
+	}
+
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)

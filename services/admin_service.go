@@ -574,10 +574,10 @@ func (s *AuthService) GetTutorsBChart(req models.RequestSessionBChart) ([]models
 	base := `
     	SELECT DISTINCT
 			tr.id,
-			SUM(ss.student_count) as total_student_count,
-			AVG(ss.student_count) as average_student_count,
-			COUNT(ss.id) as total_sessions,
-			COUNT(ast.id) as assessments_count,
+			COALESCE(SUM(ss.student_count),0) as total_student_count,
+			COALESCE(AVG(ss.student_count), 0) as average_student_count,
+			COALESCE(COUNT(ss.id), 0) as total_sessions,
+			COALESCE(COUNT(ast.id), 0) as assessments_count,
 			tr.first_name as first_name,
 			tr.last_name as last_name
 		FROM 

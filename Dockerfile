@@ -1,25 +1,17 @@
 # Dockerfile.dev
 FROM golang:1.23-alpine
 
-# (Optional) if you pull deps from private repos:
-RUN apk add --no-cache git
-
-RUN apk add --no-cache git ca-certificates
-
-RUN apk add --no-cache postgresql-client
-
+RUN apk add --no-cache git ca-certificates postgresql-client
 
 WORKDIR /app
 
-# Cache your module dependencies
+# Cache dependencies as a separate layer
 COPY go.mod go.sum ./
-
+RUN go mod download
 
 # Copy the rest of your code
 COPY . .
 
-# Expose your app’s port
 EXPOSE 3333
 
-# Run your app on container start
 CMD ["sh", "-c", "set -o allexport && . .env.development && go run app/main.go"]
