@@ -1345,7 +1345,7 @@ func (s *AuthService) GetAssessmentPivotTable(c context.Context, sid *int64, org
 }
 
 func (s *AuthService) GetSubscriptions(c context.Context, orgid *int64) ([]models.AvilableSubscriptions, error) {
-	query := `SELECT id, code, name, stripe_price_id, is_active, cost_yearly, cost_monthly FROM stu_tracker.subscription_plan;`
+	query := `SELECT id, code, name, stripe_price_id, is_active, cost_yearly, cost_monthly FROM stu_tracker.subscription_plan WHERE name != 'Prod-full';`
 	rows, err := s.db.QueryContext(c, query)
 	if err != nil {
 		return nil, err

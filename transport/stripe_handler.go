@@ -216,13 +216,13 @@ func (h *AuthHandler) StripeWebhook(w http.ResponseWriter, r *http.Request) {
 		admin, err := h.authService.GetOrganizationIdByCustomerId(ctx, sub.Customer.ID)
 		if err != nil {
 			fmt.Println("Error GetAdminByCustomerID", err)
-			http.Error(w, "Unable to link checkout ", http.StatusInternalServerError)
+			http.Error(w, "GetOrganizationIdByCustomerId error ", http.StatusInternalServerError)
 			return
 		}
 		plan, err := h.authService.GetSubscriptionById(sub.Items.Data[0].Price.ID)
 		if err != nil {
 			fmt.Println(err)
-			http.Error(w, "Unable to link checkout ", http.StatusInternalServerError)
+			http.Error(w, "GetSubscriptionById error ", http.StatusInternalServerError)
 			return
 		}
 		fmt.Println("GetSubscriptionById", plan.ID, plan.Code)

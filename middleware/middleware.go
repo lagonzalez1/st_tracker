@@ -61,7 +61,7 @@ func Middleware(s *services.AuthService, c *cache.CacheHandler, cfg *models.Conf
 				"POST /api/create_tutor":       "max_tutors_per_location",
 				"POST /api/create_location":    "max_locations_per_district",
 				"POST /api/create_admin_staff": "max_admin_per_district",
-				"POST /api/max_districts":      "max_districts",
+				"POST /api/create_district":    "max_districts",
 				"POST /api/micro_generate":     "max_llm_tokens",
 			}
 			routeKey := fmt.Sprintf("%s %s", r.Method, r.URL.Path)
