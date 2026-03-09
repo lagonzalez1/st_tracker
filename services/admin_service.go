@@ -1437,6 +1437,16 @@ func (s *AuthService) CheckUsage(ctx context.Context, orgID int, key string, loc
 	var current int64
 	var countQuery string
 	switch key {
+	case "max_districts":
+		fmt.Printf("orgid: %d", orgID)
+		countQuery := `
+		SELECT COUNT(*) AS district_count FROM stu_tracker.district d
+		WHERE d.organization_id = $1;`
+		err := s.db.QueryRowContext(ctx, countQuery, orgID).Scan(&current)
+		if err != nil {
+			return 0, false, err
+		}
+		return current, true, nil
 	case "max_students_per_location":
 		fmt.Printf("orgid: %d, location: %d", orgID, *locationID)
 		countQuery = `SELECT
