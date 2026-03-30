@@ -44,6 +44,11 @@ type RemoveGeneratedQuestion struct {
 	OrganizationID int64   `json:"organization_id"`
 }
 
+type RequestSurveyPayload struct {
+	SessionID      *int64 `json:"session_id"`
+	OrganizationID *int64 `json:"organization_id"`
+}
+
 type RequestStudentReport struct {
 	StudentID   *int64  `json:"student_id"`
 	SemesterID  *int64  `json:"semester_id"`

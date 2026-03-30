@@ -8,7 +8,7 @@ INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:assessments', 'Permission to write assessments', 'root', 'admin');
 -- Permissions for district
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:district', 'Permission to delete district', 'root', 'admin');
-INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:district', 'Permission to view district', 'root', 'admin');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:district', 'Permission to view district', 'root', 'tutor');
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:district', 'Permission to write district', 'root', 'admin');
 
 -- Permissions for location
@@ -18,7 +18,7 @@ INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_
 
 -- Permissions for program
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'delete:program', 'Permission to delete program', 'root', 'admin');
-INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:program', 'Permission to view program', 'root', 'admin');
+INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'view:program', 'Permission to view program', 'root', 'tutor');
 INSERT INTO stu_tracker.Permissions( name, description, primary_role, secondary_role) VALUES ( 'write:program', 'Permission to write program', 'root', 'admin');
 
 -- Permissions for program-location

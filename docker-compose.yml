@@ -52,17 +52,19 @@ services:
       retries: 3
   
   localstack:
+    container_name: mainapi-localstack
     image: localstack/localstack:latest
     ports:
       - "4566:4566"
     environment:
-      - SERVICES=sqs
+      - SERVICES=sqs,s3
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
       - DEFAULT_REGION=us-west-1
       - SQS_ENDPOINT_STRATEGY=dynamic 
     volumes:
       - localstack-data:/var/lib/localstack
+      - ./scripts/sqs_init.sh:/etc/localstack/init/ready.d
     networks:
       - appnet
       - shared-localstack-network

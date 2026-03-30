@@ -67,3 +67,22 @@ func (s *AuthService) AddOrganizationInitSubscription(c context.Context, orgID *
 	}
 	return nil
 }
+
+func (s *AuthService) ValidateOrganizationInitSubscription(c context.Context, orgID *int64, customer *stripe.Customer, subscription *stripe.Subscription) error {
+	now := time.Now().UTC()
+	const (
+		Plan_id            = 1
+		Status             = "Trial validated"
+		SubscriptionStatus = "Status ok"
+	)
+	CurrentPeriodStart := now.Truncate(time.Second)
+	CurrentPeriodEnd := now.AddDate(0, 0, 15).Truncate(time.Second)
+	subscribeBasicPlan := `INSERT INTO stu_tracker.organization_subscription
+		(organization_id, plan_id, status, current_period_start, current_period_end, stripe_customer_id, stripe_subscription_id, subscription_status)
+		VALUES ($1,$2,$3,$4, $5, $6,$7,$8);`
+	_, err := s.db.ExecContext(c, subscribeBasicPlan, orgID, Plan_id, Status, CurrentPeriodStart, CurrentPeriodEnd, customer.ID, subscription.ID, SubscriptionStatus)
+	if err != nil {
+		return err
+	}
+	return nil
+}

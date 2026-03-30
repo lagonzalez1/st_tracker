@@ -3,7 +3,9 @@ package services
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"tracker/app/models"
 )
 
 func (s *AuthService) GetQuestionGenerationStatus(ctx context.Context, inputKey *string) (*string, []byte, error) {
@@ -53,18 +55,34 @@ func (s *AuthService) GetMaterialsGenerationStatus(ctx context.Context, inputKey
 	return &statusStr, &outputKeyStr, jsonOutput, nil
 }
 
-func (s *AuthService) GetStudentReportStatus(ctx context.Context, inputKey *string) (*string, *string, error) {
+func (s *AuthService) GetStudentReportStatus(ctx context.Context, inputKey *string) (*models.StudentReportResponse, error) {
 	if inputKey == nil {
-		return nil, nil, fmt.Errorf("missing paramater input key")
+		return nil, fmt.Errorf("input key missing")
 	}
-	var status *string
-	var outputKey *string
-	query := `SELECT status, s3_output_key FROM stu_tracker.Student_report WHERE input_key = $1;`
-	err := s.db.QueryRowContext(ctx, query, inputKey).Scan(&status, &outputKey)
+	var res models.StudentReportResponse
+	var rawReport []byte
+	query := `SELECT status, s3_output_key, json_report FROM stu_tracker.Student_report WHERE input_key = $1;`
+	// You must list the fields in the same order as your SELECT statement
+	err := s.db.QueryRowContext(ctx, query, inputKey).Scan(
+		&res.Status,
+		&res.OutputKey,
+		&rawReport,
+	)
 	if err != nil {
-		return nil, nil, err
+		if err == sql.ErrNoRows {
+			return nil, nil // Or a custom "Not Found" error
+		}
+		return nil, err
 	}
-	return status, outputKey, nil
+	if *res.Status == "DONE" && len(rawReport) > 0 {
+		var reportData models.StudentReportData
+		if err := json.Unmarshal(rawReport, &reportData); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal report: %w", err)
+		}
+		res.JsonReport = &reportData
+	}
+
+	return &res, nil
 }
 
 func (s *AuthService) GetOrganizationReportStatus(ctx context.Context, inputKey *string) (*string, *string, error) {

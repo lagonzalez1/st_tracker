@@ -684,12 +684,12 @@ type ServiceSession struct {
 }
 
 type StudentSessions struct {
-	ID              *int64 `json:"id"`
-	FirstName       string `json:"first_name"`
-	LastName        string `json:"last_name"`
-	MiddleName      string `json:"middle_name"`
-	SessionCount    *int64 `json:"session_count"`
-	AssessmentCount *int64 `json:"assessment_count"`
+	ID              *int64  `json:"id"`
+	FirstName       string  `json:"first_name"`
+	LastName        *string `json:"last_name"`
+	MiddleName      *string `json:"middle_name"`
+	SessionCount    *int64  `json:"session_count"`
+	AssessmentCount *int64  `json:"assessment_count"`
 }
 
 type RegisterStudentSession struct {

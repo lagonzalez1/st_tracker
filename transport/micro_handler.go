@@ -72,7 +72,7 @@ func (h *AuthHandler) MicroEventStartStudentReport(w http.ResponseWriter, r *htt
 		return
 	}
 
-	sqs, err := h.sqsHandler.SendMessageToQueue(ctx, h.config.SQS.DataReportsQueue, string(payload))
+	sqs, err := h.sqsHandler.SendMessageToQueue(ctx, h.config.SQS.StudentReportQueue, string(payload))
 	if err != nil {
 		fmt.Printf("Unable to send message to queue: %v\n", err)
 		http.Error(w, "Unable to send message to queue ", http.StatusInternalServerError)
@@ -105,23 +105,15 @@ func (h *AuthHandler) MicroGetStudentReport(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "missing paramaters", http.StatusInternalServerError)
 		return
 	}
-	status, outputKey, err := h.authService.GetStudentReportStatus(ctx, &inputKey)
+	res, err := h.authService.GetStudentReportStatus(ctx, &inputKey)
 	if err != nil {
-		http.Error(w, "error on GetStudentReportStatus", http.StatusInternalServerError)
+		fmt.Printf("Error on GetStudentReportStatus: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}
-	var report *string
-	if *status == "DONE" {
-		var key = "student_reports/" + *outputKey
-		report, err = h.authService.GetS3Object(ctx, key, "tracker-student-reports")
-		if err != nil {
-			http.Error(w, "Completed task, but unable to get s3 object", http.StatusInternalServerError)
-			return
-		}
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	payload := map[string]interface{}{"status": status, "report": report}
+	payload := map[string]interface{}{"status": res.Status, "report": res.JsonReport}
 	json.NewEncoder(w).Encode(payload)
 }
 

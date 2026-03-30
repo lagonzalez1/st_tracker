@@ -13,9 +13,11 @@ type Config struct {
 }
 
 type SQSConfig struct {
+	StudentReportQueue    string
 	DataReportsQueue      string
 	AssessmentGraderQueue string
 	GenerateContentQueue  string
+	SurveyAnalysisQueue   string
 }
 
 type PostGresConfig struct {

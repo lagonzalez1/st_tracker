@@ -257,7 +257,6 @@ CREATE TABLE stu_tracker.Sessions (
 
 ALTER TABLE stu_tracker.Sessions ADD end_time VARCHAR(10) DEFAULT NULL;
 
-
 CREATE TABLE stu_tracker.Session_students (
     id SERIAL PRIMARY KEY,
     session_id INT NOT NULL,
@@ -821,3 +820,10 @@ ALTER TABLE stu_tracker.District ADD active BOOLEAN DEFAULT TRUE;
 ALTER TABLE stu_tracker.District ADD archive BOOLEAN DEFAULT FALSE;
 ALTER TABLE stu_tracker.Generate_questions_task ADD json_output JSONB DEFAULT NULL;
 ALTER TABLE stu_tracker.Generate_materials_task ADD json_output JSONB DEFAULT NULL;
+
+
+---- PATCHES ----
+ALTER TABLE stu_tracker.Session_students ADD check_in BOOLEAN DEFAULT FALSE;
+ALTER TABLE stu_tracker.Session_students ADD check_out BOOLEAN DEFAULT FALSE;
+ALTER TABLE stu_tracker.Session_students ADD tutor_id INT DEFAULT NULL;
+ALTER TABLE stu_tracker.Programs ADD deligation_attendance BOOLEAN DEFAULT FALSE;

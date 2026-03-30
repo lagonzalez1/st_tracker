@@ -20,6 +20,32 @@ func New(sqs *sqs.Client) *SqsHandler {
 	return &SqsHandler{sqs: sqs}
 }
 
+func (s *SqsHandler) TagPayloadSurveyRequest(ctx context.Context, key string, payload *models.RequestSurveyPayload) ([]byte, error) {
+	// Check if context is cancelled
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context cancelled: %w", err)
+	}
+
+	if payload == nil {
+		return nil, fmt.Errorf("payload cannot be nil")
+	}
+
+	data := struct {
+		Task string                      `json:"task"`
+		Body models.RequestSurveyPayload `json:"body"`
+	}{
+		Task: key,
+		Body: *payload,
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	return jsonData, nil
+}
+
 func (s *SqsHandler) TagPayloadStudentReport(ctx context.Context, key string, payload *models.RequestStudentReport) ([]byte, error) {
 	// Check if context is cancelled
 	if err := ctx.Err(); err != nil {

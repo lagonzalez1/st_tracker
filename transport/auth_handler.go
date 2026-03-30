@@ -1603,6 +1603,7 @@ func (h *AuthHandler) CreateOrganization(w http.ResponseWriter, r *http.Request)
 		fmt.Printf("service error: %v\n", err)
 		return
 	}
+	// On development k8s this will not trigger unless connected to Stripe
 	if user.OrganizationId != nil {
 		const (
 			TRIAL      = 1
@@ -1620,7 +1621,7 @@ func (h *AuthHandler) CreateOrganization(w http.ResponseWriter, r *http.Request)
 			fmt.Printf("service error: %v\n", err)
 			return
 		}
-		subscription, err := services.CreateTrialSubscription(customer.ID, *stripeId, TRIAL_DAYS)
+		subscription, err := services.CreateTrialSubscription(customer.ID, stripeId, TRIAL_DAYS)
 		if err != nil {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			fmt.Printf("service error: %v\n", err)
@@ -6853,8 +6854,10 @@ func (h *AuthHandler) CreateSurveyResponse(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
 	}
+	var req models.RequestSurveyPayload
 
 	var models models.RegisterSurvey
+
 	if err := json.Unmarshal(body, &models); err != nil {
 		http.Error(w, "Invalid request data", http.StatusBadRequest)
 		fmt.Printf("Error decoding JSON: %v", err)
@@ -6865,12 +6868,24 @@ func (h *AuthHandler) CreateSurveyResponse(w http.ResponseWriter, r *http.Reques
 		http.Error(w, issue, http.StatusInternalServerError)
 		return
 	}
-	ok, err = h.authService.AddSentimentWorker(ctx, models.SessionID, &orgid)
+	req.OrganizationID = &orgid
+	req.SessionID = models.SessionID
+
+	payload, err := h.sqsHandler.TagPayloadSurveyRequest(ctx, "process_survey_response", &req)
 	if err != nil {
-		issue := fmt.Sprintf("Unable to create session: %v", err)
-		http.Error(w, issue, http.StatusInternalServerError)
+		fmt.Println(err)
+		http.Error(w, "Unable to tag request ", http.StatusInternalServerError)
 		return
 	}
+
+	sqs, err := h.sqsHandler.SendMessageToQueue(ctx, h.config.SQS.SurveyAnalysisQueue, string(payload))
+	if err != nil {
+		fmt.Printf("Unable to send message to queue: %v\n", err)
+		http.Error(w, "Unable to send message to queue ", http.StatusInternalServerError)
+		return
+	}
+	fmt.Print(sqs.ResultMetadata)
+
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")
 	resp := map[string]interface{}{"status": user, "sentiment_worker": ok}

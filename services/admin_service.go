@@ -1440,7 +1440,8 @@ func (s *AuthService) CheckUsage(ctx context.Context, orgID int, key string, loc
 	case "max_districts":
 		fmt.Printf("orgid: %d", orgID)
 		countQuery := `
-		SELECT COUNT(*) AS district_count FROM stu_tracker.district d
+		SELECT COALESCE(COUNT(*), 0) AS district_count 
+		FROM stu_tracker.district d
 		WHERE d.organization_id = $1;`
 		err := s.db.QueryRowContext(ctx, countQuery, orgID).Scan(&current)
 		if err != nil {
@@ -1450,7 +1451,7 @@ func (s *AuthService) CheckUsage(ctx context.Context, orgID int, key string, loc
 	case "max_students_per_location":
 		fmt.Printf("orgid: %d, location: %d", orgID, *locationID)
 		countQuery = `SELECT
-			COUNT(s.id) as student_count
+			COALESCE(COUNT(s.id),0) as student_count
 			FROM stu_tracker.Locations l
 			JOIN stu_tracker.Students s
 			ON s.location_id = l.id
@@ -1463,7 +1464,7 @@ func (s *AuthService) CheckUsage(ctx context.Context, orgID int, key string, loc
 	case "max_locations_per_district":
 		countQuery = `
 		SELECT 
-			COUNT(l.id) as location_count
+			COALESCE(COUNT(l.id),0) as location_count
 			FROM stu_tracker.Locations l
 			JOIN stu_tracker.District d
 			ON d.id = l.district_id
@@ -1475,7 +1476,7 @@ func (s *AuthService) CheckUsage(ctx context.Context, orgID int, key string, loc
 		return current, true, nil
 	case "max_admin_per_district":
 		countQuery = `SELECT
-			COUNT(t.id) as admin_count
+			COALESCE(COUNT(t.id), 0) as admin_count
 			FROM stu_tracker.District d
 			JOIN stu_tracker.Admin_staff t
 			ON d.id = t.district_id
@@ -1487,7 +1488,7 @@ func (s *AuthService) CheckUsage(ctx context.Context, orgID int, key string, loc
 		return current, true, nil
 	case "max_tutors_per_location":
 		countQuery = `SELECT
-			COUNT(t.id) as tutor_count
+			COALESCE(COUNT(t.id), 0) as tutor_count
 			FROM stu_tracker.Locations l
 			JOIN stu_tracker.Tutors t
 			ON t.location_id = l.id

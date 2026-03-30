@@ -420,7 +420,7 @@ func CheckPlanEntitlements(c context.Context, orgid int64, key string, locationI
 		if key == *value.ActionKey {
 			usage, exist, err := s.CheckUsage(c, int(orgid), key, locationID, districtID)
 			if err != nil || !exist {
-				return false, fmt.Errorf("unable to check usage.")
+				return false, err
 			}
 			fmt.Printf("[MIDDLEWARE] Value of check usage: %d", usage)
 			fmt.Printf("[MIDDLEWARE] Value of check usage: %d", *value.LimitValue)

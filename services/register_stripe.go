@@ -132,12 +132,12 @@ func (s *AuthService) GetSubscriptionById(spid string) (*models.SubscriptionPlan
 	return &plan, nil
 }
 
-func (s *AuthService) GetStripePriceId(c context.Context, id int) (*string, error) {
+func (s *AuthService) GetStripePriceId(c context.Context, id int) (string, error) {
 	q := `SELECT stripe_price_id FROM stu_tracker.subscription_plan WHERE id = $1;`
-	var stripeId *string
+	var stripeId string
 	err := s.db.QueryRowContext(c, q, id).Scan(&stripeId)
 	if err != nil {
-		return nil, err
+		return stripeId, err
 	}
 	return stripeId, nil
 }

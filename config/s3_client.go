@@ -3,7 +3,9 @@ package config
 import (
 	"context"
 	"fmt"
+	"os"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
@@ -15,6 +17,12 @@ func ConnectS3() (*s3.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
-	s3Client := s3.NewFromConfig(cfg)
-	return s3Client, nil
+	value, exist := os.LookupEnv("APP_ENV")
+	if exist && value == "dev" {
+		client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+			o.BaseEndpoint = aws.String("http://localstack:4566")
+		})
+		return client, nil
+	}
+	return s3.NewFromConfig(cfg), nil
 }
